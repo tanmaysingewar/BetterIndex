@@ -4,6 +4,9 @@ import InputBox from '@/components/InputArea/InputBox'
 import Header from '@/components/Header';
 import Spinner from '@/components/Spinner';
 import MessageRenderer from '@/components/MessageRenderer'; // Import our new component
+import { auth } from '@/lib/auth';
+import { authClient } from '@/lib/auth-client';
+
 
 interface Message {
     role: "user" | "assistant";
@@ -11,6 +14,7 @@ interface Message {
 }
 
 export default function chat() {
+    const data = authClient.useSession()
     const [chatInitiated, setChatInitiated] = useState(false)
     const [input, setInput] = useState<string>("")
     const [isGenerating, setIsGenerating] = useState(false);
