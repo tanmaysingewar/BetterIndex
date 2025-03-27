@@ -86,7 +86,7 @@ export default function SignIn() {
                 }
               }}
             >
-              Sign in with Anninomious
+              Continue as Guest
             </Button>
           </div>
         </div>

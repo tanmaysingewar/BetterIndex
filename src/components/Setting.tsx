@@ -1,7 +1,7 @@
 // app/routes/settings.tsx
 "use client";
 import { useState } from "react";
-import { Database, Highlighter, LogOutIcon } from "lucide-react";
+import { Database, Highlighter, LogOutIcon, UserRound } from "lucide-react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,7 @@ export default function Settings({ user }) {
       fetchOptions: {
         onSuccess: () => {
           router.push("/"); // redirect to login page
+          return location.reload();
         },
       },
     });
@@ -30,17 +31,20 @@ export default function Settings({ user }) {
         <p className="text-xl font-normal ml-3 mt-3">Settings</p>
         <div className="flex flex-row">
           <div className="mt-5 min-w-44 gap-2 flex flex-col">
-            {/* <div className={`flex gap-2 text-sm text-left font-light cursor-pointer rounded-xl px-4 py-3 text-neutral-400 ${selected === 'Account' ? 'bg-neutral-700 dark:bg-[#28292b] text-white' : 'hover:bg-neutral-700 dark:hover:bg-[#28292b] hover:text-white'}`} onClick={() => setSelected('Account')}>
-                            <UserRound strokeWidth={1.2} className='h-5 w-5' />
-                            <p className='font-light'>Account</p>
-                        </div> */}
             <div
+              className={`flex gap-2 text-sm text-left font-light cursor-pointer rounded-xl px-4 py-3 text-neutral-400 ${selected === "Account" ? "bg-neutral-700 dark:bg-[#28292b] text-white" : "hover:bg-neutral-700 dark:hover:bg-[#28292b] hover:text-white"}`}
+              onClick={() => setSelected("Account")}
+            >
+              <UserRound strokeWidth={1.2} className="h-5 w-5" />
+              <p className="font-light">Account</p>
+            </div>
+            {/* <div
               className={`flex gap-2 text-sm text-left font-light cursor-pointer rounded-xl px-4 py-3 text-neutral-400 ${selected === "Appearance" ? "bg-neutral-700 dark:bg-[#28292b] text-white" : "hover:bg-neutral-700 dark:hover:bg-[#28292b] hover:text-white"}`}
               onClick={() => setSelected("Appearance")}
             >
               <Highlighter strokeWidth={1.2} className="h-5 w-5" />
               <p className="font-light">Highlighter</p>
-            </div>
+            </div> */}
             <div
               className={`flex gap-2 text-sm text-left font-light hover:bg-neutral-700 dark:hover:bg-[#28292b] cursor-pointer rounded-xl px-4 py-3 text-neutral-400 ${selected === "Data" ? "bg-neutral-700 dark:bg-[#28292b] text-white" : "hover:bg-neutral-700 dark:hover:bg-[#28292b] hover:text-white"}`}
               onClick={() => setSelected("Data")}
