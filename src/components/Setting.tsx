@@ -1,12 +1,13 @@
 // app/routes/settings.tsx
 "use client";
 import { useState } from "react";
-import { Database, Highlighter, LogOutIcon, UserRound } from "lucide-react";
+import { Database, LogOutIcon, UserRound } from "lucide-react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { Button } from "./ui/button";
 import Image from "next/image";
+import { Switch } from "./ui/switch";
 
 export default function Settings({ user }) {
   const router = useRouter();
@@ -53,29 +54,102 @@ export default function Settings({ user }) {
               <p className="font-light">Data</p>
             </div>
           </div>
-          <div>
-            <div className="mt-5 flex flex-row items-center mx-5 justify-center">
-              <Avatar className="w-12 h-12 rounded-full">
-                <Image
-                  src={user?.image || ""}
-                  alt=""
-                  className="w-full h-full rounded-full"
-                  width={100}
-                  height={100}
-                />
-                <AvatarFallback>CN</AvatarFallback>
-              </Avatar>
+          {selected === "Account" && (
+            <div className="mx-5">
+              <div className="mt-5 flex flex-row items-center justify-center">
+                <Avatar className="w-12 h-12 rounded-full">
+                  <Image
+                    src={user?.image || ""}
+                    alt=""
+                    className="w-full h-full rounded-full"
+                    width={100}
+                    height={100}
+                  />
+                  <AvatarFallback>CN</AvatarFallback>
+                </Avatar>
 
-              <div className="ml-3 justify-center">
-                <p className="text-left">{user?.name}</p>
-                <p className="text-xs mt-1">{user?.email}</p>
+                <div className="ml-3 justify-center">
+                  <p className="text-left">{user?.name}</p>
+                  <p className="text-xs mt-1">{user?.email}</p>
+                </div>
+              </div>
+              <Button className="mt-10" onClick={() => handleLogout()}>
+                <LogOutIcon strokeWidth={1.2} className="h-5 w-5" />
+                <p className="font-light">Logout</p>
+              </Button>
+            </div>
+          )}
+          {selected === "Data" && (
+            <div className="space-y-4">
+              <div className="flex flex-row mx-5">
+                <div>
+                  <p className="text-sm font-bold">Improve the Model</p>
+                  <p className="text-sm mt-2">
+                    By allowing your data to be used for training our models,
+                    you help enhance your own experience and improve the quality
+                    of the model for all users. We take measures to ensure your
+                    privacy is protected throughout the process.
+                  </p>
+                </div>
+                <div className="flex justify-center items-center mx-10">
+                  <Switch id="airplane-mode" defaultChecked />
+                  {/* Checking can be accessed by the checked={true}*/}
+                </div>
+              </div>
+              <div className="flex flex-row mx-5">
+                <div>
+                  <p className="text-sm font-bold">Export Account Data</p>
+                  <p className="text-sm mt-2">
+                    You can download all data associated with your account
+                    below. This data includes everything stored in all xAI
+                    products.
+                  </p>
+                </div>
+                <div className="flex justify-center items-center mx-5">
+                  <Button
+                    variant="secondary"
+                    className="rounded-4xl border border-neutral-500"
+                  >
+                    Export
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-row mx-5">
+                <div>
+                  <p className="text-sm font-bold">Delete All Conversations</p>
+                  <p className="text-sm mt-2">
+                    Permanently remove all records of your conversations and any
+                    associated logs from servers.
+                  </p>
+                </div>
+                <div className="flex justify-center items-center mx-5">
+                  <Button
+                    variant="secondary"
+                    className="rounded-4xl border border-neutral-400"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-row mx-5">
+                <div>
+                  <p className="text-sm font-bold">Delete Account</p>
+                  <p className="text-sm mt-2">
+                    Permanently delete your account and associated data from the
+                    xAI platform. Deletions are immediate and cannot be undone.
+                  </p>
+                </div>
+                <div className="flex justify-center items-center mx-5">
+                  <Button
+                    variant="secondary"
+                    className="rounded-4xl border border-red-400 text-red-400"
+                  >
+                    Delete
+                  </Button>
+                </div>
               </div>
             </div>
-            <Button className="mt-10" onClick={() => handleLogout()}>
-              <LogOutIcon strokeWidth={1.2} className="h-5 w-5" />
-              <p className="font-light">Logout</p>
-            </Button>
-          </div>
+          )}
         </div>
       </div>
     </div>
