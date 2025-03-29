@@ -114,7 +114,7 @@ export default function ChatInterface({ session }: any) {
   return (
     <div className="flex flex-col h-screen items-center justify-between">
       <div className="w-full flex flex-col items-center">
-        <Header user={user} setUser={setUser} />
+        <Header session={session} />
         <div className="mx-auto text-left">
           <div className="max-w-[790px] mx-auto p-4 mt-12 md:mt-0 mr-3">
             {messages.map((message, index) => (
