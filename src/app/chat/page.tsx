@@ -10,5 +10,5 @@ export default async function Chat() {
   if (!session) {
     return redirect("/");
   }
-  return <ChatInterface />;
+  return <ChatInterface session={session.user} />;
 }

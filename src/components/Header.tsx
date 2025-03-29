@@ -30,35 +30,22 @@ import { authClient } from "@/lib/auth-client";
 import Image from "next/image";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 
-export default function Header() {
+export default function Header({ session }: any) {
   const [openSettings, setOpenSettings] = useState(false);
   // const { resolvedTheme, mounted } = useAppTheme();
-  const [user, setUser] = useState({});
-  const router = useRouter();
+  // const [user, setUser] = useState(session);
+  // const router = useRouter();
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await authClient.getSession();
-        setUser(user?.data?.user);
-        console.log(user?.data?.user);
-      } catch (error) {
-        console.error("Error fetching user:", error);
-      }
-    };
-    fetchUser();
-  }, []);
-
-  // console.log(resolvedTheme);
+  console.log(session);
+  // console.log(user);
 
   const handleLogout = async () => {
     await authClient.signOut({
       fetchOptions: {
-        onSuccess: () => {
-          router.push("/"); // redirect to login page
-          return location.reload();
+        onSuccess: async () => {
+          console.log("Logged out");
         },
       },
     });
@@ -94,7 +81,7 @@ export default function Header() {
             <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
-            {user && (
+            {!session?.isAnonymous && (
               <Dialog>
                 <DialogTrigger>
                   <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
@@ -134,7 +121,7 @@ export default function Header() {
                 </DialogContent>
               </Dialog>
             )}
-            {user && (
+            {!session?.isAnonymous && (
               <button
                 className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full"
                 onClick={() => setOpenSettings(true)}
@@ -145,7 +132,8 @@ export default function Header() {
                 />
               </button>
             )}
-            {!user && SignInComponent()}
+            {!session || (session?.isAnonymous && SignInComponent())}
+            {/* {!session && SignInComponent()} */}
             {/* <div className='flex-row px-3 justify-center items-center flex'></div> */}
           </div>
           <div
@@ -155,7 +143,7 @@ export default function Header() {
             <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
-            {user && (
+            {session && (
               <Drawer>
                 <DrawerTrigger>
                   <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
@@ -202,8 +190,8 @@ export default function Header() {
                 </DrawerContent>
               </Drawer>
             )}
-            {!user && SignInComponent()}
-            {user && (
+            {!session && SignInComponent()}
+            {session && (
               <Drawer>
                 <DrawerTrigger>
                   <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
@@ -224,7 +212,7 @@ export default function Header() {
                     <div className="mt-5 flex flex-row items-center mx-5 justify-center">
                       <Avatar className="w-12 h-12 rounded-full">
                         <Image
-                          src={user?.image || ""}
+                          src={session?.image || ""}
                           alt=""
                           className="w-full h-full rounded-full"
                           width={100}
@@ -234,8 +222,8 @@ export default function Header() {
                       </Avatar>
 
                       <div className="ml-3 justify-center">
-                        <p className="text-left">{user?.name}</p>
-                        <p className="text-xs mt-1">{user?.email}</p>
+                        <p className="text-left">{session?.name}</p>
+                        <p className="text-xs mt-1">{session?.email}</p>
                       </div>
                     </div>
                     <Button className="mt-10" onClick={() => handleLogout()}>
@@ -254,11 +242,11 @@ export default function Header() {
             )}
           </div>
 
-          {user && (
+          {session && (
             <Dialog open={openSettings} onOpenChange={setOpenSettings}>
               <DialogContent className="bg-[#1d1e20] h-[60vh] w-[53vw]">
                 <DialogTitle className="sr-only">Settings</DialogTitle>
-                <Settings user={user} />
+                <Settings user={session} />
               </DialogContent>
             </Dialog>
           )}

@@ -12,13 +12,13 @@ interface Message {
   content: string;
 }
 
-export default function ChatInterface() {
-  // const data = authClient.useSession();
+export default function ChatInterface({ session }: any) {
   const [chatInitiated, setChatInitiated] = useState<boolean>(false);
   const [input, setInput] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [showHighlights, setShowHighlights] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [user, setUser] = useState<any>(null);
 
   // Add a ref for the messages container
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -26,7 +26,8 @@ export default function ChatInterface() {
   // Initial load scroll - no smooth behavior
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-  }, []);
+    setUser(session);
+  }, [session]);
 
   // Scroll to bottom on mount and when messages change
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function ChatInterface() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, previous_conversations: messages }),
       });
 
       if (!response.ok) {
@@ -113,7 +114,7 @@ export default function ChatInterface() {
   return (
     <div className="flex flex-col h-screen items-center justify-between">
       <div className="w-full flex flex-col items-center">
-        <Header />
+        <Header user={user} setUser={setUser} />
         <div className="mx-auto text-left">
           <div className="max-w-[790px] mx-auto p-4 mt-12 md:mt-0 mr-3">
             {messages.map((message, index) => (
