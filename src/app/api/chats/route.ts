@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { headers as nextHeaders } from "next/headers";
 import { db } from "@/database/db";
 import { auth } from "@/lib/auth";
-import { eq, desc, count } from "drizzle-orm";
+import { eq, desc, count, and, ilike, SQL } from "drizzle-orm"; // Import and, ilike, SQL
 import { chat } from "@/database/schema/auth-schema";
 
 // Default values for pagination
@@ -23,11 +23,15 @@ export async function GET(req: Request) {
     }
     const userId = sessionData.user.id;
 
-    // --- Get Pagination Parameters from URL ---
+    // --- Get Parameters from URL ---
     const { searchParams } = new URL(req.url);
 
+    // Pagination
     let page = parseInt(searchParams.get("page") || `${DEFAULT_PAGE}`, 10);
     let limit = parseInt(searchParams.get("limit") || `${DEFAULT_LIMIT}`, 10);
+
+    // Search
+    const searchTerm = searchParams.get("search") || ""; // Get search term
 
     // Validate pagination parameters
     if (isNaN(page) || page < 1) {
@@ -43,16 +47,28 @@ export async function GET(req: Request) {
 
     const offset = (page - 1) * limit;
 
-    // --- Fetch Total Count of User's Chats ---
+    // --- Build Base Where Condition ---
+    const baseWhereCondition: SQL = eq(chat.userId, userId);
+
+    // --- Add Search Condition if searchTerm exists ---
+    let finalWhereCondition: SQL | undefined = baseWhereCondition;
+    if (searchTerm) {
+      // Use ilike for case-insensitive search (adjust if your DB doesn't support it)
+      // The `%` wildcards match any sequence of characters
+      const searchCondition: SQL = ilike(chat.title, `%${searchTerm}%`);
+      finalWhereCondition = and(baseWhereCondition, searchCondition);
+    }
+
+    // --- Fetch Total Count of User's Chats (with search filter) ---
     const totalResult = await db
-      .select({ value: count() }) // Use count() aggregation
+      .select({ value: count() })
       .from(chat)
-      .where(eq(chat.userId, userId)); // Filter by the authenticated user
+      .where(finalWhereCondition); // Apply combined filter
 
     const totalChats = totalResult[0]?.value ?? 0;
     const totalPages = Math.ceil(totalChats / limit);
 
-    // --- Fetch Paginated Chats ---
+    // --- Fetch Paginated Chats (with search filter) ---
     const userChats = await db
       .select({
         id: chat.id,
@@ -60,10 +76,10 @@ export async function GET(req: Request) {
         createdAt: chat.createdAt,
       })
       .from(chat)
-      .where(eq(chat.userId, userId)) // Filter by the authenticated user
-      .orderBy(desc(chat.createdAt)) // Order by creation date, newest first
-      .limit(limit) // Apply limit for pagination
-      .offset(offset); // Apply offset for pagination
+      .where(finalWhereCondition) // Apply combined filter
+      .orderBy(desc(chat.createdAt))
+      .limit(limit)
+      .offset(offset);
 
     // --- Structure and Return Response ---
     const responsePayload = {
@@ -73,6 +89,7 @@ export async function GET(req: Request) {
         pageSize: limit,
         totalChats: totalChats,
         totalPages: totalPages,
+        searchTerm: searchTerm || null, // Optionally include search term in response
       },
     };
 
