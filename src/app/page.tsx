@@ -1,4 +1,4 @@
-import MainPage from "@/components/MainPage";
+import MainPage from "@/screens/MainPage";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 

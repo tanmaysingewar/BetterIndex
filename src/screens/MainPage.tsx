@@ -4,14 +4,21 @@ import InputBox from "@/components/InputArea/InputBox";
 
 import Header from "@/components/Header";
 import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
+import { useChatStore } from "@/store/chatStore";
+import { nanoid } from "nanoid";
 
 export default function MainPage({ session }: any) {
   const [input, setInput] = useState<string>("");
   const [showHighlights, setShowHighlights] = useState(true);
   const [user, setUser] = useState<any>(session?.user);
+  const router = useRouter();
+  const setInitialMessage = useChatStore((state) => state.setInitialMessage);
 
   const handleSend = () => {
-    console.log(input);
+    setInitialMessage(input); // Set message in the store
+    const newChatId = nanoid();
+    return router.push(`/chat/${newChatId}`);
   };
 
   useEffect(() => {

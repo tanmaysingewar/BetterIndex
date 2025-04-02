@@ -30,13 +30,14 @@ import { authClient } from "@/lib/auth-client";
 import Image from "next/image";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-// import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import ChatHistory from "./ChatHistory";
 
 export default function Header({ session }: any) {
   const [openSettings, setOpenSettings] = useState(false);
   // const { resolvedTheme, mounted } = useAppTheme();
   // const [user, setUser] = useState(session);
-  // const router = useRouter();
+  const router = useRouter();
 
   console.log(session);
   // console.log(user);
@@ -78,7 +79,16 @@ export default function Header({ session }: any) {
           className="flex flex-row px-4 justify-center items-center"
         >
           <div className="flex-row px-4 pt-2 justify-center items-center hidden md:flex">
-            <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
+            <div
+              className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full"
+              onClick={() => {
+                // check if page is already on home page
+                if (location.pathname === "/") {
+                  return;
+                }
+                router.push("/");
+              }}
+            >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
             {!session?.isAnonymous && (
@@ -93,31 +103,7 @@ export default function Header({ session }: any) {
                 </DialogTrigger>
                 <DialogContent className="bg-[#1d1e20] rounded-lg  w-[53vw]">
                   <DialogTitle className="sr-only"></DialogTitle>
-                  <div className="flex flex-col justify-start">
-                    <Input
-                      placeholder="Search"
-                      style={{ fontSize: "16px" }}
-                      className="w-full border-0 ring-0 top-0 h-[60px] border-b-2 rounded-none"
-                    />
-                    <div className="p-4 h-[60vh] overflow-y-auto">
-                      <p className="font-light text-[15px] px-3 pb-5">Today</p>
-                      <div className="gap-1 flex flex-col">
-                        {Array(20)
-                          .fill("Hello")
-                          .map((item, index) => (
-                            <div
-                              key={index}
-                              className="hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-xl p-3"
-                            >
-                              <p className="text-[16px]">{item}</p>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                    <div className="border-t-2 h-[60px]">
-                      <p></p>
-                    </div>
-                  </div>
+                  <ChatHistory session={session} />
                 </DialogContent>
               </Dialog>
             )}
