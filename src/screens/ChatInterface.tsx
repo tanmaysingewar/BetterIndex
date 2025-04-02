@@ -175,7 +175,9 @@ export default function ChatPage({ session }: any) {
 
       fetchMessagesFromServer(currentChatId);
     }
-  }, [currentChatId]); // Depend only on currentChatId
+  }, [currentChatId]);
+  // Depend only on currentChatId
+  // !Do not add the and other dependencies here
 
   // Effect 3: Scroll to bottom
   useEffect(() => {
@@ -271,7 +273,7 @@ export default function ChatPage({ session }: any) {
             const errorData = await response.json();
             errorMsg = errorData.error || errorMsg;
           } catch (e) {
-            /* ignore */
+            console.error("Failed to parse error response:", e);
           }
           // Revert optimistic update on error
           setMessages(messages); // Revert to state *before* optimistic update
