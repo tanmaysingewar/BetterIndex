@@ -228,6 +228,9 @@ export default function ChatHistory() {
 
   const handleChatClick = (chatId: string) => {
     console.log("Navigating to chat:", chatId);
+    if (location.pathname === `/chat/${chatId}`) {
+      return;
+    }
     router.push(`/chat/${chatId}`);
   };
 
@@ -295,7 +298,7 @@ export default function ChatHistory() {
             {chats.map((chat) => (
               <div
                 key={chat.id}
-                className="hover:bg-neutral-200 dark:hover:bg-neutral-700 cursor-pointer rounded-lg p-3 transition-colors duration-150"
+                className={`hover:bg-neutral-200 dark:hover:bg-neutral-800 cursor-pointer rounded-lg p-3 transition-colors duration-150 ${location.pathname.includes(chat.id) ? "bg-neutral-100 dark:bg-neutral-700/80" : ""}`}
                 onClick={() => handleChatClick(chat.id)}
                 role="button"
                 tabIndex={0}
