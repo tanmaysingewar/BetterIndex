@@ -24,7 +24,7 @@ export default function InputBox({
   return (
     <div>
       {/* <p>{input}</p> */}
-      <div className="max-w-3xl md:mx-auto text-base font-sans lg:px-0 dark:bg-[#1d1e20] md:pb-4 pb-3 w-screen px-2 rounded-t-3xl">
+      <div className="max-w-3xl md:mx-auto text-base font-sans lg:px-0 dark:bg-[#1d1e20] md:pb-4 pb-2 w-screen md:rounded-t-3xl px-2">
         <div className="flex flex-col items-end rounded-3xl dark:bg-[#303335] bg-neutral-100 p-2 w-full">
           <TextInput
             input={input}

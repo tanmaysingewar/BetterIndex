@@ -33,7 +33,7 @@ import { Input } from "./ui/input";
 import { useRouter } from "next/navigation";
 import ChatHistory from "./ChatHistory";
 
-export default function Header({ session }: any) {
+export default function Header({ session, laningPage }: any) {
   const [openSettings, setOpenSettings] = useState(false);
   // const { resolvedTheme, mounted } = useAppTheme();
   // const [user, setUser] = useState(session);
@@ -70,7 +70,9 @@ export default function Header({ session }: any) {
 
   return (
     <div className="w-full">
-      <div className="flex flex-row items-center justify-between w-full top-0 fixed max-w-full bg-[#1d1e20] md:bg-transparent shadow-lg shadow-neutral-800 dark:shadow-[#1d1e20] md:shadow-none">
+      <div
+        className={`flex flex-row items-center justify-between w-full max-w-full bg-[#1d1e20] md:bg-transparent shadow-lg shadow-neutral-800 dark:shadow-[#1d1e20] md:shadow-none md:fixed top-0 ${laningPage ? "fixed top-0" : ""}`}
+      >
         <div>
           {/* <h1 className='text-3xl font-bold text-white ml-2'>Logo</h1> */}
         </div>
@@ -103,7 +105,7 @@ export default function Header({ session }: any) {
                 </DialogTrigger>
                 <DialogContent className="bg-[#1d1e20] rounded-lg  w-[53vw]">
                   <DialogTitle className="sr-only"></DialogTitle>
-                  <ChatHistory session={session} />
+                  <ChatHistory session={session} max_chats={10} />
                 </DialogContent>
               </Dialog>
             )}
@@ -126,10 +128,19 @@ export default function Header({ session }: any) {
             id={"mobile-menu"}
             className="flex-row pt-2 justify-center items-center flex md:hidden"
           >
-            <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
+            <div
+              className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full"
+              onClick={() => {
+                // check if page is already on home page
+                if (location.pathname === "/") {
+                  return;
+                }
+                router.push("/");
+              }}
+            >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
-            {session && (
+            {!session?.isAnonymous && (
               <Drawer>
                 <DrawerTrigger>
                   <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
@@ -140,35 +151,8 @@ export default function Header({ session }: any) {
                   </div>
                 </DrawerTrigger>
                 <DrawerContent className="w-full bg-[#1d1e20] rounded-t-2xl max-w-2xl ">
-                  {/* <DrawerHeader>
-                    <DrawerTitle></DrawerTitle>
-                    <DrawerDescription></DrawerDescription>
-                  </DrawerHeader> */}
-                  <div className="flex flex-col justify-start">
-                    <Input
-                      placeholder="Search"
-                      style={{ fontSize: "16px" }}
-                      className="w-full border-0 ring-0 top-0 h-[60px] border-b-2 rounded-none"
-                    />
-                    <div className="p-4 h-[60vh] overflow-y-auto">
-                      <p className="font-light text-[15px] px-3 pb-5">Today</p>
-                      <div className="gap-1 flex flex-col">
-                        {Array(20)
-                          .fill("Hello")
-                          .map((item, index) => (
-                            <div
-                              key={index}
-                              className="hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-xl p-3"
-                            >
-                              <p className="text-[16px]">{item}</p>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                    {/* <div className="border-t-2 h-[60px]">
-                      <p></p>
-                    </div> */}
-                  </div>
+                  <DrawerTitle></DrawerTitle>
+                  <ChatHistory session={session} max_chats={7} />
                   {/* <DrawerFooter>
                     <DrawerClose>
                     </DrawerClose>
@@ -176,8 +160,8 @@ export default function Header({ session }: any) {
                 </DrawerContent>
               </Drawer>
             )}
-            {!session && SignInComponent()}
-            {session && (
+            {!session || (session?.isAnonymous && SignInComponent())}
+            {!session?.isAnonymous && (
               <Drawer>
                 <DrawerTrigger>
                   <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
@@ -228,7 +212,7 @@ export default function Header({ session }: any) {
             )}
           </div>
 
-          {session && (
+          {!session?.isAnonymous && (
             <Dialog open={openSettings} onOpenChange={setOpenSettings}>
               <DialogContent className="bg-[#1d1e20] h-[60vh] w-[53vw]">
                 <DialogTitle className="sr-only">Settings</DialogTitle>

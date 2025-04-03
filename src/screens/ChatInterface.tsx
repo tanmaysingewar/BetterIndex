@@ -418,59 +418,106 @@ export default function ChatPage({ session }: any) {
     handleSendMessage,
   ]);
 
+  const inputBoxHeight = 58; // From your InputBox prop
+
   return (
-    <div className="flex flex-col h-screen items-center justify-between">
-      <div className="w-full flex flex-col items-center">
-        <Header session={session} />
-        <div className="mx-auto text-left">
-          <div className="max-w-[790px] p-4 mt-12 md:mt-0 mr-3 flex flex-col w-svh">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`mb-2 ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
-                style={{
-                  minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-170px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-220px + 100vh)" : "auto"}`,
-                }}
-              >
-                <div
-                  className={`p-3 rounded-3xl w-fit rounded-br-lg ${
-                    message.role === "user"
-                      ? "dark:bg-[#2d2e30] text-white ml-auto"
-                      : "bg-transparent dark:text-white mr-auto"
-                  }`}
-                >
-                  {message.content === "loading..." ? (
-                    <Spinner />
-                  ) : message.role === "assistant" ? (
-                    <div className="markdown-content">
-                      {/* Use our new component here */}
-                      <MessageRenderer
-                        content={message.content}
-                        showHighlights={showHighlights}
-                      />
-                      {/* {message.content} */}
-                    </div>
-                  ) : (
-                    <p>{message.content}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-            <div className="mb-[120px]" ref={messagesEndRef} />
-          </div>
+    // 1. Main container: Full height, flex column
+    <div className="flex flex-col h-full">
+      {" "}
+      {/* Use h-screen for fixed viewport height */}
+      {/* 2. Header: Takes its natural height */}
+      <Header session={session} />
+      {/* 3. Messages container: Grows to fill space, allows scrolling */}
+      <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+        <div className="p-4 max-w-[750px] mx-auto">
+          {messages.map((message, index) => (
+            <RenderMessageOnScreen
+              key={index}
+              message={message}
+              index={index}
+              messages={messages}
+              chatInitiated={chatInitiated}
+            />
+          ))}
+          {/* Ref for scrolling, inside the scrollable area */}
+          <div ref={messagesEndRef} />
         </div>
       </div>
-      <div className="flex flex-col bottom-0 w-full fixed max-w-3xl">
-        <InputBox
-          height={58}
-          input={input}
-          setInput={setInput}
-          onSend={handleSendMessage}
-          disabled={isGenerating}
-          showHighlights={showHighlights}
-          setShowHighlights={setShowHighlights}
-        />
-      </div>
+      {/* 4. InputBox container: Takes its natural height */}
+      {/* No extra wrapper needed unless for specific styling/positioning that flex doesn't handle */}
+      {/* Removed the extra wrapper divs around InputBox as they weren't strictly needed for this layout */}
+      <InputBox
+        height={inputBoxHeight} // Pass the height if needed by InputBox itself
+        input={input}
+        setInput={setInput}
+        onSend={handleSendMessage}
+        disabled={isGenerating}
+        showHighlights={showHighlights}
+        setShowHighlights={setShowHighlights}
+      />
     </div>
   );
 }
+
+const RenderMessageOnScreen = ({ message, index, messages, chatInitiated }) => {
+  return (
+    <>
+      <div
+        id="desktop"
+        className={`mb-2 hidden md:block ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
+        style={{
+          minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-170px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-230px + 100vh)" : "auto"}`,
+        }}
+      >
+        <div
+          className={`p-3 rounded-3xl w-fit ${
+            message.role === "user"
+              ? "dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto"
+              : "bg-transparent dark:text-white rounded-bl-lg mr-auto"
+          }`}
+        >
+          {message.content === "loading..." ? (
+            <Spinner />
+          ) : message.role === "assistant" ? (
+            <div className="markdown-content">
+              <MessageRenderer
+                content={message.content}
+                showHighlights={true}
+              />
+            </div>
+          ) : (
+            <p>{message.content}</p>
+          )}
+        </div>
+      </div>
+      <div
+        id="mobile"
+        className={`mb-2 block md:hidden ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
+        style={{
+          minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-314px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-370px + 100vh)" : "auto"}`,
+        }}
+      >
+        <div
+          className={`p-3 rounded-3xl w-fit ${
+            message.role === "user"
+              ? "dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto"
+              : "bg-transparent dark:text-white rounded-bl-lg mr-auto"
+          }`}
+        >
+          {message.content === "loading..." ? (
+            <Spinner />
+          ) : message.role === "assistant" ? (
+            <div className="markdown-content">
+              <MessageRenderer
+                content={message.content}
+                showHighlights={true}
+              />
+            </div>
+          ) : (
+            <p>{message.content}</p>
+          )}
+        </div>
+      </div>
+    </>
+  );
+};

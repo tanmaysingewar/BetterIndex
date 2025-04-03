@@ -90,7 +90,7 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 // --- Component ---
-export default function ChatHistory() {
+export default function ChatHistory({ max_chats }) {
   // Load cache *inside* the component to get the latest on each mount
   // We use useRef to store it so it doesn't trigger re-renders if cache changes
   // between renders but before the effect runs.
@@ -110,7 +110,7 @@ export default function ChatHistory() {
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   const router = useRouter();
-  const limit = 10;
+  const limit = max_chats;
   // Ref to track if it's the very first fetch cycle of this component instance
   const isInitialFetchCycle = useRef(true);
 
@@ -266,7 +266,7 @@ export default function ChatHistory() {
     !isLoading && !error && chats.length === 0 && !debouncedSearchTerm;
 
   return (
-    <div className="flex flex-col h-full border-r min-h-[652px]">
+    <div className="flex flex-col h-full border-r md:min-h-[652px]">
       {/* Search Input */}
       <div className="flex-shrink-0">
         <Input

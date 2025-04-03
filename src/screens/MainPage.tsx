@@ -47,10 +47,12 @@ export default function MainPage({ session }: any) {
 
   return (
     <div className="flex flex-col h-screen items-center justify-center">
-      <Header session={user} />
+      <Header session={user} laningPage={true} />
       <div className="text-center">
         {/* <p className="text-2xl font-light">Good morning! How can I help you today?</p> */}
-        <p className="text-2xl font-light">Welcome to Horizora</p>
+        <p className="text-2xl font-light -mt-20 md:mt-0">
+          Welcome to Horizora
+        </p>
         <p className="text-2xl font-light text-neutral-400">
           How can I help you today?
         </p>
