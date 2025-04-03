@@ -46,13 +46,13 @@ export default function Settings({ user }) {
               <Highlighter strokeWidth={1.2} className="h-5 w-5" />
               <p className="font-light">Highlighter</p>
             </div> */}
-            <div
+            {/* <div
               className={`flex gap-2 text-sm text-left font-light hover:bg-neutral-700 dark:hover:bg-[#28292b] cursor-pointer rounded-xl px-4 py-3 text-neutral-400 ${selected === "Data" ? "bg-neutral-700 dark:bg-[#28292b] text-white" : "hover:bg-neutral-700 dark:hover:bg-[#28292b] hover:text-white"}`}
               onClick={() => setSelected("Data")}
             >
               <Database strokeWidth={1.2} className="h-5 w-5 " />
               <p className="font-light">Data</p>
-            </div>
+            </div> */}
           </div>
           {selected === "Account" && (
             <div className="mx-5">
@@ -81,8 +81,10 @@ export default function Settings({ user }) {
           )}
           {selected === "Data" && (
             <div className="space-y-4">
-              <div className="flex flex-row mx-5">
-                <div>
+              {/* Row 1: Improve Model */}
+              <div className="flex flex-row mx-5 items-center justify-between">
+                {/* Left side (Text) - Takes available space */}
+                <div className="flex-1 mr-4">
                   <p className="text-sm font-bold">Improve the Model</p>
                   <p className="text-sm mt-2">
                     By allowing your data to be used for training our models,
@@ -91,13 +93,17 @@ export default function Settings({ user }) {
                     privacy is protected throughout the process.
                   </p>
                 </div>
-                <div className="flex justify-center items-center mx-10">
+                {/* Right side (Switch) - Doesn't shrink, content width */}
+                <div className="flex-shrink-0 mx-4">
                   <Switch id="airplane-mode" defaultChecked />
                   {/* Checking can be accessed by the checked={true}*/}
                 </div>
               </div>
-              <div className="flex flex-row mx-5">
-                <div>
+
+              {/* Row 2: Export Data */}
+              <div className="flex flex-row mx-5 items-center justify-between">
+                {/* Left side (Text) */}
+                <div className="flex-1 mr-4">
                   <p className="text-sm font-bold">Export Account Data</p>
                   <p className="text-sm mt-2">
                     You can download all data associated with your account
@@ -105,7 +111,8 @@ export default function Settings({ user }) {
                     products.
                   </p>
                 </div>
-                <div className="flex justify-center items-center mx-5">
+                {/* Right side (Button) */}
+                <div className="flex-shrink-0">
                   <Button
                     variant="secondary"
                     className="rounded-4xl border border-neutral-500"
@@ -114,15 +121,19 @@ export default function Settings({ user }) {
                   </Button>
                 </div>
               </div>
-              <div className="flex flex-row mx-5">
-                <div>
+
+              {/* Row 3: Delete Conversations */}
+              <div className="flex flex-row mx-5 items-center justify-between">
+                {/* Left side (Text) */}
+                <div className="flex-1 mr-4">
                   <p className="text-sm font-bold">Delete All Conversations</p>
                   <p className="text-sm mt-2">
                     Permanently remove all records of your conversations and any
                     associated logs from servers.
                   </p>
                 </div>
-                <div className="flex justify-center items-center mx-5">
+                {/* Right side (Button) */}
+                <div className="flex-shrink-0">
                   <Button
                     variant="secondary"
                     className="rounded-4xl border border-neutral-400"
@@ -131,15 +142,19 @@ export default function Settings({ user }) {
                   </Button>
                 </div>
               </div>
-              <div className="flex flex-row mx-5">
-                <div>
+
+              {/* Row 4: Delete Account */}
+              <div className="flex flex-row mx-5 items-center justify-between">
+                {/* Left side (Text) */}
+                <div className="flex-1 mr-4">
                   <p className="text-sm font-bold">Delete Account</p>
                   <p className="text-sm mt-2">
                     Permanently delete your account and associated data from the
                     xAI platform. Deletions are immediate and cannot be undone.
                   </p>
                 </div>
-                <div className="flex justify-center items-center mx-5">
+                {/* Right side (Button) */}
+                <div className="flex-shrink-0">
                   <Button
                     variant="secondary"
                     className="rounded-4xl border border-red-400 text-red-400"
