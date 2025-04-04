@@ -12,6 +12,29 @@ interface Message {
   content: string;
 }
 
+// --- Interfaces ---
+interface Chat {
+  id: string;
+  title: string;
+  createdAt: string;
+}
+
+interface PaginationInfo {
+  currentPage: number;
+  pageSize: number;
+  totalChats: number;
+  totalPages: number;
+}
+
+// --- Local Storage Cache ---
+interface CachedChatData {
+  chats: Chat[];
+  pagination: PaginationInfo;
+  timestamp: number;
+}
+
+const CACHE_KEY = "chatHistoryCache_page1";
+
 const generateChatId = (): string => {
   // ... (keep existing implementation)
   if (typeof window !== "undefined" && window.crypto?.randomUUID) {
@@ -22,6 +45,53 @@ const generateChatId = (): string => {
 };
 
 const getLocalStorageKey = (chatId: string): string => `chatMessages_${chatId}`;
+
+const loadFromCache = (): CachedChatData | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    const data: CachedChatData = JSON.parse(cached);
+    // Optional: Check TTL
+    // if (Date.now() - data.timestamp > CACHE_TTL) { ... }
+    if (
+      !data ||
+      !Array.isArray(data.chats) ||
+      !data.pagination ||
+      data.pagination.currentPage !== 1 // Ensure cache is specifically for page 1
+    ) {
+      console.warn("Invalid cache structure found. Clearing.");
+      localStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    console.log("Loaded chats from cache");
+    return data;
+  } catch (error) {
+    console.error("Failed to load or parse cache:", error);
+    localStorage.removeItem(CACHE_KEY);
+    return null;
+  }
+};
+
+const saveToCache = (chats: Chat[], pagination: PaginationInfo) => {
+  if (typeof window === "undefined") return;
+  // Only cache page 1 data
+  if (pagination.currentPage !== 1) {
+    console.log("Skipping cache save: Not page 1.");
+    return;
+  }
+  try {
+    const data: CachedChatData = {
+      chats,
+      pagination,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    console.log("Saved page 1 chats to cache");
+  } catch (error) {
+    console.error("Failed to save cache:", error);
+  }
+};
 
 export default function ChatPage({ session }: any) {
   const router = useRouter();
@@ -290,6 +360,32 @@ export default function ChatPage({ session }: any) {
             // router.push('/chat'); // Or back?
           }
           throw new Error(errorMsg);
+        }
+
+        // Get the header of the response
+        const get_header = response.headers.get("X-Title");
+
+        console.log("Header X-Title", get_header);
+
+        if (get_header != "") {
+          console.log(loadFromCache());
+
+          const chatsCache = loadFromCache();
+
+          const chats = [
+            {
+              id: chatIdForRequest,
+              title: get_header!,
+              createdAt: new Date().toString(),
+            },
+          ].concat(chatsCache?.chats || []);
+          // chatsCache?.chats?.push({
+          //   id: chatIdForRequest,
+          //   title: get_header!,
+          //   createdAt: new Date().toString(),
+          // });
+
+          saveToCache(chats, chatsCache?.pagination);
         }
 
         const reader = response.body?.getReader();

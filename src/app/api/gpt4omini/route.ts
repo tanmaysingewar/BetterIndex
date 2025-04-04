@@ -20,14 +20,10 @@ const client = new Groq({
 
 export async function POST(req: Request) {
   // --- Standard Response Headers for Streaming ---
-  const responseHeaders = new Headers({
-    "Content-Type": "text/plain; charset=utf-8",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-  });
 
   let currentChatId: string | null = null;
   let isNewChatFlow = false; // Flag to indicate if we created the chat in this request
+  let tilte = "";
 
   try {
     // --- 1. Get Headers and Body ---
@@ -95,9 +91,33 @@ export async function POST(req: Request) {
         console.log(
           `Chat ID ${currentChatId} not found. Creating new chat for user ${userId}.`,
         );
+
+        // Generate the title
+        const completion = await client.chat.completions.create({
+          messages: [
+            {
+              role: "system",
+              content:
+                "Generate a concise and relevant title for the chat based solely on the user's messages. The title should be plain text without any symbols, prefixes, or formatting. Do not respond to the query or provide explanations—just return the title directly.",
+            },
+            {
+              role: "user",
+              content: message.trim().substring(0, 100),
+            },
+          ],
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.7,
+        });
+
+        // Overight the title of the current chat
+        tilte = completion.choices[0]?.message
+          ?.content!.trim()
+          .substring(0, 100)
+          .replace(/"/g, "");
+
         await db.insert(chat).values({
           id: currentChatId, // Use the ID provided by the frontend
-          title: message.trim().substring(0, 100), // Use first message for title
+          title: tilte, // Use first message for title
           userId: userId,
           createdAt: new Date(),
         });
@@ -149,12 +169,13 @@ export async function POST(req: Request) {
     let fullBotResponse = "";
     const finalChatId = currentChatId; // Use the validated/created chat ID
 
+    // Streaming the Response
     const stream = new ReadableStream({
       async start(controller) {
         try {
           const completion = await client.chat.completions.create({
             messages: messages_format,
-            model: "llama3-8b-8192",
+            model: "deepseek-r1-distill-llama-70b",
             temperature: 0.7,
             stream: true as const,
           });
@@ -197,6 +218,14 @@ export async function POST(req: Request) {
           controller.close();
         }
       },
+    });
+
+    // Assigning the new header to
+    const responseHeaders = new Headers({
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Title": tilte,
     });
 
     // --- 7. Return the stream ---
