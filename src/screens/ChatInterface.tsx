@@ -244,7 +244,7 @@ export default function ChatPage({ session }: any) {
     if (!chatInitiated && messages.length > 0) {
       messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
     }
-    if (messages[messages.length - 1]?.role === "user") {
+    if (messages[messages.length - 1]?.role === "assistant" && chatInitiated) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, chatInitiated, isGenerating]);
@@ -303,6 +303,11 @@ export default function ChatPage({ session }: any) {
         return [...prevMessages, newUserMessage];
       });
       // --- End Optimistic Update ---
+      //
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "loading" },
+      ]);
 
       // Prepare request
       const requestHeaders = new Headers({
@@ -367,11 +372,6 @@ export default function ChatPage({ session }: any) {
               createdAt: new Date().toString(),
             },
           ].concat(chatsCache?.chats || []);
-          // chatsCache?.chats?.push({
-          //   id: chatIdForRequest,
-          //   title: get_header!,
-          //   createdAt: new Date().toString(),
-          // });
 
           saveToCache(chats, chatsCache?.pagination);
         }
@@ -381,6 +381,17 @@ export default function ChatPage({ session }: any) {
           setMessages(messagesBeforeOptimisticUpdate); // Revert
           throw new Error("No reader available");
         }
+
+        // remove the last message from setMessages
+        // To remove the last message:
+        setMessages((prevMessages) => {
+          // Check if there are any messages to remove
+          if (prevMessages.length === 0) {
+            return prevMessages; // Return the empty array if no messages exist
+          }
+          // Create a new array containing all elements except the last one
+          return prevMessages.slice(0, -1);
+        });
 
         // Add placeholder for assistant message using functional update
         setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
@@ -573,7 +584,7 @@ const RenderMessageOnScreen = ({
         className={`mb-2 hidden md:block ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
         // style={{ minHeight: desktopMinHeight }}
         style={{
-          minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-174px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-230px + 100vh)" : "auto"}`,
+          minHeight: `${messages.length - 1 === index && message.role === "user" && chatInitiated ? "calc(-174px + 100vh)" : messages.length - 1 === index && message.role === "assistant" && chatInitiated ? "calc(-230px + 100vh)" : "auto"}`,
         }}
       >
         <div
@@ -585,13 +596,13 @@ const RenderMessageOnScreen = ({
           }`}
         >
           {/* Conditional rendering for spinner or content */}
-          {message.role === "assistant" ? (
+          {message.content === "loading" ? (
+            <Spinner />
+          ) : message.role === "assistant" ? (
             <div className="markdown-content">
-              {/* Ensure MessageRenderer handles potentially empty strings gracefully */}
               <MessageRenderer content={message.content || " "} />
             </div>
           ) : (
-            // Render user message content (ensure wrapping for long text)
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
           )}
         </div>
@@ -602,7 +613,7 @@ const RenderMessageOnScreen = ({
         className={`mb-2 block md:hidden ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
         // style={{ minHeight: mobileMinHeight }}
         style={{
-          minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-314px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-370px + 100vh)" : "auto"}`,
+          minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-314px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-290px + 100vh)" : "auto"}`,
         }}
       >
         <div
@@ -613,7 +624,8 @@ const RenderMessageOnScreen = ({
               : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto" // Added bg-gray-200 for light mode assistant
           }`}
         >
-          {message.content === "loading..." ? (
+          {/* Conditional rendering for spinner or content */}
+          {message.content === "loading" ? (
             <Spinner />
           ) : message.role === "assistant" ? (
             <div className="markdown-content">
