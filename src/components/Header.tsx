@@ -16,9 +16,9 @@ import {
   Drawer,
   DrawerClose,
   DrawerContent,
-  DrawerDescription,
+  // DrawerDescription,
   DrawerFooter,
-  DrawerHeader,
+  // DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
@@ -30,7 +30,7 @@ import Settings from "./Setting";
 import { authClient } from "@/lib/auth-client";
 import Image from "next/image";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
+// import { Input } from "./ui/input";
 import { useRouter } from "next/navigation";
 import ChatHistory from "./ChatHistory";
 import { Switch } from "./ui/switch";

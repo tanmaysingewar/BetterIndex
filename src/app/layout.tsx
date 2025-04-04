@@ -29,7 +29,9 @@ export default function RootLayout({
         {/* <script
           crossOrigin="anonymous"
           src="//unpkg.com/react-scan/dist/auto.global.js"
-        ></script> */}
+          defer
+        /> */}
+        {/* rest of your scripts go under */}
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased dark:bg-[#1d1e20]`}

@@ -11,7 +11,7 @@ interface MessageRendererProps {
 
 const MessageRenderer = ({ content, showHighlights }: MessageRendererProps) => {
   return (
-    <div>
+    <div className="md:max-w-[710px] max-w-svw">
       <section>
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
@@ -25,7 +25,7 @@ const MessageRenderer = ({ content, showHighlights }: MessageRendererProps) => {
                   style={oneDark}
                   language={match[1]}
                   customStyle={{
-                    maxWidth: "700px",
+                    marginRight: "5px",
                   }}
                   wrapLongLines={true}
                   // showLineNumbers={true}
