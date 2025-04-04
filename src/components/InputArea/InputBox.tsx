@@ -8,8 +8,6 @@ interface InputBoxProps {
   onSend: (message: string) => void;
   height: number;
   disabled?: boolean;
-  showHighlights: boolean;
-  setShowHighlights: (value: boolean) => void;
 }
 
 export default function InputBox({
@@ -18,8 +16,6 @@ export default function InputBox({
   onSend,
   height,
   disabled,
-  showHighlights,
-  setShowHighlights,
 }: InputBoxProps) {
   return (
     <div>

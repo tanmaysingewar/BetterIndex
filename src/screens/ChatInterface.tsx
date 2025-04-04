@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, memo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import InputBox from "@/components/InputArea/InputBox";
 import Header from "@/components/Header";
@@ -99,13 +99,8 @@ export default function ChatPage({ session }: any) {
   const [chatInitiated, setChatInitiated] = useState<boolean>(false);
   const [input, setInput] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showHighlights, setShowHighlights] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [errorLoadingMessages, setErrorLoadingMessages] = useState<
-    string | null
-  >(null);
 
   const initialMessage = useChatStore((state) => state.initialMessage);
   const setInitialMessage = useChatStore((state) => state.setInitialMessage);
@@ -126,7 +121,6 @@ export default function ChatPage({ session }: any) {
       setChatInitiated(false);
       // Don't clear messages unconditionally here, let LS/Server handle it
       // setMessages([]);
-      setErrorLoadingMessages(null);
       serverFetchInitiated.current = {};
 
       // Try loading from Local Storage FIRST
@@ -189,8 +183,6 @@ export default function ChatPage({ session }: any) {
         console.log(
           `Fetching messages from server for chat ID: ${chatIdToFetch}`,
         );
-        setIsLoadingMessages(true);
-        setErrorLoadingMessages(null);
         serverFetchInitiated.current[chatIdToFetch] = true;
 
         try {
@@ -233,18 +225,15 @@ export default function ChatPage({ session }: any) {
           }
         } catch (error) {
           console.error("Error fetching initial messages from server:", error);
-          setErrorLoadingMessages(
-            "Error fetching initial messages from server",
-          );
           // Keep potentially loaded LS messages if fetch fails
         } finally {
-          setIsLoadingMessages(false);
           processingInitialMessageRef.current = null; // Clear ref after fetch attempt
         }
       };
 
       fetchMessagesFromServer(currentChatId);
     }
+    // Do not add initialMessage as dependency
   }, [currentChatId]);
   // Depend only on currentChatId
   // !Do not add the and other dependencies here
@@ -252,14 +241,13 @@ export default function ChatPage({ session }: any) {
   // Effect 3: Scroll to bottom
   useEffect(() => {
     // ... (existing scroll logic - likely okay) ...
-    // Consider adding isLoadingMessages dependency if loading affects scroll
-    if (!chatInitiated && messages.length > 0 && !isLoadingMessages) {
+    if (!chatInitiated && messages.length > 0) {
       messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
     }
     if (messages[messages.length - 1]?.role === "user") {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, chatInitiated, isGenerating, isLoadingMessages]);
+  }, [messages, chatInitiated, isGenerating]);
 
   // --- Message Sending Logic ---
   const handleSendMessage = useCallback(
@@ -532,12 +520,13 @@ export default function ChatPage({ session }: any) {
       <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
         <div className="p-4 max-w-[750px] mx-auto">
           {messages.map((message, index) => (
-            <RenderMessageOnScreen
+            <MemoizedRenderMessageOnScreen
               key={index}
               message={message}
               index={index}
               messages={messages}
               chatInitiated={chatInitiated}
+              isGenerating={isGenerating}
             />
           ))}
           {/* Ref for scrolling, inside the scrollable area */}
@@ -553,72 +542,91 @@ export default function ChatPage({ session }: any) {
         setInput={setInput}
         onSend={handleSendMessage}
         disabled={isGenerating}
-        showHighlights={showHighlights}
-        setShowHighlights={setShowHighlights}
       />
     </div>
   );
 }
+// --- Memoized Message Rendering Component ---
 
-const RenderMessageOnScreen = ({ message, index, messages, chatInitiated }) => {
+interface RenderMessageProps {
+  message: Message;
+  index: number;
+  totalMessages: number; // Use total count instead of the full array
+  messages: [];
+  chatInitiated: boolean;
+}
+
+/**
+ * Renders a single message bubble.
+ * Memoized to prevent re-rendering if props haven't changed.
+ */
+const RenderMessageOnScreen = ({
+  message,
+  index,
+  messages,
+  chatInitiated,
+}: RenderMessageProps) => {
   return (
     <>
+      {/* Desktop Message Bubble */}
       <div
-        id="desktop"
         className={`mb-2 hidden md:block ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
+        // style={{ minHeight: desktopMinHeight }}
         style={{
-          minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-170px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-230px + 100vh)" : "auto"}`,
+          minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-174px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-230px + 100vh)" : "auto"}`,
         }}
       >
         <div
-          className={`p-3 rounded-3xl w-fit ${
+          className={`p-3 rounded-3xl w-fit max-w-full ${
+            // Added max-w-full
             message.role === "user"
-              ? "dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto"
-              : "bg-transparent dark:text-white rounded-bl-lg mr-auto"
+              ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto" // Added bg-blue-500 for light mode user
+              : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto" // Added bg-gray-200 for light mode assistant
           }`}
         >
-          {message.content === "loading..." ? (
-            <Spinner />
-          ) : message.role === "assistant" ? (
+          {/* Conditional rendering for spinner or content */}
+          {message.role === "assistant" ? (
             <div className="markdown-content">
-              <MessageRenderer
-                content={message.content}
-                showHighlights={true}
-              />
+              {/* Ensure MessageRenderer handles potentially empty strings gracefully */}
+              <MessageRenderer content={message.content || " "} />
             </div>
           ) : (
-            <p>{message.content}</p>
+            // Render user message content (ensure wrapping for long text)
+            <p className="whitespace-pre-wrap break-words">{message.content}</p>
           )}
         </div>
       </div>
+
+      {/* Mobile Message Bubble */}
       <div
-        id="mobile"
         className={`mb-2 block md:hidden ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
+        // style={{ minHeight: mobileMinHeight }}
         style={{
           minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-314px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-370px + 100vh)" : "auto"}`,
         }}
       >
         <div
-          className={`p-3 rounded-3xl w-fit ${
+          className={`p-3 rounded-3xl w-fit max-w-full ${
+            // Added max-w-full
             message.role === "user"
-              ? "dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto"
-              : "bg-transparent dark:text-white rounded-bl-lg mr-auto"
+              ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto" // Added bg-blue-500 for light mode user
+              : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto" // Added bg-gray-200 for light mode assistant
           }`}
         >
           {message.content === "loading..." ? (
             <Spinner />
           ) : message.role === "assistant" ? (
             <div className="markdown-content">
-              <MessageRenderer
-                content={message.content}
-                showHighlights={true}
-              />
+              <MessageRenderer content={message.content || " "} />
             </div>
           ) : (
-            <p>{message.content}</p>
+            <p className="whitespace-pre-wrap break-words">{message.content}</p>
           )}
         </div>
       </div>
     </>
   );
 };
+
+// Create the memoized version of the component
+const MemoizedRenderMessageOnScreen = memo(RenderMessageOnScreen);
