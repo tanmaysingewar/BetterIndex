@@ -31,10 +31,10 @@ const CodeBlockFallback = ({ children }: { children: React.ReactNode }) => {
         backgroundColor: "#282c34",
         color: "#abb2bf",
         padding: "1em",
-        margin: ".5em 0",
+        // margin: ".5em 0",
         overflow: "auto",
         borderRadius: "5px",
-        marginRight: "5px",
+        // marginRight: "5px",
       }}
     >
       <code>{children}</code>
@@ -64,7 +64,7 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
                     style={oneDark}
                     language={match[1]}
                     customStyle={{
-                      marginRight: "5px",
+                      // marginRight: "5px",
                       backgroundColor: "#282c34", // Optional: Helps prevent layout shift
                     }}
                     wrapLongLines={true}

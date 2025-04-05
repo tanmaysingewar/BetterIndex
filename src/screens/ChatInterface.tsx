@@ -527,11 +527,11 @@ export default function ChatPage({ session }: any) {
       {/* Use h-screen for fixed viewport height */}
       {/* 2. Header: Takes its natural height */}
       <Header session={session} />
-      <div className="md:hidden block bg-red-500/10">
+      {/* <div className="md:hidden block bg-red-500/10">
         <p className="text-center p-1 font-semibold text-sm">
           Mobile optimization is still in progress!
         </p>
-      </div>
+      </div> */}
       {/* 3. Messages container: Grows to fill space, allows scrolling */}
       <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
         <div className="p-4 max-w-[750px] mx-auto">
