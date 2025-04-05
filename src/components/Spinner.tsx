@@ -1,42 +1,13 @@
-import React from 'react'
+import React from "react";
 
 export default function Spinner() {
   return (
     <div className="flex">
-      <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="text-black dark:text-white">
-        <style>
-          {`
-            .spinner_7uc5 {
-              animation: spinner_3l8F 0.9s linear infinite;
-              animation-delay: -0.9s;
-              fill: currentColor;
-            }
-            .spinner_RibN {
-              animation-delay: -0.7s;
-            }
-            .spinner_ZAxd {
-              animation-delay: -0.5s;
-            }
-            @keyframes spinner_3l8F {
-              0%, 66.66% {
-                animation-timing-function: cubic-bezier(0.14, 0.73, 0.34, 1);
-                y: 6px;
-                height: 12px;
-              }
-              33.33% {
-                animation-timing-function: cubic-bezier(0.65, 0.26, 0.82, 0.45);
-                y: 1px;
-                height: 22px;
-              }
-            }
-          `}
-        </style>
-        <rect className="spinner_7uc5 spinner_ZAxd" x="1" y="6" width="2.8" height="12" />
-        <rect className="spinner_7uc5 spinner_RibN" x="5.8" y="6" width="2.8" height="12" />
-        <rect className="spinner_7uc5" x="10.6" y="6" width="2.8" height="12" />
-        <rect className="spinner_7uc5 spinner_RibN" x="15.4" y="6" width="2.8" height="12" />
-        <rect className="spinner_7uc5 spinner_ZAxd" x="20.2" y="6" width="2.8" height="12" />
-      </svg>
+      <div className="loader">
+        <div className="inner one"></div>
+        <div className="inner two"></div>
+        <div className="inner three"></div>
+      </div>
     </div>
-  )
+  );
 }
