@@ -328,7 +328,8 @@ export default function ChatPage({ session }: any) {
       };
 
       try {
-        const response = await fetch("/api/gpt4omini", {
+        // Make the LLM provider dynamic
+        const response = await fetch("/api/groq", {
           method: "POST",
           headers: requestHeaders,
           body: JSON.stringify(requestBody),
