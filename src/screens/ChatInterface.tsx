@@ -244,7 +244,11 @@ export default function ChatPage({ session }: any) {
     if (!chatInitiated && messages.length > 0) {
       messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
     }
-    if (messages[messages.length - 1]?.role === "assistant" && chatInitiated) {
+    if (
+      messages[messages.length - 1]?.role === "assistant" &&
+      messages[messages.length - 1]?.content === "loading" &&
+      chatInitiated
+    ) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, chatInitiated, isGenerating]);
