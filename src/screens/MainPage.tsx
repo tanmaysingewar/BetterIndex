@@ -7,6 +7,7 @@ import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useChatStore } from "@/store/chatStore";
 import { nanoid } from "nanoid";
+// import { authClient } from "@/lib/auth-client";
 
 export default function MainPage({ session }: any) {
   const [input, setInput] = useState<string>("");

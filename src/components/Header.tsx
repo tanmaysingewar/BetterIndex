@@ -95,7 +95,7 @@ export default function Header({ session, laningPage }: any) {
             >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
-            {!session?.isAnonymous && (
+            {session?.id && (
               <Dialog>
                 <DialogTrigger>
                   <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
@@ -142,7 +142,7 @@ export default function Header({ session, laningPage }: any) {
             >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
-            {!session?.isAnonymous && (
+            {session?.id && (
               <Drawer>
                 <DrawerTrigger>
                   <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
