@@ -1,6 +1,6 @@
 "use client";
 import { LogOutIcon, SettingsIcon, SquarePen, TextSearch } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
@@ -35,13 +35,32 @@ import { useRouter } from "next/navigation";
 import ChatHistory from "./ChatHistory";
 import { Switch } from "./ui/switch";
 
-export default function Header({ session, laningPage }: any) {
+interface HeaderInterface {
+  user:
+    | {
+        id: string | undefined;
+        name: string | undefined;
+        email: string | undefined;
+        emailVerified: boolean | undefined;
+        image: string | undefined;
+        createdAt?: Date | undefined; // Allow undefined or null
+        updatedAt?: Date | undefined; // Allow undefined or null
+        isAnonymous: boolean;
+        isDummy?: boolean;
+      }
+    | undefined; //  <- Add null and undefined
+  landingPage: boolean | undefined;
+}
+
+export default function Header({ user, landingPage }: HeaderInterface) {
+  // const imageUrl = user.image ?? "/default-image.png"; // Provide a default image path
+  // ... use imageUrl in your <img> tag or component
   const [openSettings, setOpenSettings] = useState(false);
   // const { resolvedTheme, mounted } = useAppTheme();
-  // const [user, setUser] = useState(session);
+  // const [user, setUser] = useState(user);
   const router = useRouter();
 
-  console.log(session);
+  console.log(user);
   // console.log(user);
 
   const handleLogout = async () => {
@@ -73,7 +92,7 @@ export default function Header({ session, laningPage }: any) {
   return (
     <div className="w-full">
       <div
-        className={`flex flex-row items-center justify-between w-full max-w-full bg-[#1d1e20] md:bg-transparent shadow-lg shadow-neutral-800 dark:shadow-[#1d1e20] md:shadow-none md:fixed top-0 ${laningPage ? "fixed top-0" : ""}`}
+        className={`flex flex-row items-center justify-between w-full max-w-full bg-[#1d1e20] md:bg-transparent shadow-lg shadow-neutral-800 dark:shadow-[#1d1e20] md:shadow-none md:fixed top-0 ${landingPage ? "fixed top-0" : ""}`}
       >
         <div>
           {/* <h1 className='text-3xl font-bold text-white ml-2'>Logo</h1> */}
@@ -95,7 +114,7 @@ export default function Header({ session, laningPage }: any) {
             >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
-            {session?.id && (
+            {user?.id && (
               <Dialog>
                 <DialogTrigger>
                   <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
@@ -107,11 +126,11 @@ export default function Header({ session, laningPage }: any) {
                 </DialogTrigger>
                 <DialogContent className="bg-[#1d1e20] rounded-lg  w-[53vw]">
                   <DialogTitle className="sr-only"></DialogTitle>
-                  <ChatHistory session={session} max_chats={10} />
+                  <ChatHistory max_chats={10} />
                 </DialogContent>
               </Dialog>
             )}
-            {!session?.isAnonymous && (
+            {!user?.isAnonymous && (
               <button
                 className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full"
                 onClick={() => setOpenSettings(true)}
@@ -122,8 +141,8 @@ export default function Header({ session, laningPage }: any) {
                 />
               </button>
             )}
-            {!session || (session?.isAnonymous && SignInComponent())}
-            {/* {!session && SignInComponent()} */}
+            {!user || (user?.isAnonymous && SignInComponent())}
+            {/* {!user && SignInComponent()} */}
             {/* <div className='flex-row px-3 justify-center items-center flex'></div> */}
           </div>
           <div
@@ -142,7 +161,7 @@ export default function Header({ session, laningPage }: any) {
             >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
-            {session?.id && (
+            {user?.id && (
               <Drawer>
                 <DrawerTrigger>
                   <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
@@ -154,7 +173,7 @@ export default function Header({ session, laningPage }: any) {
                 </DrawerTrigger>
                 <DrawerContent className="w-full bg-[#1d1e20] rounded-t-2xl max-w-2xl ">
                   <DrawerTitle></DrawerTitle>
-                  <ChatHistory session={session} max_chats={7} />
+                  <ChatHistory max_chats={7} />
                   {/* <DrawerFooter>
                     <DrawerClose>
                     </DrawerClose>
@@ -162,8 +181,8 @@ export default function Header({ session, laningPage }: any) {
                 </DrawerContent>
               </Drawer>
             )}
-            {!session || (session?.isAnonymous && SignInComponent())}
-            {!session?.isAnonymous && (
+            {!user || (user?.isAnonymous && SignInComponent())}
+            {!user?.isAnonymous && (
               <Drawer>
                 <DrawerTrigger>
                   <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
@@ -185,7 +204,7 @@ export default function Header({ session, laningPage }: any) {
                         <div className="mt-5 flex flex-row items-center mx-5 justify-center">
                           <Avatar className="w-12 h-12 rounded-full">
                             <Image
-                              src={session?.image || ""}
+                              src={user?.image || ""}
                               alt=""
                               className="w-full h-full rounded-full"
                               width={100}
@@ -195,8 +214,8 @@ export default function Header({ session, laningPage }: any) {
                           </Avatar>
 
                           <div className="ml-3 justify-center">
-                            <p className="text-left">{session?.name}</p>
-                            <p className="text-xs mt-1">{session?.email}</p>
+                            <p className="text-left">{user?.name}</p>
+                            <p className="text-xs mt-1">{user?.email}</p>
                           </div>
                         </div>
                         <Button
@@ -315,11 +334,11 @@ export default function Header({ session, laningPage }: any) {
             )}
           </div>
 
-          {!session?.isAnonymous && (
+          {!user?.isAnonymous && (
             <Dialog open={openSettings} onOpenChange={setOpenSettings}>
               <DialogContent className="bg-[#1d1e20] h-[60vh] w-[53vw]">
                 <DialogTitle className="sr-only">Settings</DialogTitle>
-                <Settings user={session} />
+                <Settings user={user} />
               </DialogContent>
             </Dialog>
           )}

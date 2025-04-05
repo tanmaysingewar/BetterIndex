@@ -89,8 +89,12 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+interface ChatHistoryProps {
+  max_chats: number;
+}
+
 // --- Component ---
-export default function ChatHistory({ max_chats }) {
+export default function ChatHistory({ max_chats }: ChatHistoryProps) {
   // Load cache *inside* the component to get the latest on each mount
   // We use useRef to store it so it doesn't trigger re-renders if cache changes
   // between renders but before the effect runs.

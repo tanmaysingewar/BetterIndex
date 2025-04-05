@@ -93,7 +93,31 @@ const saveToCache = (chats: Chat[], pagination: PaginationInfo) => {
   }
 };
 
-export default function ChatPage({ session }: any) {
+interface User {
+  id: string | undefined;
+  name: string | undefined;
+  email: string | undefined;
+  emailVerified: boolean | undefined;
+  image: string | undefined;
+  createdAt?: Date | undefined; // Allow undefined or null
+  updatedAt?: Date | undefined; // Allow undefined or null
+  isAnonymous: boolean;
+  isDummy?: boolean;
+}
+
+interface PaginationInfo {
+  currentPage: number;
+  pageSize: number;
+  totalChats: number;
+  totalPages: number;
+  searchTerm: string | null;
+}
+
+interface ChatPageProps {
+  user: User;
+}
+
+export default function ChatPage({ user }: ChatPageProps) {
   const router = useRouter();
   const params = useParams();
   const [chatInitiated, setChatInitiated] = useState<boolean>(false);
@@ -205,7 +229,7 @@ export default function ChatPage({ session }: any) {
           // (which is expected if the fetch happened before the backend processed it),
           // we might need to add it back temporarily until the *next* fetch.
           // However, the safest approach is to trust the server state completely for existing chats.
-          // The `handleSendMessage` final update will ensure the *current session's* messages are consistent.
+          // The `handleSendMessage` final update will ensure the *current user's* messages are consistent.
           setMessages(finalMessagesFromServer);
           // if (finalMessagesFromServer.length > 0) setChatInitiated(true); // Set initiated later
 
@@ -378,7 +402,17 @@ export default function ChatPage({ session }: any) {
             },
           ].concat(chatsCache?.chats || []);
 
-          saveToCache(chats, chatsCache?.pagination);
+          function defaultPagination(): PaginationInfo {
+            return {
+              currentPage: 1,
+              pageSize: 10,
+              totalChats: 0, // Default total chats
+              totalPages: 1, // At least one page if there are any chats
+              searchTerm: null,
+            };
+          }
+
+          saveToCache(chats, chatsCache?.pagination ?? defaultPagination());
         }
 
         const reader = response.body?.getReader();
@@ -526,7 +560,7 @@ export default function ChatPage({ session }: any) {
       {" "}
       {/* Use h-screen for fixed viewport height */}
       {/* 2. Header: Takes its natural height */}
-      <Header session={session} />
+      <Header user={user} landingPage={false} />
       {/* <div className="md:hidden block bg-red-500/10">
         <p className="text-center p-1 font-semibold text-sm">
           Mobile optimization is still in progress!
@@ -567,9 +601,9 @@ export default function ChatPage({ session }: any) {
 interface RenderMessageProps {
   message: Message;
   index: number;
-  totalMessages: number; // Use total count instead of the full array
-  messages: [];
+  messages: Message[];
   chatInitiated: boolean;
+  isGenerating: boolean;
 }
 
 /**

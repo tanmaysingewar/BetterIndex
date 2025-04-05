@@ -79,14 +79,7 @@ function ElegantShape({
   );
 }
 
-export default function HeroGeometric({
-  title1 = "Project Horizora",
-  title2 = "Better Index",
-}: {
-  badge?: string;
-  title1?: string;
-  title2?: string;
-}) {
+export default function HeroGeometric() {
   const router = useRouter();
 
   const fadeUpVariants = {
@@ -163,7 +156,7 @@ export default function HeroGeometric({
           >
             <h1 className="text-4xl sm:text-6xl md:text-8xl font-bold mb-6 md:mb-8 tracking-tight">
               <span className="bg-clip-text text-transparent bg-gradient-to-b from-white to-white/80 md:text-4xl text-lg">
-                {title1}
+                Project Horizora
               </span>
               <br />
               <span
@@ -172,7 +165,7 @@ export default function HeroGeometric({
                   pacifico.className,
                 )}
               >
-                {title2}
+                Better Index
               </span>
             </h1>
           </motion.div>

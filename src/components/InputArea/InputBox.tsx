@@ -1,4 +1,4 @@
-import { BrainCog, Highlighter, OctagonPause, Send } from "lucide-react";
+import { OctagonPause, Send } from "lucide-react";
 import { Button } from "../ui/button";
 import TextInput from "./TextInput";
 

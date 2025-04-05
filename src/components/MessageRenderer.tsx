@@ -127,7 +127,7 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
           remarkPlugins={[remarkGfm]}
           components={{
             code(props) {
-              const { children, className, node, ...rest } = props;
+              const { children, className, ...rest } = props;
               const match = /language-(\w+)/.exec(className || "");
               const codeText = String(children).replace(/\n$/, "");
               const language = match ? match[1] : null;

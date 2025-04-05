@@ -1,7 +1,7 @@
 // app/routes/settings.tsx
 "use client";
 import { useState } from "react";
-import { Database, LogOutIcon, UserRound } from "lucide-react";
+import { LogOutIcon, UserRound } from "lucide-react"; // Removed unused Database icon
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
@@ -9,17 +9,38 @@ import { Button } from "./ui/button";
 import Image from "next/image";
 import { Switch } from "./ui/switch";
 
-export default function Settings({ user }) {
+// 1. Define an interface for the component's props
+interface SettingsProps {
+  user:
+    | {
+        id: string | undefined;
+        name: string | undefined;
+        email: string | undefined;
+        emailVerified: boolean | undefined;
+        image: string | undefined;
+        createdAt?: Date | undefined; // Allow undefined or null
+        updatedAt?: Date | undefined; // Allow undefined or null
+        isAnonymous: boolean;
+        isDummy?: boolean;
+      }
+    | null
+    | undefined; //  <- Add null and undefined
+}
+
+// 2. Use the SettingsProps interface and destructure 'user' from it
+export default function Settings({ user }: SettingsProps) {
   const router = useRouter();
   const [selected, setSelected] = useState("Account");
 
-  console.log(user.image);
+  // console.log(user.image); // This will now work correctly
 
   const handleLogout = async () => {
     await authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
           router.push("/"); // redirect to login page
+          // Consider using router.refresh() instead of location.reload()
+          // for a potentially smoother Next.js experience
           return location.reload();
         },
       },
@@ -40,19 +61,19 @@ export default function Settings({ user }) {
               <p className="font-light">Account</p>
             </div>
             {/* <div
-              className={`flex gap-2 text-sm text-left font-light cursor-pointer rounded-xl px-4 py-3 text-neutral-400 ${selected === "Appearance" ? "bg-neutral-700 dark:bg-[#28292b] text-white" : "hover:bg-neutral-700 dark:hover:bg-[#28292b] hover:text-white"}`}
-              onClick={() => setSelected("Appearance")}
-            >
-              <Highlighter strokeWidth={1.2} className="h-5 w-5" />
-              <p className="font-light">Highlighter</p>
-            </div> */}
+                className={`flex gap-2 text-sm text-left font-light cursor-pointer rounded-xl px-4 py-3 text-neutral-400 ${selected === "Appearance" ? "bg-neutral-700 dark:bg-[#28292b] text-white" : "hover:bg-neutral-700 dark:hover:bg-[#28292b] hover:text-white"}`}
+                onClick={() => setSelected("Appearance")}
+              >
+                <Highlighter strokeWidth={1.2} className="h-5 w-5" />
+                <p className="font-light">Highlighter</p>
+              </div> */}
             {/* <div
-              className={`flex gap-2 text-sm text-left font-light hover:bg-neutral-700 dark:hover:bg-[#28292b] cursor-pointer rounded-xl px-4 py-3 text-neutral-400 ${selected === "Data" ? "bg-neutral-700 dark:bg-[#28292b] text-white" : "hover:bg-neutral-700 dark:hover:bg-[#28292b] hover:text-white"}`}
-              onClick={() => setSelected("Data")}
-            >
-              <Database strokeWidth={1.2} className="h-5 w-5 " />
-              <p className="font-light">Data</p>
-            </div> */}
+                className={`flex gap-2 text-sm text-left font-light hover:bg-neutral-700 dark:hover:bg-[#28292b] cursor-pointer rounded-xl px-4 py-3 text-neutral-400 ${selected === "Data" ? "bg-neutral-700 dark:bg-[#28292b] text-white" : "hover:bg-neutral-700 dark:hover:bg-[#28292b] hover:text-white"}`}
+                onClick={() => setSelected("Data")}
+              >
+                <Database strokeWidth={1.2} className="h-5 w-5 " />
+                <p className="font-light">Data</p>
+              </div> */}
           </div>
           {selected === "Account" && (
             <div className="mx-5">
