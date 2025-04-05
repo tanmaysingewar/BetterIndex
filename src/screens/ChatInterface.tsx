@@ -618,7 +618,7 @@ const RenderMessageOnScreen = ({
         className={`mb-2 block md:hidden ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
         // style={{ minHeight: mobileMinHeight }}
         style={{
-          minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-314px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-290px + 100vh)" : "auto"}`,
+          minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-314px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-300px + 100vh)" : "auto"}`,
         }}
       >
         <div

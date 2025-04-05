@@ -7,6 +7,7 @@ import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useChatStore } from "@/store/chatStore";
 import { nanoid } from "nanoid";
+import Spinner from "@/components/Spinner";
 // import { authClient } from "@/lib/auth-client";
 
 export default function MainPage({ session }: any) {
@@ -49,11 +50,12 @@ export default function MainPage({ session }: any) {
   return (
     <div className="flex flex-col h-screen items-center justify-center">
       <Header session={user} laningPage={true} />
-      <div className="text-center">
+      <div className="text-center w-full -mt-20 md:mt-0">
+        <div className="flex justify-center items-center mb-5">
+          <Spinner />
+        </div>
         {/* <p className="text-2xl font-light">Good morning! How can I help you today?</p> */}
-        <p className="text-2xl font-light -mt-20 md:mt-0">
-          Welcome to Horizora
-        </p>
+        <p className="text-2xl font-light">Welcome to Horizora</p>
         <p className="text-2xl font-light text-neutral-400">
           How can I help you today?
         </p>
