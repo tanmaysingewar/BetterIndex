@@ -29,6 +29,7 @@
     "drizzle-orm": "^0.41.0",
     "framer-motion": "^12.6.0",
     "groq-sdk": "^0.16.0",
+    "js-cookie": "^3.0.5",
     "lucide-react": "^0.477.0",
     "marked": "^15.0.7",
     "next": "15.2.3",
@@ -47,6 +48,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/pg": "^8.11.11",
     "@types/react": "^19",

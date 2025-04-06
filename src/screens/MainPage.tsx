@@ -7,48 +7,69 @@ import { useRouter } from "next/navigation";
 import { useChatStore } from "@/store/chatStore";
 import { nanoid } from "nanoid";
 import Spinner from "@/components/Spinner";
+import { useUserStore } from "@/store/userStore";
+import Cookies from "js-cookie";
 
 interface User {
-  id: string | undefined;
-  name: string | undefined;
-  email: string | undefined;
-  emailVerified: boolean | undefined;
-  image: string | undefined;
-  createdAt?: Date | undefined; // Allow undefined or null
-  updatedAt?: Date | undefined; // Allow undefined or null
-  isAnonymous: boolean;
-  isDummy?: boolean;
-}
-
-interface Session {
-  session: {
-    id: string | undefined;
-    expiresAt: Date | undefined;
-    token: string | undefined;
-    createdAt: Date | undefined;
-    updatedAt: Date | undefined;
-    ipAddress?: string | undefined; // Make optional
-    userAgent?: string | undefined; // Make optional
-    userId: string | undefined;
-  };
-  user: User;
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  image?: string | null | undefined;
+  isAnonymous?: boolean | null | undefined;
 }
 
 interface MainPageProps {
-  session: Session;
+  sessionDetails: {
+    user: User | null; // Allow user to be null within sessionDetails
+  } | null;
+  isNewUser: boolean;
+  isAnonymous: boolean;
 }
 
-export default function MainPage({ session }: MainPageProps) {
-  const [input, setInput] = useState<string>("");
-  const [user, setUser] = useState<User | undefined>(() => {
-    if (session && "session" in session) {
-      return session.user; // It's a Session
-    } else if (session && "user" in session) {
-      return undefined; // It's an AnonymousSession, initialize with null
-    } else {
-      return undefined; // No session, initialize with null
+export default function MainPage({
+  sessionDetails,
+  isNewUser,
+  isAnonymous,
+}: MainPageProps) {
+  const { user, setUser } = useUserStore();
+
+  console.log(user);
+
+  useEffect(() => {
+    // setUser(session?.user || null);
+    async function fetchData() {
+      if (isNewUser && !user) {
+        // console.log(session);
+        const user = await authClient.signIn.anonymous();
+        if (user) {
+          console.log(user.data?.user);
+          setUser(user?.data?.user);
+          console.log("Anonymous user signed in");
+          // SetCookie user-status=guest
+          return Cookies.set("user-status", "guest", { expires: 7 });
+        }
+      }
+
+      if (sessionDetails?.user) {
+        setUser(sessionDetails?.user);
+        if (!isNewUser && !isAnonymous) {
+          Cookies.set("user-status", "user", { expires: 7 });
+          return location.reload();
+        }
+        if (isAnonymous) {
+          Cookies.set("user-status", "guest", { expires: 7 });
+          return location.reload();
+        }
+      }
     }
-  });
+
+    fetchData();
+  }, [user, isNewUser, setUser, isAnonymous, sessionDetails]);
+
+  const [input, setInput] = useState<string>("");
   const router = useRouter();
   const setInitialMessage = useChatStore((state) => state.setInitialMessage);
 
@@ -58,33 +79,13 @@ export default function MainPage({ session }: MainPageProps) {
     return router.push(`/chat/${newChatId}`);
   };
 
-  useEffect(() => {
-    setUser(session?.user || null);
-    async function fetchData() {
-      if (session?.user?.isDummy) {
-        // console.log(session);
-        const user = await authClient.signIn.anonymous();
-        if (user) {
-          console.log(user.data?.user);
-          setUser({
-            id: user.data?.user.id || undefined,
-            name: "Anonymous",
-            email: user.data?.user.email,
-            emailVerified: false,
-            image: undefined,
-            isAnonymous: true,
-          });
-          console.log("Anonymous user signed in");
-        }
-      }
-    }
-
-    fetchData();
-  }, [session]);
-
   return (
     <div className="flex flex-col h-screen items-center justify-center">
-      <Header user={user} landingPage={true} />
+      <Header
+        landingPage={true}
+        isNewUser={isNewUser}
+        isAnonymous={isAnonymous}
+      />
       <div className="text-center w-full -mt-20 md:mt-0">
         <div className="flex justify-center items-center mb-5">
           <Spinner />

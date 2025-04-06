@@ -1,28 +1,78 @@
+"use server";
 import ChatInterface from "@/screens/ChatInterface";
-import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 
 interface User {
-  id: string | undefined;
-  name: string | undefined;
-  email: string | undefined;
-  emailVerified: boolean | undefined;
-  image: string | undefined;
-  createdAt?: Date | undefined; // Allow undefined or null
-  updatedAt?: Date | undefined; // Allow undefined or null
-  isAnonymous: boolean;
-  isDummy?: boolean;
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  image?: string | null | undefined;
+  isAnonymous?: boolean | null | undefined;
 }
 
-export default async function Chat() {
+interface SessionDetailsInterface {
+  user: User | null; // Allow user to be null
+}
+
+export default async function LandingPage() {
+  const head = await headers();
+  console.log(head);
+
+  if (head.get("cookie")?.includes("user-status=user")) {
+    console.log("SIGNIN USER");
+    return (
+      <ChatInterface
+        sessionDetails={{ user: null } as SessionDetailsInterface}
+        isNewUser={false}
+        isAnonymous={false}
+      />
+    );
+  }
+
+  if (head.get("cookie")?.includes("user-status=guest")) {
+    console.log("GUEST");
+    return (
+      <ChatInterface
+        sessionDetails={{ user: null } as SessionDetailsInterface}
+        isNewUser={false}
+        isAnonymous={true}
+      />
+    );
+  }
+
   const session = await auth.api.getSession({
     headers: await headers(),
   });
+
   if (!session) {
-    return redirect("/");
+    return (
+      <ChatInterface
+        sessionDetails={{ user: null } as SessionDetailsInterface}
+        isNewUser={true}
+        isAnonymous={false}
+      />
+    );
   }
 
-  //console.log("ChatInterface Session", session.user);
-  return <ChatInterface user={session.user as User} />;
+  if (session.user.isAnonymous) {
+    return (
+      <ChatInterface
+        sessionDetails={{ user: session?.user } as SessionDetailsInterface}
+        isNewUser={false}
+        isAnonymous={true}
+      />
+    );
+  }
+
+  return (
+    <ChatInterface
+      sessionDetails={{ user: session?.user } as SessionDetailsInterface}
+      isNewUser={false}
+      isAnonymous={false}
+    />
+  );
 }

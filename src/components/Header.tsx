@@ -1,6 +1,6 @@
 "use client";
 import { LogOutIcon, SettingsIcon, SquarePen, TextSearch } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
@@ -23,8 +23,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-// import { useAppTheme } from "./theme-provider";
+import Cookies from "js-cookie";
 
 import Settings from "./Setting";
 import { authClient } from "@/lib/auth-client";
@@ -34,33 +33,28 @@ import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
 import ChatHistory from "./ChatHistory";
 import { Switch } from "./ui/switch";
+import { useUserStore } from "@/store/userStore";
 
 interface HeaderInterface {
-  user:
-    | {
-        id: string | undefined;
-        name: string | undefined;
-        email: string | undefined;
-        emailVerified: boolean | undefined;
-        image: string | undefined;
-        createdAt?: Date | undefined; // Allow undefined or null
-        updatedAt?: Date | undefined; // Allow undefined or null
-        isAnonymous: boolean;
-        isDummy?: boolean;
-      }
-    | undefined; //  <- Add null and undefined
   landingPage: boolean | undefined;
+  isNewUser: boolean;
+  isAnonymous: boolean;
 }
 
-export default function Header({ user, landingPage }: HeaderInterface) {
+export default function Header({
+  landingPage,
+  isNewUser,
+  isAnonymous,
+}: HeaderInterface) {
   // const imageUrl = user.image ?? "/default-image.png"; // Provide a default image path
   // ... use imageUrl in your <img> tag or component
   const [openSettings, setOpenSettings] = useState(false);
   // const { resolvedTheme, mounted } = useAppTheme();
   // const [user, setUser] = useState(user);
   const router = useRouter();
+  const { user, fetchAndSetSession } = useUserStore();
 
-  console.log(user);
+  // console.log(user);
   // console.log(user);
 
   const handleLogout = async () => {
@@ -73,11 +67,20 @@ export default function Header({ user, landingPage }: HeaderInterface) {
     });
   };
 
+  useEffect(() => {
+    const setUser = async () => {
+      await fetchAndSetSession();
+    };
+
+    setUser();
+  }, [fetchAndSetSession]);
+
   const SignInComponent = () => {
     return (
       <Button
         className="cursor-pointer"
         onClick={async () => {
+          Cookies.remove("user-status");
           await authClient.signIn.social({
             provider: "google",
             callbackURL: "/",
@@ -88,6 +91,8 @@ export default function Header({ user, landingPage }: HeaderInterface) {
       </Button>
     );
   };
+
+  console.log(user);
 
   return (
     <div className="w-full">
@@ -114,23 +119,21 @@ export default function Header({ user, landingPage }: HeaderInterface) {
             >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
-            {user?.id && (
-              <Dialog>
-                <DialogTrigger>
-                  <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
-                    <TextSearch
-                      className="w-5 h-5 text-white"
-                      strokeWidth={2.5}
-                    />
-                  </div>
-                </DialogTrigger>
-                <DialogContent className="bg-[#1d1e20] rounded-lg  w-[53vw]">
-                  <DialogTitle className="sr-only"></DialogTitle>
-                  <ChatHistory max_chats={10} />
-                </DialogContent>
-              </Dialog>
-            )}
-            {!user?.isAnonymous && (
+            <Dialog>
+              <DialogTrigger>
+                <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
+                  <TextSearch
+                    className="w-5 h-5 text-white"
+                    strokeWidth={2.5}
+                  />
+                </div>
+              </DialogTrigger>
+              <DialogContent className="bg-[#1d1e20] rounded-lg  w-[53vw]">
+                <DialogTitle className="sr-only"></DialogTitle>
+                <ChatHistory max_chats={10} />
+              </DialogContent>
+            </Dialog>
+            {!isAnonymous && !isNewUser && (
               <button
                 className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full"
                 onClick={() => setOpenSettings(true)}
@@ -141,7 +144,9 @@ export default function Header({ user, landingPage }: HeaderInterface) {
                 />
               </button>
             )}
-            {!user || (user?.isAnonymous && SignInComponent())}
+
+            {isAnonymous && SignInComponent()}
+            {isNewUser && SignInComponent()}
             {/* {!user && SignInComponent()} */}
             {/* <div className='flex-row px-3 justify-center items-center flex'></div> */}
           </div>
@@ -161,28 +166,28 @@ export default function Header({ user, landingPage }: HeaderInterface) {
             >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
-            {user?.id && (
-              <Drawer>
-                <DrawerTrigger>
-                  <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
-                    <TextSearch
-                      className="w-5 h-5 text-white"
-                      strokeWidth={2.5}
-                    />
-                  </div>
-                </DrawerTrigger>
-                <DrawerContent className="w-full bg-[#1d1e20] rounded-t-2xl max-w-2xl ">
-                  <DrawerTitle></DrawerTitle>
-                  <ChatHistory max_chats={7} />
-                  {/* <DrawerFooter>
+            <Drawer>
+              <DrawerTrigger>
+                <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
+                  <TextSearch
+                    className="w-5 h-5 text-white"
+                    strokeWidth={2.5}
+                  />
+                </div>
+              </DrawerTrigger>
+              <DrawerContent className="w-full bg-[#1d1e20] rounded-t-2xl max-w-2xl ">
+                <DrawerTitle></DrawerTitle>
+                <ChatHistory max_chats={7} />
+                {/* <DrawerFooter>
                     <DrawerClose>
                     </DrawerClose>
                   </DrawerFooter> */}
-                </DrawerContent>
-              </Drawer>
-            )}
-            {!user || (user?.isAnonymous && SignInComponent())}
-            {!user?.isAnonymous && (
+              </DrawerContent>
+            </Drawer>
+
+            {isAnonymous && SignInComponent()}
+            {isNewUser && SignInComponent()}
+            {!isAnonymous && (
               <Drawer>
                 <DrawerTrigger>
                   <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
@@ -334,14 +339,14 @@ export default function Header({ user, landingPage }: HeaderInterface) {
             )}
           </div>
 
-          {!user?.isAnonymous && (
+          {/* {!user?.isAnonymous && (
             <Dialog open={openSettings} onOpenChange={setOpenSettings}>
               <DialogContent className="bg-[#1d1e20] h-[60vh] w-[53vw]">
                 <DialogTitle className="sr-only">Settings</DialogTitle>
-                <Settings user={user} />
+                <Settings />
               </DialogContent>
             </Dialog>
-          )}
+          )} */}
         </div>
       </div>
     </div>
