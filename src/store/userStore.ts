@@ -2,59 +2,39 @@ import { authClient } from "@/lib/auth-client";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-interface Session {
-  session:
-    | {
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        expiresAt: Date;
-        token: string;
-        ipAddress?: string | null | undefined | undefined;
-        userAgent?: string | null | undefined | undefined;
-      }
-    | undefined;
-  user:
-    | {
-        id: string;
-        name: string;
-        email: string;
-        emailVerified: boolean;
-        createdAt?: Date;
-        updatedAt?: Date;
-        image?: string | null | undefined | undefined;
-        isAnonymous?: boolean | null | undefined;
-      }
-    | undefined;
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  image?: string | null | undefined | undefined;
+  isAnonymous?: boolean | null | undefined;
 }
 
 interface UserState {
-  session: Session | null;
-  setSession: (session: Session | undefined) => void;
+  user: User | null;
+  setUser: (user: User | undefined) => void;
   fetchAndSetSession: () => Promise<void>;
 }
 
 export const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
-      session: {
-        session: undefined,
-        user: {
-          id: "",
-          name: "Anonymous",
-          email: "",
-          emailVerified: false,
-          image: undefined,
-          isAnonymous: true,
-        },
-      },
-      setSession: (session: Session | undefined) => {
-        set({ session: session });
+      user: null,
+      setUser: (user: User | undefined) => {
+        set({ user: user });
       },
       fetchAndSetSession: async () => {
+        // Check if user data is already present in the store
+        if (get().user) {
+          return; // Do not fetch again if user data exists
+        }
+
         const session = await authClient.getSession();
-        get().setSession(session?.data || undefined); // Use the setSession action
+        console.log(session?.data?.user);
+        get().setUser(session?.data?.user || undefined);
       },
     }),
     {
@@ -63,6 +43,3 @@ export const useUserStore = create<UserState>()(
     },
   ),
 );
-
-// Immediately try to fetch and set the session
-useUserStore.getState().fetchAndSetSession();

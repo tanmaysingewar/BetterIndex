@@ -8,29 +8,14 @@ import { useRouter } from "next/navigation";
 import { Button } from "./ui/button";
 import Image from "next/image";
 import { Switch } from "./ui/switch";
-
-// 1. Define an interface for the component's props
-interface SettingsProps {
-  user:
-    | {
-        id: string | undefined;
-        name: string | undefined;
-        email: string | undefined;
-        emailVerified: boolean | undefined;
-        image: string | undefined;
-        createdAt?: Date | undefined; // Allow undefined or null
-        updatedAt?: Date | undefined; // Allow undefined or null
-        isAnonymous: boolean;
-        isDummy?: boolean;
-      }
-    | null
-    | undefined; //  <- Add null and undefined
-}
+import { useUserStore } from "@/store/userStore";
+import Cookies from "js-cookie";
 
 // 2. Use the SettingsProps interface and destructure 'user' from it
-export default function Settings({ user }: SettingsProps) {
+export default function Settings() {
   const router = useRouter();
   const [selected, setSelected] = useState("Account");
+  const { user } = useUserStore();
 
   // console.log(user.image); // This will now work correctly
 
@@ -41,6 +26,7 @@ export default function Settings({ user }: SettingsProps) {
           router.push("/"); // redirect to login page
           // Consider using router.refresh() instead of location.reload()
           // for a potentially smoother Next.js experience
+          Cookies.remove("user-status");
           return location.reload();
         },
       },

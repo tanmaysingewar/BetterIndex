@@ -1,71 +1,78 @@
-interface User {
-  id: string | undefined;
-  name: string | undefined;
-  email: string | undefined;
-  emailVerified: boolean | undefined;
-  image: string | undefined;
-  createdAt?: Date | undefined; // Allow undefined or null
-  updatedAt?: Date | undefined; // Allow undefined or null
-  isAnonymous: boolean;
-  isDummy?: boolean;
-}
-
-interface Session {
-  session: {
-    id: string | undefined;
-    expiresAt: Date | undefined;
-    token: string | undefined;
-    createdAt: Date | undefined;
-    updatedAt: Date | undefined;
-    ipAddress?: string | undefined; // Make optional
-    userAgent?: string | undefined; // Make optional
-    userId: string | undefined;
-  };
-  user: User;
-}
-
+"use server";
 import MainPage from "@/screens/MainPage";
-import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 
-export default async function Chat() {
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  image?: string | null | undefined;
+  isAnonymous?: boolean | null | undefined;
+}
+
+interface SessionDetailsInterface {
+  user: User | null; // Allow user to be null
+}
+
+export default async function LandingPage() {
+  const head = await headers();
+  console.log(head);
+
+  if (head.get("cookie")?.includes("user-status=user")) {
+    console.log("SIGNIN USER");
+    return (
+      <MainPage
+        sessionDetails={{ user: null } as SessionDetailsInterface}
+        isNewUser={false}
+        isAnonymous={false}
+      />
+    );
+  }
+
+  if (head.get("cookie")?.includes("user-status=guest")) {
+    console.log("GUEST");
+    return (
+      <MainPage
+        sessionDetails={{ user: null } as SessionDetailsInterface}
+        isNewUser={false}
+        isAnonymous={true}
+      />
+    );
+  }
+
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
   if (!session) {
-    const defaultAnonymousUser: User = {
-      id: undefined,
-      name: "Anonymous",
-      email: undefined,
-      emailVerified: false,
-      image: undefined,
-      createdAt: undefined,
-      updatedAt: undefined,
-      isAnonymous: true,
-      isDummy: true,
-    };
-
-    const defaultAnonymousScession = {
-      id: undefined,
-      expiresAt: undefined,
-      token: undefined,
-      createdAt: undefined,
-      updatedAt: undefined,
-      ipAddress: undefined, // Make optional
-      userAgent: undefined, // Make optional
-      userId: undefined,
-    };
-
     return (
       <MainPage
-        session={{
-          user: defaultAnonymousUser,
-          session: defaultAnonymousScession,
-        }}
+        sessionDetails={{ user: null } as SessionDetailsInterface}
+        isNewUser={true}
+        isAnonymous={false}
       />
     );
   }
 
-  return <MainPage session={session as Session} />;
+  if (session.user.isAnonymous) {
+    return (
+      <MainPage
+        sessionDetails={{ user: session?.user } as SessionDetailsInterface}
+        isNewUser={false}
+        isAnonymous={true}
+      />
+    );
+  }
+
+  return (
+    <MainPage
+      sessionDetails={{ user: session?.user } as SessionDetailsInterface}
+      isNewUser={false}
+      isAnonymous={false}
+    />
+  );
 }

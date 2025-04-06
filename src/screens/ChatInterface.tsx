@@ -6,6 +6,9 @@ import Header from "@/components/Header";
 import Spinner from "@/components/Spinner";
 import MessageRenderer from "@/components/MessageRenderer";
 import { useChatStore } from "@/store/chatStore";
+import { useUserStore } from "@/store/userStore";
+import { authClient } from "@/lib/auth-client";
+import Cookies from "js-cookie";
 
 interface Message {
   role: "user" | "assistant";
@@ -93,18 +96,6 @@ const saveToCache = (chats: Chat[], pagination: PaginationInfo) => {
   }
 };
 
-interface User {
-  id: string | undefined;
-  name: string | undefined;
-  email: string | undefined;
-  emailVerified: boolean | undefined;
-  image: string | undefined;
-  createdAt?: Date | undefined; // Allow undefined or null
-  updatedAt?: Date | undefined; // Allow undefined or null
-  isAnonymous: boolean;
-  isDummy?: boolean;
-}
-
 interface PaginationInfo {
   currentPage: number;
   pageSize: number;
@@ -113,11 +104,30 @@ interface PaginationInfo {
   searchTerm: string | null;
 }
 
-interface ChatPageProps {
-  user: User;
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  image?: string | null | undefined;
+  isAnonymous?: boolean | null | undefined;
 }
 
-export default function ChatPage({ user }: ChatPageProps) {
+interface ChatPageProps {
+  sessionDetails: {
+    user: User | null; // Allow user to be null within sessionDetails
+  } | null;
+  isNewUser: boolean;
+  isAnonymous: boolean;
+}
+
+export default function ChatPage({
+  sessionDetails,
+  isNewUser,
+  isAnonymous,
+}: ChatPageProps) {
   const router = useRouter();
   const params = useParams();
   const [chatInitiated, setChatInitiated] = useState<boolean>(false);
@@ -125,6 +135,7 @@ export default function ChatPage({ user }: ChatPageProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const { user, setUser } = useUserStore();
 
   const initialMessage = useChatStore((state) => state.initialMessage);
   const setInitialMessage = useChatStore((state) => state.setInitialMessage);
@@ -133,6 +144,35 @@ export default function ChatPage({ user }: ChatPageProps) {
   const serverFetchInitiated = useRef<Record<string, boolean>>({});
   // Ref to track the initial message being processed by handleSendMessage
   const processingInitialMessageRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // setUser(session?.user || null);
+    async function fetchData() {
+      if (isNewUser && !user) {
+        // console.log(session);
+        const user = await authClient.signIn.anonymous();
+        if (user) {
+          console.log(user.data?.user);
+          setUser(user?.data?.user);
+          console.log("Anonymous user signed in");
+          // SetCookie user-status=guest
+          return Cookies.set("user-status", "guest", { expires: 7 });
+        }
+      }
+
+      if (sessionDetails?.user) {
+        setUser(sessionDetails?.user);
+        if (!isNewUser && !isAnonymous) {
+          return Cookies.set("user-status", "user", { expires: 7 });
+        }
+        if (isAnonymous) {
+          return Cookies.set("user-status", "guest", { expires: 7 });
+        }
+      }
+    }
+
+    fetchData();
+  }, [user, isNewUser, setUser, isAnonymous, sessionDetails]);
 
   // Effect 1: Set initial chat ID from URL & Load from Local Storage
   useEffect(() => {
@@ -560,7 +600,11 @@ export default function ChatPage({ user }: ChatPageProps) {
       {" "}
       {/* Use h-screen for fixed viewport height */}
       {/* 2. Header: Takes its natural height */}
-      <Header user={user} landingPage={false} />
+      <Header
+        landingPage={true}
+        isNewUser={isNewUser}
+        isAnonymous={isAnonymous}
+      />
       {/* <div className="md:hidden block bg-red-500/10">
         <p className="text-center p-1 font-semibold text-sm">
           Mobile optimization is still in progress!
