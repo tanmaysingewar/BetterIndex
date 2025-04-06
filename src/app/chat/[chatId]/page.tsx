@@ -20,7 +20,6 @@ interface SessionDetailsInterface {
 
 export default async function LandingPage() {
   const head = await headers();
-  console.log(head);
 
   if (head.get("cookie")?.includes("user-status=user")) {
     console.log("SIGNIN USER");
