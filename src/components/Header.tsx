@@ -35,7 +35,7 @@ import ChatHistory from "./ChatHistory";
 import { Switch } from "./ui/switch";
 import { useUserStore } from "@/store/userStore";
 import Settings from "./Setting";
-
+// import Cookies from "js-cookie";
 interface HeaderInterface {
   landingPage: boolean | undefined;
   isNewUser: boolean;
@@ -58,13 +58,30 @@ export default function Header({
   // console.log(user);
   // console.log(user);
 
+  // const handleLogout = async () => {
+  //   await authClient.signOut({
+  //     fetchOptions: {
+  //       onSuccess: async () => {
+  //         console.log("Logged out");
+  //         setUser(undefined);
+  //         localStorage.clear();
+  //         Cookies.remove("user-status");
+  //         return location.reload();
+  //       },
+  //     },
+  //   });
+  // };
+  //
   const handleLogout = async () => {
     await authClient.signOut({
       fetchOptions: {
-        onSuccess: async () => {
-          console.log("Logged out");
+        onSuccess: () => {
           setUser(undefined);
           localStorage.clear();
+          Cookies.remove("user-status");
+          router.push("/"); // redirect to login page
+          // Consider using router.refresh() instead of location.reload()
+          // for a potentially smoother Next.js experience
           return location.reload();
         },
       },
