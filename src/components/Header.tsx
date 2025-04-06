@@ -25,7 +25,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Cookies from "js-cookie";
 
-import Settings from "./Setting";
+// import Settings from "./Setting";
 import { authClient } from "@/lib/auth-client";
 import Image from "next/image";
 import { Button } from "./ui/button";
@@ -34,6 +34,7 @@ import { useRouter } from "next/navigation";
 import ChatHistory from "./ChatHistory";
 import { Switch } from "./ui/switch";
 import { useUserStore } from "@/store/userStore";
+import Settings from "./Setting";
 
 interface HeaderInterface {
   landingPage: boolean | undefined;
@@ -339,14 +340,14 @@ export default function Header({
             )}
           </div>
 
-          {/* {!user?.isAnonymous && (
+          {!user?.isAnonymous && (
             <Dialog open={openSettings} onOpenChange={setOpenSettings}>
               <DialogContent className="bg-[#1d1e20] h-[60vh] w-[53vw]">
                 <DialogTitle className="sr-only">Settings</DialogTitle>
                 <Settings />
               </DialogContent>
             </Dialog>
-          )} */}
+          )}
         </div>
       </div>
     </div>
