@@ -175,7 +175,7 @@ export async function POST(req: Request) {
         try {
           const completion = await client.chat.completions.create({
             messages: messages_format,
-            model: "deepseek-r1-distill-llama-70b",
+            model: "llama-3.1-8b-instant",
             temperature: 0.7,
             stream: true as const,
           });

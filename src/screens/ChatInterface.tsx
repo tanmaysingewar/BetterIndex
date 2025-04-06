@@ -611,7 +611,7 @@ export default function ChatPage({
         </p>
       </div> */}
       {/* 3. Messages container: Grows to fill space, allows scrolling */}
-      <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+      <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 mt-12 lg:mt-0">
         <div className="p-4 max-w-[750px] mx-auto">
           {messages.map((message, index) => (
             <MemoizedRenderMessageOnScreen
@@ -696,7 +696,7 @@ const RenderMessageOnScreen = ({
         className={`mb-2 block md:hidden ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
         // style={{ minHeight: mobileMinHeight }}
         style={{
-          minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-314px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-300px + 100vh)" : "auto"}`,
+          minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-330px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-264px + 100vh)" : "auto"}`,
         }}
       >
         <div
