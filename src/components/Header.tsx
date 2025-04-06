@@ -53,7 +53,7 @@ export default function Header({
   // const { resolvedTheme, mounted } = useAppTheme();
   // const [user, setUser] = useState(user);
   const router = useRouter();
-  const { user, fetchAndSetSession } = useUserStore();
+  const { user, fetchAndSetSession, setUser } = useUserStore();
 
   // console.log(user);
   // console.log(user);
@@ -63,6 +63,9 @@ export default function Header({
       fetchOptions: {
         onSuccess: async () => {
           console.log("Logged out");
+          setUser(undefined);
+          localStorage.clear();
+          return location.reload();
         },
       },
     });
