@@ -27,7 +27,7 @@ export default function Settings() {
           // Consider using router.refresh() instead of location.reload()
           // for a potentially smoother Next.js experience
           Cookies.remove("user-status");
-          return location.reload();
+          return router.refresh();
         },
       },
     });

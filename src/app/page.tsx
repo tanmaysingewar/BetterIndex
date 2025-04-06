@@ -52,7 +52,7 @@ export default async function LandingPage() {
       <MainPage
         sessionDetails={{ user: null } as SessionDetailsInterface}
         isNewUser={true}
-        isAnonymous={false}
+        isAnonymous={true}
       />
     );
   }

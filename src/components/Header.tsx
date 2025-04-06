@@ -207,7 +207,6 @@ export default function Header({
             </Drawer>
 
             {isAnonymous && SignInComponent()}
-            {isNewUser && SignInComponent()}
             {!isAnonymous && (
               <Drawer>
                 <DrawerTrigger>
@@ -360,7 +359,7 @@ export default function Header({
             )}
           </div>
 
-          {!user?.isAnonymous && (
+          {!isAnonymous && (
             <Dialog open={openSettings} onOpenChange={setOpenSettings}>
               <DialogContent className="bg-[#1d1e20] h-[60vh] w-[53vw]">
                 <DialogTitle className="sr-only">Settings</DialogTitle>
