@@ -539,6 +539,16 @@ export default function ChatPage({
 
   const inputBoxHeight = 58; // From your InputBox prop
 
+  useEffect(() => {
+    if (searchParams.get("new")) {
+      setCurrentChatId(null);
+      setChatInitiated(false);
+      setMessages([]);
+      setInput("");
+    }
+  }, [searchParams]);
+  
+
   if (searchParams.get("new")) {
     return <MainPage sessionDetails={sessionDetails}
       isNewUser={isNewUser}
