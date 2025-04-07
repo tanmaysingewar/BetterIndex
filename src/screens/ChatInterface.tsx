@@ -390,9 +390,10 @@ export default function ChatPage({
 
         // Get the header of the response
         const get_header = response.headers.get("X-Title");
+        console.log("X-Title", get_header);
+        console.log("X-Title", typeof(get_header));
 
-        if (get_header != "") {
-          // const chatsCache = loadFromCache();
+        if (get_header) {
 
           const chat = {
             id: chatIdForRequest,
