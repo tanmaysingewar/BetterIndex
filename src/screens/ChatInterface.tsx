@@ -102,6 +102,23 @@ export default function ChatPage({
       if (navigationEntries.length > 0) {
         const navigationEntry = navigationEntries[0] as PerformanceNavigationTiming;
         const chatIdFromUrl = searchParams.get("chatId") || undefined;
+        if (navigationEntry.type === 'reload'){
+          try {
+            async function updateChatCache() {
+              const success = await fetchAllChatsAndCache();
+              if (success) {
+                console.log("Chat cache updated.");
+              } else {
+                console.error("Failed to update chat cache.");
+              }
+            }
+            updateChatCache();
+          }
+          catch (error) {
+            console.error("Error updating chat cache:", error);
+          }
+        }
+        
         if (navigationEntry.type === 'reload' && chatIdFromUrl && !initialMessage) {
 
           const fetchMessagesFromServer = async (chatIdToFetch: string) => {
@@ -129,21 +146,6 @@ export default function ChatPage({
                 );
               } catch (lsError) {
                 console.error("Error updating Local Storage:", lsError);
-              }
-
-              try {
-                async function updateChatCache() {
-                  const success = await fetchAllChatsAndCache();
-                  if (success) {
-                    console.log("Chat cache updated.");
-                  } else {
-                    console.error("Failed to update chat cache.");
-                  }
-                }
-                updateChatCache();
-              }
-              catch (error) {
-                console.error("Error updating chat cache:", error);
               }
             } catch (error) {
               console.error("Error fetching initial messages from server:", error);

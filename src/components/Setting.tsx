@@ -24,6 +24,7 @@ export default function Settings() {
           router.push("/chat?new=true"); // redirect to login page
           // Consider using router.refresh() instead of location.reload()
           // for a potentially smoother Next.js experience
+          localStorage.clear()
           Cookies.remove("user-status");
           return location.reload();
         },
