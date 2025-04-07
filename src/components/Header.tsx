@@ -50,8 +50,8 @@ export default function Header({
           setUser(undefined);
           localStorage.clear();
           Cookies.remove("user-status");
-          router.push("/chat?new=true");
-          return location.reload();
+          router.push("/");
+          // return location.reload();
         },
       },
     });
