@@ -32,7 +32,7 @@ export const auth = betterAuth({
           await db.transaction(async (tx) => {
 
             // Update all chats belonging to the anonymous user to belong to the new user
-            const updateResult = await tx
+          await tx
               .update(chat)
               .set({ userId: newUser?.user?.id })
               .where(eq(chat.userId, anonymousUser?.user?.id))

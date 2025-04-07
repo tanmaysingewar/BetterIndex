@@ -200,6 +200,7 @@ export default function ChatPage({
           }
         }
       } catch (error) {
+        console.error("Error loading chat from Local Storage:", error);
         localStorage.removeItem(getLocalStorageKey(chatIdFromUrl));
       }
 

@@ -118,6 +118,10 @@ export async function POST(req: Request) {
         isNewChatFlow = true; // Mark that we just created this chat
       }
     } catch (dbError) {
+      console.error(
+        `Database error during chat check/creation for ID ${currentChatId}:`,
+        dbError,
+      );
       return new Response(
         JSON.stringify({ error: "Database error during chat handling" }),
         { status: 500, headers: { "Content-Type": "application/json" } },
@@ -187,6 +191,7 @@ export async function POST(req: Request) {
               });
             } catch (dbError) {
               // Log error but don't necessarily stop the stream response
+              console.error("Error saving message pair:", dbError);
             }
           }
         } catch (error) {

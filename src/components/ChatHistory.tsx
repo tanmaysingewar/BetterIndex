@@ -61,6 +61,7 @@ const saveToCache = (chats: Chat[], pagination: PaginationInfo) => {
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(data));
   } catch (error) {
+    console.log("Error saving chat cache:", error);
   }
 };
 
@@ -130,6 +131,7 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
             const errorData = await response.json();
             errorMsg = errorData.error || errorMsg;
           } catch (e) {
+            console.error("Error parsing error response:", e);
           }
           throw new Error(errorMsg);
         }

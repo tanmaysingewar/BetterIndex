@@ -191,6 +191,7 @@ export async function POST(req: Request) {
               });
             } catch (dbError) {
               // Log error but don't necessarily stop the stream response
+              console.error("Error saving message pair:", dbError);
             }
           }
         } catch (error) {
