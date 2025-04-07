@@ -21,11 +21,11 @@ export default function Settings() {
     await authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
-          router.push("/"); // redirect to login page
+          router.push("/chat?new=true"); // redirect to login page
           // Consider using router.refresh() instead of location.reload()
           // for a potentially smoother Next.js experience
           Cookies.remove("user-status");
-          return router.refresh();
+          return location.reload();
         },
       },
     });

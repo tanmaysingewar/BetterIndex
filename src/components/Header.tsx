@@ -50,7 +50,7 @@ export default function Header({
           setUser(undefined);
           localStorage.clear();
           Cookies.remove("user-status");
-          router.push("/");
+          router.push("/chat?new=true");
           return location.reload();
         },
       },
@@ -73,7 +73,7 @@ export default function Header({
           Cookies.remove("user-status");
           await authClient.signIn.social({
             provider: "google",
-            callbackURL: "/",
+            callbackURL: "/chat?new=true",
           });
         }}
       >
@@ -104,10 +104,10 @@ export default function Header({
             <div
               className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full"
               onClick={() => {
-                if (location.pathname === "/") {
+                if (location.href.includes("/chat?new=true")) { 
                   return;
                 }
-                router.push("/");
+                router.push("/chat?new=true");
               }}
             >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />

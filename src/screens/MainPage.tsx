@@ -4,7 +4,7 @@ import InputBox from "@/components/InputArea/InputBox";
 import Header from "@/components/Header";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import { useChatStore } from "@/store/chatStore";
+import { useMessageStore } from "@/store/messageStore";
 import { nanoid } from "nanoid";
 import Spinner from "@/components/Spinner";
 import { useUserStore } from "@/store/userStore";
@@ -66,7 +66,7 @@ export default function MainPage({
 
   const [input, setInput] = useState<string>("");
   const router = useRouter();
-  const setInitialMessage = useChatStore((state) => state.setInitialMessage);
+  const setInitialMessage = useMessageStore((state) => state.setInitialMessage);
 
   const handleSend = () => {
     setInitialMessage(input); // Set message in the store

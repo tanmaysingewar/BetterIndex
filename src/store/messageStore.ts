@@ -5,7 +5,7 @@ interface ChatState {
   setInitialMessage: (message: string | null) => void;
 }
 
-export const useChatStore = create<ChatState>((set) => ({
+export const useMessageStore = create<ChatState>((set) => ({
   initialMessage: null,
   setInitialMessage: (message) => set({ initialMessage: message }),
 }));

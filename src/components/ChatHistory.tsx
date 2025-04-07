@@ -3,43 +3,58 @@ import { useRouter } from "next/navigation";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 
+// Interface for individual chat items (remains the same)
 interface Chat {
   id: string;
   title: string;
-  createdAt: string;
+  createdAt: string; // Keep this, might be useful for sorting later if needed
 }
 
+// Interface for the calculated pagination state (remains the same)
 interface PaginationInfo {
   currentPage: number;
   pageSize: number;
-  totalChats: number;
+  totalChats: number; // Total chats *after* filtering
   totalPages: number;
 }
 
-interface CachedChatData {
+// Interface for the NEW structure stored in localStorage
+interface RawCacheData {
   chats: Chat[];
-  pagination: PaginationInfo;
+  totalChats: number; // Total chats originally stored in the cache
   timestamp: number;
 }
 
-const CACHE_KEY = "chatHistoryCache_page1";
+// Updated cache key
+const CACHE_KEY = "chatHistoryCache";
 
-const loadFromCache = (): CachedChatData | null => {
+// Updated function to load data from the new cache format
+const loadFromCache = (): RawCacheData | null => {
   if (typeof window === "undefined") return null;
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     if (!cached) return null;
-    const data: CachedChatData = JSON.parse(cached);
+    const data: RawCacheData = JSON.parse(cached);
+
+    // Validate the new structure
     if (
       !data ||
       !Array.isArray(data.chats) ||
-      !data.pagination ||
-      data.pagination.currentPage !== 1
+      typeof data.totalChats !== "number" || // Check for totalChats
+      typeof data.timestamp !== "number"
     ) {
-      console.warn("Invalid cache structure found. Clearing.");
+      console.warn(
+        "Invalid cache structure found for key",
+        CACHE_KEY,
+        ". Clearing.",
+      );
       localStorage.removeItem(CACHE_KEY);
       return null;
     }
+    // Optional: Could add validation for individual chat items if needed
+    // data.chats.forEach(chat => { ... });
+
+    // Return the entire parsed data
     return data;
   } catch (error) {
     console.error("Failed to load or parse cache:", error);
@@ -48,23 +63,14 @@ const loadFromCache = (): CachedChatData | null => {
   }
 };
 
-const saveToCache = (chats: Chat[], pagination: PaginationInfo) => {
-  if (typeof window === "undefined") return;
-  if (pagination.currentPage !== 1) {
-    return;
-  }
-  try {
-    const data: CachedChatData = {
-      chats,
-      pagination,
-      timestamp: Date.now(),
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-  } catch (error) {
-    console.log("Error saving chat cache:", error);
-  }
-};
+// saveToCache is no longer needed in this component as it only reads
+// and operates on the existing cache. It's assumed another part
+// of the application populates the cache in the new format.
+/*
+const saveToCache = (...) => { ... }; // Removed or commented out
+*/
 
+// Debounce hook remains the same
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   useEffect(() => {
@@ -79,110 +85,122 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 interface ChatHistoryProps {
-  max_chats: number;
+  max_chats: number; // This acts as the page size for local pagination
   onClose: () => void;
 }
 
 export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
-  const initialCacheRef = useRef<CachedChatData | null>(loadFromCache());
+  // Load the *entire* cached chat list once on mount
+  const initialCacheDataRef = useRef<RawCacheData | null>(loadFromCache());
+  // Store *all* chats from the cache in a ref
+  const allCachedChats = useRef<Chat[]>(initialCacheDataRef.current?.chats || []);
 
-  const [chats, setChats] = useState<Chat[]>(
-    initialCacheRef.current?.chats || [],
-  );
-  const [pagination, setPagination] = useState<PaginationInfo | null>(
-    initialCacheRef.current?.pagination || null,
-  );
+  const [displayedChats, setDisplayedChats] = useState<Chat[]>([]);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(!initialCacheRef.current);
+  const [isLoading, setIsLoading] = useState(false); // Loading is minimal now
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const router = useRouter();
-  const limit = max_chats;
-  const isInitialFetchCycle = useRef(true);
+  const limit = max_chats; // Use max_chats as the local page size
 
-  const fetchChats = useCallback(
-    async (page: number, search: string = "") => {
-      const showLoadingIndicator =
-        page !== 1 ||
-        search ||
-        (isInitialFetchCycle.current && !initialCacheRef.current);
-
-      if (showLoadingIndicator) {
-        setIsLoading(true);
-      }
+  // This function now filters and paginates the data from allCachedChats.current
+  const processLocalChats = useCallback(
+    (page: number, search: string) => {
+      setIsLoading(true);
       setError(null);
 
-      const queryParams = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-      });
-      if (search) {
-        queryParams.set("search", search);
+      // Check if the cache was empty initially
+      if (allCachedChats.current.length === 0) {
+        setDisplayedChats([]);
+        setPagination(null);
+        // Set error only if the cache load actually failed (handled by initial load)
+        // Otherwise, it's just an empty cache state.
+        if (!initialCacheDataRef.current) {
+          // This condition might be redundant if loadFromCache handles errors,
+          // but keeps the logic clear. We rely on hasCache below for UI.
+        }
+        setIsLoading(false);
+        return;
       }
 
       try {
-        const response = await fetch(`/api/chats?${queryParams.toString()}`);
+        // 1. Filter based on search term (case-insensitive)
+        const filteredChats = search
+          ? allCachedChats.current.filter((chat) =>
+            (chat.title || "Untitled Chat") // Handle potentially missing titles
+              .toLowerCase()
+              .includes(search.toLowerCase()),
+          )
+          : allCachedChats.current; // No search term, use all cached chats
 
-        if (!response.ok) {
-          let errorMsg = `Failed to fetch chats (${response.status})`;
-          try {
-            const errorData = await response.json();
-            errorMsg = errorData.error || errorMsg;
-          } catch (e) {
-            console.error("Error parsing error response:", e);
-          }
-          throw new Error(errorMsg);
-        }
+        // 2. Calculate pagination based on *filtered* results
+        const totalFilteredChats = filteredChats.length;
+        const totalPages = Math.ceil(totalFilteredChats / limit) || 1; // Ensure at least 1 page
+        // Validate requested page number against available pages
+        const validatedPage = Math.max(1, Math.min(page, totalPages));
 
-        const data = await response.json();
+        // 3. Slice the filtered chats for the current page
+        const startIndex = (validatedPage - 1) * limit;
+        const endIndex = startIndex + limit;
+        const chatsForPage = filteredChats.slice(startIndex, endIndex);
 
-        const fetchedChats = data.chats || [];
-        const fetchedPagination = data.pagination;
-
-        setChats(fetchedChats);
-        setPagination(fetchedPagination || null);
-
-        if (page === 1 && !search && fetchedPagination) {
-          saveToCache(fetchedChats, fetchedPagination);
-        }
+        // 4. Update state
+        setDisplayedChats(chatsForPage);
+        setPagination({
+          currentPage: validatedPage,
+          pageSize: limit,
+          totalChats: totalFilteredChats, // Total count *after* filtering
+          totalPages: totalPages,
+        });
       } catch (err) {
-        console.error("Error fetching chats:", err);
-        const errorMessage =
-          err instanceof Error ? err.message : "An unknown error occurred";
-        setError(errorMessage);
-
-        if (search || page !== 1 || !initialCacheRef.current) {
-          setChats([]);
-          setPagination(null);
-        } else {
-          setError(`${errorMessage} (showing potentially stale data)`);
-        }
+        console.error("Error processing local chats:", err);
+        setError("Failed to process cached chat data.");
+        setDisplayedChats([]);
+        setPagination(null);
       } finally {
         setIsLoading(false);
-        isInitialFetchCycle.current = false;
       }
     },
-    [limit],
+    [limit], // Dependency on limit (max_chats)
   );
 
+  // Effect to process chats when page or debounced search term changes
   useEffect(() => {
-    fetchChats(currentPage, debouncedSearchTerm);
-  }, [currentPage, debouncedSearchTerm, fetchChats]);
+    processLocalChats(currentPage, debouncedSearchTerm);
+  }, [currentPage, debouncedSearchTerm, processLocalChats]);
 
+  // Effect to reset to page 1 when the search term changes
   useEffect(() => {
-    if (!isInitialFetchCycle.current) {
-      setCurrentPage(1);
-    }
+    // Reset to page 1 whenever the search term is modified
+    setCurrentPage(1);
   }, [debouncedSearchTerm]);
 
+  // Initial processing on mount
+  useEffect(() => {
+    // Check if cache loading itself resulted in an error state initially
+    if (!initialCacheDataRef.current && allCachedChats.current.length === 0) {
+      // Attempted to load cache, but it was null/invalid
+      setError("Failed to load chat history from cache or cache is empty.");
+    }
+    // Process whatever was loaded (even if empty)
+    processLocalChats(1, "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
+
   const handleChatClick = (chatId: string) => {
-    if (location.pathname === `/chat?chatId=${chatId}`) {
+    const currentPath = window.location.pathname;
+    const currentSearchParams = new URLSearchParams(window.location.search);
+    const currentChatId = currentSearchParams.get("chatId");
+
+    if (currentPath === "/chat" && currentChatId === chatId) {
+      onClose(); // Already on the page, just close sidebar
       return;
     }
     router.push(`/chat?chatId=${chatId}`);
-    onClose(); // Call the onClose function here
+    onClose();
   };
 
   const handlePreviousPage = () => {
@@ -197,44 +215,68 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
     }
   };
 
+  // Determine UI states based on processed local data
+  const hasCache = allCachedChats.current.length > 0;
   const showEmptySearchResults =
-    !isLoading && !error && chats.length === 0 && !!debouncedSearchTerm;
-  const showNoChatsOverall =
-    !isLoading && !error && chats.length === 0 && !debouncedSearchTerm;
+    !isLoading &&
+    !error &&
+    hasCache &&
+    displayedChats.length === 0 &&
+    !!debouncedSearchTerm;
+  const showNoChatsInCache = !isLoading && !error && !hasCache;
+  // This covers the case where cache exists, but filter yields nothing (and it's not the initial empty cache state)
+  const showNoChatsAfterFilter =
+    !isLoading &&
+    !error &&
+    hasCache &&
+    displayedChats.length === 0 &&
+    !debouncedSearchTerm;
 
   return (
     <div className="flex flex-col h-full border-r md:min-h-[652px]">
       <div className="flex-shrink-0">
         <Input
-          placeholder="Search chats..."
+          placeholder="Search cached chats..." // Updated placeholder
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           style={{ fontSize: "16px" }}
           className="w-full border-0 ring-0 h-[60px] border-b rounded-none px-4 focus-visible:ring-0 focus-visible:ring-offset-0"
+          // Disable search only if there's definitely no cache AND no error state
+          disabled={!hasCache && !error}
         />
       </div>
 
       <div className="flex-grow p-4 overflow-y-auto">
-        {error && <p className="text-center text-red-500">Error: {error}</p>}
+        {isLoading && <p className="text-center text-gray-500">Loading...</p>}
+        {/* Show error first if it exists */}
+        {error && !isLoading && (
+          <p className="text-center text-red-500">Error: {error}</p>
+        )}
+        {/* Specific message for empty search results */}
         {showEmptySearchResults && (
           <p className="text-center text-gray-500">
-            No chats found matching {debouncedSearchTerm}.
+            {`No cached chats found matching ${debouncedSearchTerm}.`}
           </p>
         )}
-        {showNoChatsOverall && (
-          <p className="text-center text-gray-500">No chats found.</p>
+        {/* Message when the cache was empty/invalid from the start */}
+        {showNoChatsInCache && (
+          <p className="text-center text-gray-500">No cached chats found.</p>
+        )}
+        {/* Message when cache exists, but current filter (no search term) shows nothing - unlikely but possible */}
+        {showNoChatsAfterFilter && (
+          <p className="text-center text-gray-500">No chats to display.</p>
         )}
 
-        {!error && chats.length > 0 && (
+        {/* Display chat list if not loading, no error, and there are chats to display */}
+        {!isLoading && !error && displayedChats.length > 0 && (
           <div className="gap-1 flex flex-col">
-            {chats.map((chat) => (
+            {displayedChats.map((chat) => (
               <div
                 key={chat.id}
                 className={`hover:bg-neutral-200 dark:hover:bg-neutral-800 cursor-pointer rounded-lg p-3 transition-colors duration-150 ${new URLSearchParams(location.search).get("chatId") === chat.id
-                    ? "bg-neutral-100 dark:bg-neutral-700/80"
-                    : ""
+                  ? "bg-neutral-100 dark:bg-neutral-700/80"
+                  : ""
                   }`}
-
                 onClick={() => handleChatClick(chat.id)}
                 role="button"
                 tabIndex={0}
@@ -245,6 +287,8 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
                 <p className="text-[15px] font-medium truncate">
                   {chat.title || "Untitled Chat"}
                 </p>
+                {/* Optional: Display createdAt if needed */}
+                {/* <p className="text-xs text-gray-500">{new Date(chat.createdAt).toLocaleString()}</p> */}
               </div>
             ))}
           </div>
@@ -252,11 +296,13 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
       </div>
 
       <div className="flex-shrink-0 border-t h-[60px] flex items-center justify-between px-4">
+        {/* Show pagination only if there are chats *after filtering* */}
         {pagination && pagination.totalChats > 0 ? (
           <>
             <span className="text-sm text-gray-600 dark:text-gray-400">
               Page {pagination.currentPage} of {pagination.totalPages} (
-              {pagination.totalChats} chats)
+              {pagination.totalChats}{" "}
+              {pagination.totalChats === 1 ? "chat" : "chats"})
             </span>
             <div className="flex gap-2">
               <Button
@@ -280,8 +326,20 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
             </div>
           </>
         ) : (
+          // Show an empty span or placeholder text if no pagination is needed
+          // Avoid showing anything if loading or error occurred
           !isLoading &&
-          !error && <span className="text-sm text-gray-500"></span>
+          !error && (
+            <span className="text-sm text-gray-500">
+              {/* Text shown when cache exists but search yields 0 results, or cache was empty */}
+              {hasCache && debouncedSearchTerm
+                ? "No matching results"
+                : hasCache
+                  ? "" // Cache exists, no search, but 0 results (unlikely)
+                  : ""}
+              {/* If !hasCache, the main area already shows "No cached chats found" */}
+            </span>
+          )
         )}
       </div>
     </div>

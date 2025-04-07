@@ -5,41 +5,19 @@ import InputBox from "@/components/InputArea/InputBox";
 import Header from "@/components/Header";
 import Spinner from "@/components/Spinner";
 import MessageRenderer from "@/components/MessageRenderer";
-import { useChatStore } from "@/store/chatStore";
+import { useMessageStore } from "@/store/messageStore";
 import { useUserStore } from "@/store/userStore";
 import { authClient } from "@/lib/auth-client";
 import Cookies from "js-cookie";
+import { fetchAllChatsAndCache } from "@/lib/fetchChats";
+import MainPage from "./MainPage";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-// --- Interfaces ---
-interface Chat {
-  id: string;
-  title: string;
-  createdAt: string;
-}
-
-interface PaginationInfo {
-  currentPage: number;
-  pageSize: number;
-  totalChats: number;
-  totalPages: number;
-}
-
-// --- Local Storage Cache ---
-interface CachedChatData {
-  chats: Chat[];
-  pagination: PaginationInfo;
-  timestamp: number;
-}
-
-const CACHE_KEY = "chatHistoryCache_page1";
-
 const generateChatId = (): string => {
-  // ... (keep existing implementation)
   if (typeof window !== "undefined" && window.crypto?.randomUUID) {
     return window.crypto.randomUUID();
   } else {
@@ -48,58 +26,6 @@ const generateChatId = (): string => {
 };
 
 const getLocalStorageKey = (chatId: string): string => `chatMessages_${chatId}`;
-
-const loadFromCache = (): CachedChatData | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-    const data: CachedChatData = JSON.parse(cached);
-    // Optional: Check TTL
-    // if (Date.now() - data.timestamp > CACHE_TTL) { ... }
-    if (
-      !data ||
-      !Array.isArray(data.chats) ||
-      !data.pagination ||
-      data.pagination.currentPage !== 1 // Ensure cache is specifically for page 1
-    ) {
-      console.warn("Invalid cache structure found. Clearing.");
-      localStorage.removeItem(CACHE_KEY);
-      return null;
-    }
-    return data;
-  } catch (error) {
-    console.error("Failed to load or parse cache:", error);
-    localStorage.removeItem(CACHE_KEY);
-    return null;
-  }
-};
-
-const saveToCache = (chats: Chat[], pagination: PaginationInfo) => {
-  if (typeof window === "undefined") return;
-  // Only cache page 1 data
-  if (pagination.currentPage !== 1) {
-    return;
-  }
-  try {
-    const data: CachedChatData = {
-      chats,
-      pagination,
-      timestamp: Date.now(),
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-  } catch (error) {
-    console.error("Failed to save cache:", error);
-  }
-};
-
-interface PaginationInfo {
-  currentPage: number;
-  pageSize: number;
-  totalChats: number;
-  totalPages: number;
-  searchTerm: string | null;
-}
 
 interface User {
   id: string;
@@ -120,6 +46,7 @@ interface ChatPageProps {
   isAnonymous: boolean;
 }
 
+
 export default function ChatPage({
   sessionDetails,
   isNewUser,
@@ -134,13 +61,14 @@ export default function ChatPage({
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const { user, setUser } = useUserStore();
 
-  const initialMessage = useChatStore((state) => state.initialMessage);
-  const setInitialMessage = useChatStore((state) => state.setInitialMessage);
+  const initialMessage = useMessageStore((state) => state.initialMessage);
+  const setInitialMessage = useMessageStore((state) => state.setInitialMessage);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const serverFetchInitiated = useRef<Record<string, boolean>>({});
   // Ref to track the initial message being processed by handleSendMessage
   const processingInitialMessageRef = useRef<string | null>(null);
+
 
   useEffect(() => {
     // setUser(session?.user || null);
@@ -167,6 +95,71 @@ export default function ChatPage({
 
     fetchData();
   }, [user, isNewUser, setUser, isAnonymous, sessionDetails]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const navigationEntries = window.performance.getEntriesByType('navigation');
+      if (navigationEntries.length > 0) {
+        const navigationEntry = navigationEntries[0] as PerformanceNavigationTiming;
+        const chatIdFromUrl = searchParams.get("chatId") || undefined;
+        if (navigationEntry.type === 'reload' && chatIdFromUrl && !initialMessage) {
+
+          const fetchMessagesFromServer = async (chatIdToFetch: string) => {
+            serverFetchInitiated.current[chatIdToFetch] = true;
+            console.log(`Fetching messages from server for chatId: ${chatIdToFetch}`);  // Add this
+
+            try {
+              const response = await fetch(`/api/messages?chatId=${chatIdToFetch}`);
+
+              if (!response.ok) {
+                console.error(`Error fetching messages: ${response.status}`); // Add this
+                throw new Error(`HTTP error! Status: ${response.status}`);
+              }
+
+              const fetchedMessages: Message[] = await response.json();
+              console.log("Fetched messages:", fetchedMessages); // Add this
+
+              const finalMessagesFromServer = fetchedMessages;
+              setMessages(finalMessagesFromServer);
+
+              try {
+                localStorage.setItem(
+                  getLocalStorageKey(chatIdToFetch),
+                  JSON.stringify(finalMessagesFromServer),
+                );
+              } catch (lsError) {
+                console.error("Error updating Local Storage:", lsError);
+              }
+
+              try {
+                async function updateChatCache() {
+                  const success = await fetchAllChatsAndCache();
+                  if (success) {
+                    console.log("Chat cache updated.");
+                  } else {
+                    console.error("Failed to update chat cache.");
+                  }
+                }
+                updateChatCache();
+              }
+              catch (error) {
+                console.error("Error updating chat cache:", error);
+              }
+            } catch (error) {
+              console.error("Error fetching initial messages from server:", error);
+            } finally {
+              processingInitialMessageRef.current = null;
+            }
+          };
+          fetchMessagesFromServer(chatIdFromUrl);
+          // fetchMessages(chatIdFromUrl); // Fetch on component mount
+        } else {
+          console.log("Page was not reloaded");
+        }
+      }
+    }
+  }, []);
+
 
   // Effect 1: Set initial chat ID from URL & Load from Local Storage
   useEffect(() => {
@@ -198,6 +191,41 @@ export default function ChatPage({
             );
             localStorage.removeItem(getLocalStorageKey(chatIdFromUrl));
           }
+        } else if (!initialMessage) {
+          const fetchMessagesFromServer = async (chatIdToFetch: string) => {
+            serverFetchInitiated.current[chatIdToFetch] = true;
+            console.log(`Fetching messages from server for chatId: ${chatIdToFetch}`);  // Add this
+
+            try {
+              const response = await fetch(`/api/messages?chatId=${chatIdToFetch}`);
+
+              if (!response.ok) {
+                console.error(`Error fetching messages: ${response.status}`); // Add this
+                throw new Error(`HTTP error! Status: ${response.status}`);
+              }
+
+              const fetchedMessages: Message[] = await response.json();
+              console.log("Fetched messages:", fetchedMessages); // Add this
+
+              const finalMessagesFromServer = fetchedMessages;
+              setMessages(finalMessagesFromServer);
+
+              try {
+                localStorage.setItem(
+                  getLocalStorageKey(chatIdToFetch),
+                  JSON.stringify(finalMessagesFromServer),
+                );
+              } catch (lsError) {
+                console.error("Error updating Local Storage:", lsError);
+              }
+            } catch (error) {
+              console.error("Error fetching initial messages from server:", error);
+            } finally {
+              processingInitialMessageRef.current = null;
+            }
+          };
+
+          fetchMessagesFromServer(chatIdFromUrl);
         }
       } catch (error) {
         console.error("Error loading chat from Local Storage:", error);
@@ -229,40 +257,7 @@ export default function ChatPage({
       !serverFetchInitiated.current[currentChatId] &&
       !initialMessage
     ) {
-      const fetchMessagesFromServer = async (chatIdToFetch: string) => {
-        serverFetchInitiated.current[chatIdToFetch] = true;
-        console.log(`Fetching messages from server for chatId: ${chatIdToFetch}`);  // Add this
 
-        try {
-          const response = await fetch(`/api/messages?chatId=${chatIdToFetch}`);
-
-          if (!response.ok) {
-            console.error(`Error fetching messages: ${response.status}`); // Add this
-            throw new Error(`HTTP error! Status: ${response.status}`);
-          }
-
-          const fetchedMessages: Message[] = await response.json();
-          console.log("Fetched messages:", fetchedMessages); // Add this
-
-          const finalMessagesFromServer = fetchedMessages;
-          setMessages(finalMessagesFromServer);
-
-          try {
-            localStorage.setItem(
-              getLocalStorageKey(chatIdToFetch),
-              JSON.stringify(finalMessagesFromServer),
-            );
-          } catch (lsError) {
-            console.error("Error updating Local Storage:", lsError);
-          }
-        } catch (error) {
-          console.error("Error fetching initial messages from server:", error);
-        } finally {
-          processingInitialMessageRef.current = null;
-        }
-      };
-
-      fetchMessagesFromServer(currentChatId);
     }
     // Do not add initialMessage as dependency
   }, [currentChatId]);
@@ -395,27 +390,21 @@ export default function ChatPage({
         const get_header = response.headers.get("X-Title");
 
         if (get_header != "") {
-          const chatsCache = loadFromCache();
+          // const chatsCache = loadFromCache();
 
-          const chats = [
-            {
-              id: chatIdForRequest,
-              title: get_header!,
-              createdAt: new Date().toString(),
-            },
-          ].concat(chatsCache?.chats || []);
-
-          function defaultPagination(): PaginationInfo {
-            return {
-              currentPage: 1,
-              pageSize: 10,
-              totalChats: 0, // Default total chats
-              totalPages: 1, // At least one page if there are any chats
-              searchTerm: null,
-            };
+          const chat = {
+            id: chatIdForRequest,
+            title: get_header!,
+            createdAt: new Date().toString(),
           }
 
-          saveToCache(chats, chatsCache?.pagination ?? defaultPagination());
+          const added = addChatToCache(chat);
+
+          if (added) {
+            console.log("Chat successfully added to the local cache.");
+          } else {
+            console.log("Failed to add chat to the local cache.");
+          }
         }
 
         const reader = response.body?.getReader();
@@ -548,6 +537,12 @@ export default function ChatPage({
 
   const inputBoxHeight = 58; // From your InputBox prop
 
+  if (searchParams.get("new")) {
+    return <MainPage sessionDetails={sessionDetails}
+      isNewUser={isNewUser}
+      isAnonymous={isAnonymous} />
+  }
+
   return (
     // 1. Main container: Full height, flex column
     <div className="flex flex-col h-full">
@@ -679,3 +674,113 @@ const RenderMessageOnScreen = ({
 
 // Create the memoized version of the component
 const MemoizedRenderMessageOnScreen = memo(RenderMessageOnScreen);
+
+// --- Helper Functions for localStorage ---
+
+interface Chat {
+  id: string;
+  title: string;
+  createdAt: string; // Keep this, might be useful for sorting later if needed
+}
+
+// Define a specific cache key for all chats
+const ALL_CHATS_CACHE_KEY = "chatHistoryCache";
+
+// Define the structure for the data we'll store
+interface AllChatsCacheData {
+  chats: Chat[];
+  totalChats: number; // Store the total count reported by the API
+  timestamp: number; // Timestamp of when the cache was created
+}
+
+const addChatToCache = (newChat: Chat): boolean => {
+  // Check if localStorage is available
+  if (typeof window === "undefined" || !window.localStorage) {
+    console.error("localStorage is not available. Cannot add chat to cache.");
+    return false;
+  }
+
+  console.log(`Attempting to add chat (ID: ${newChat.id}) to cache...`);
+
+  try {
+    // --- Step 1: Retrieve existing cache data ---
+    const existingCacheJson = localStorage.getItem("chatHistoryCache");
+    console.log("Existing cache data:", existingCacheJson);
+    let cacheData: AllChatsCacheData;
+
+    if (existingCacheJson) {
+      // --- Step 2a: Parse existing cache ---
+      try {
+        cacheData = JSON.parse(existingCacheJson);
+        // Basic validation of existing cache structure
+        if (!cacheData || !Array.isArray(cacheData.chats)) {
+          console.warn(
+            "Existing cache data is corrupted. Creating a new cache.",
+          );
+          // Treat as if cache didn't exist
+          cacheData = {
+            chats: [],
+            totalChats: 0,
+            timestamp: Date.now(),
+          };
+        }
+      } catch (parseError) {
+        console.error("Failed to parse existing cache data:", parseError);
+        // Optionally clear the corrupted cache
+        // localStorage.removeItem(ALL_CHATS_CACHE_KEY);
+        // Proceed to create a new cache below
+        cacheData = {
+          chats: [],
+          totalChats: 0,
+          timestamp: Date.now(),
+        };
+      }
+
+      // --- Step 3a: Add new chat to existing list (prepend) ---
+      cacheData.chats.unshift(newChat); // Add to the beginning
+      cacheData.totalChats += 1; // Increment total count
+      cacheData.timestamp = Date.now(); // Update timestamp
+      console.log(
+        `Added chat to existing cache. New total: ${cacheData.totalChats}`,
+      );
+    } else {
+      // --- Step 2b/3b: Create new cache if none exists ---
+      console.log("No existing cache found. Creating a new one.");
+      cacheData = {
+        chats: [newChat], // Start with the new chat
+        totalChats: 1, // Total is now 1
+        timestamp: Date.now(),
+      };
+    }
+
+    // --- Step 4: Store the updated data back in localStorage ---
+    try {
+      localStorage.setItem(ALL_CHATS_CACHE_KEY, JSON.stringify(cacheData));
+      console.log(
+        `Successfully updated cache with chat (ID: ${newChat.id}) under key "${ALL_CHATS_CACHE_KEY}".`,
+      );
+      return true;
+    } catch (storageError) {
+      console.error(
+        "Failed to save updated cache to localStorage:",
+        storageError,
+      );
+      if (
+        storageError instanceof Error &&
+        storageError.name === "QuotaExceededError"
+      ) {
+        console.error(
+          "LocalStorage quota exceeded. Unable to save updated cache.",
+        );
+        // Optional: Implement cache eviction strategy here if needed
+      }
+      // Revert the in-memory changes if save fails? Depends on desired behavior.
+      // For simplicity, we don't revert here, but the function returns false.
+      return false;
+    }
+  } catch (error) {
+    // Catch any unexpected errors during the process
+    console.error("An unexpected error occurred while adding chat to cache:", error);
+    return false;
+  }
+};
