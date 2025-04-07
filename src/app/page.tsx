@@ -22,7 +22,6 @@ export default async function LandingPage() {
   const head = await headers();
 
   if (head.get("cookie")?.includes("user-status=user")) {
-    console.log("SIGNIN USER");
     return (
       <MainPage
         sessionDetails={{ user: null } as SessionDetailsInterface}
@@ -33,7 +32,6 @@ export default async function LandingPage() {
   }
 
   if (head.get("cookie")?.includes("user-status=guest")) {
-    console.log("GUEST");
     return (
       <MainPage
         sessionDetails={{ user: null } as SessionDetailsInterface}

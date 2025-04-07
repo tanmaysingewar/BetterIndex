@@ -5,37 +5,26 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
-  // DialogDescription,
-  // DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  // DialogClose,
+  DialogTrigger
 } from "@/components/ui/dialog";
-
 import {
   Drawer,
   DrawerClose,
   DrawerContent,
-  // DrawerDescription,
-  DrawerFooter,
-  // DrawerHeader,
-  DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Cookies from "js-cookie";
-
-// import Settings from "./Setting";
 import { authClient } from "@/lib/auth-client";
 import Image from "next/image";
 import { Button } from "./ui/button";
-// import { Input } from "./ui/input";
 import { useRouter } from "next/navigation";
 import ChatHistory from "./ChatHistory";
 import { Switch } from "./ui/switch";
 import { useUserStore } from "@/store/userStore";
 import Settings from "./Setting";
-// import Cookies from "js-cookie";
+
 interface HeaderInterface {
   landingPage: boolean | undefined;
   isNewUser: boolean;
@@ -47,31 +36,13 @@ export default function Header({
   isNewUser,
   isAnonymous,
 }: HeaderInterface) {
-  // const imageUrl = user.image ?? "/default-image.png"; // Provide a default image path
-  // ... use imageUrl in your <img> tag or component
   const [openSettings, setOpenSettings] = useState(false);
-  // const { resolvedTheme, mounted } = useAppTheme();
-  // const [user, setUser] = useState(user);
+  const [openChatHistoryDialog, setOpenChatHistoryDialog] = useState(false);
+  const [openChatHistoryDrawer, setOpenChatHistoryDrawer] = useState(false);
+
   const router = useRouter();
   const { user, fetchAndSetSession, setUser } = useUserStore();
 
-  // console.log(user);
-  // console.log(user);
-
-  // const handleLogout = async () => {
-  //   await authClient.signOut({
-  //     fetchOptions: {
-  //       onSuccess: async () => {
-  //         console.log("Logged out");
-  //         setUser(undefined);
-  //         localStorage.clear();
-  //         Cookies.remove("user-status");
-  //         return location.reload();
-  //       },
-  //     },
-  //   });
-  // };
-  //
   const handleLogout = async () => {
     await authClient.signOut({
       fetchOptions: {
@@ -79,9 +50,7 @@ export default function Header({
           setUser(undefined);
           localStorage.clear();
           Cookies.remove("user-status");
-          router.push("/"); // redirect to login page
-          // Consider using router.refresh() instead of location.reload()
-          // for a potentially smoother Next.js experience
+          router.push("/");
           return location.reload();
         },
       },
@@ -113,12 +82,16 @@ export default function Header({
     );
   };
 
-  console.log(user);
+  const closeChatHistory = () => {
+    setOpenChatHistoryDialog(false);
+    setOpenChatHistoryDrawer(false);
+  };
 
   return (
     <div className="w-full">
       <div
-        className={`flex flex-row items-center justify-between w-full max-w-full bg-[#1d1e20] md:bg-transparent shadow-lg shadow-neutral-800 dark:shadow-[#1d1e20] md:shadow-none md:fixed top-0 ${landingPage ? "fixed top-0" : ""}`}
+        className={`flex flex-row items-center justify-between w-full max-w-full bg-[#1d1e20] md:bg-transparent shadow-lg shadow-neutral-800 dark:shadow-[#1d1e20] md:shadow-none md:fixed top-0 ${landingPage ? "fixed top-0" : ""
+          }`}
       >
         <div>
           {/* <h1 className='text-3xl font-bold text-white ml-2'>Logo</h1> */}
@@ -131,7 +104,6 @@ export default function Header({
             <div
               className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full"
               onClick={() => {
-                // check if page is already on home page
                 if (location.pathname === "/") {
                   return;
                 }
@@ -140,7 +112,7 @@ export default function Header({
             >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
-            <Dialog>
+            <Dialog open={openChatHistoryDialog} onOpenChange={setOpenChatHistoryDialog}>
               <DialogTrigger>
                 <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
                   <TextSearch
@@ -151,7 +123,7 @@ export default function Header({
               </DialogTrigger>
               <DialogContent className="bg-[#1d1e20] rounded-lg  w-[53vw]">
                 <DialogTitle className="sr-only"></DialogTitle>
-                <ChatHistory max_chats={10} />
+                <ChatHistory max_chats={10} onClose={closeChatHistory} />
               </DialogContent>
             </Dialog>
             {!isAnonymous && !isNewUser && (
@@ -168,8 +140,6 @@ export default function Header({
 
             {isAnonymous && SignInComponent()}
             {isNewUser && SignInComponent()}
-            {/* {!user && SignInComponent()} */}
-            {/* <div className='flex-row px-3 justify-center items-center flex'></div> */}
           </div>
           <div
             id={"mobile-menu"}
@@ -178,7 +148,6 @@ export default function Header({
             <div
               className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full"
               onClick={() => {
-                // check if page is already on home page
                 if (location.pathname === "/") {
                   return;
                 }
@@ -187,7 +156,7 @@ export default function Header({
             >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
-            <Drawer>
+            <Drawer open={openChatHistoryDrawer} onOpenChange={setOpenChatHistoryDrawer}>
               <DrawerTrigger>
                 <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
                   <TextSearch
@@ -197,12 +166,7 @@ export default function Header({
                 </div>
               </DrawerTrigger>
               <DrawerContent className="w-full bg-[#1d1e20] rounded-t-2xl max-w-2xl ">
-                <DrawerTitle></DrawerTitle>
-                <ChatHistory max_chats={7} />
-                {/* <DrawerFooter>
-                    <DrawerClose>
-                    </DrawerClose>
-                  </DrawerFooter> */}
+                <ChatHistory max_chats={7} onClose={closeChatHistory} />
               </DrawerContent>
             </Drawer>
 
@@ -218,11 +182,9 @@ export default function Header({
                   </div>
                 </DrawerTrigger>
                 <DrawerContent className="w-full bg-[#1d1e20] rounded-t-2xl max-w-2xl">
-                  <DrawerTitle></DrawerTitle>
                   <Tabs defaultValue="account" className="mt-5 min-h-[560px]">
                     <TabsList className="w-[90%] mx-auto mb-3">
                       <TabsTrigger value="account">Account</TabsTrigger>
-                      {/* <TabsTrigger value="data">Data</TabsTrigger> */}
                     </TabsList>
                     <TabsContent value="account">
                       <div className="flex justify-center items-center flex-col">
@@ -254,9 +216,7 @@ export default function Header({
                     </TabsContent>
                     <TabsContent value="data">
                       <div className="space-y-4">
-                        {/* Row 1: Improve Model */}
                         <div className="flex flex-row mx-5 items-center justify-between">
-                          {/* Left side (Text) - Takes available space */}
                           <div className="flex-1 mr-4">
                             <p className="text-sm font-bold">
                               Improve the Model
@@ -269,16 +229,12 @@ export default function Header({
                               throughout the process.
                             </p>
                           </div>
-                          {/* Right side (Switch) - Doesn't shrink, content width */}
                           <div className="flex-shrink-0 mx-4">
                             <Switch id="airplane-mode" defaultChecked />
-                            {/* Checking can be accessed by the checked={true}*/}
                           </div>
                         </div>
 
-                        {/* Row 2: Export Data */}
                         <div className="flex flex-row mx-5 items-center justify-between">
-                          {/* Left side (Text) */}
                           <div className="flex-1 mr-4">
                             <p className="text-sm font-bold">
                               Export Account Data
@@ -289,7 +245,6 @@ export default function Header({
                               stored in all xAI products.
                             </p>
                           </div>
-                          {/* Right side (Button) */}
                           <div className="flex-shrink-0">
                             <Button
                               variant="secondary"
@@ -300,9 +255,7 @@ export default function Header({
                           </div>
                         </div>
 
-                        {/* Row 3: Delete Conversations */}
                         <div className="flex flex-row mx-5 items-center justify-between">
-                          {/* Left side (Text) */}
                           <div className="flex-1 mr-4">
                             <p className="text-sm font-bold">
                               Delete All Conversations
@@ -313,7 +266,6 @@ export default function Header({
                               servers.
                             </p>
                           </div>
-                          {/* Right side (Button) */}
                           <div className="flex-shrink-0">
                             <Button
                               variant="secondary"
@@ -324,9 +276,7 @@ export default function Header({
                           </div>
                         </div>
 
-                        {/* Row 4: Delete Account */}
                         <div className="flex flex-row mx-5 items-center justify-between">
-                          {/* Left side (Text) */}
                           <div className="flex-1 mr-4">
                             <p className="text-sm font-bold">Delete Account</p>
                             <p className="text-sm mt-2">
@@ -335,7 +285,6 @@ export default function Header({
                               immediate and cannot be undone.
                             </p>
                           </div>
-                          {/* Right side (Button) */}
                           <div className="flex-shrink-0">
                             <Button
                               variant="secondary"
@@ -348,12 +297,12 @@ export default function Header({
                       </div>
                     </TabsContent>
                   </Tabs>
-                  <DrawerFooter>
-                    {/* <Button>Submit</Button> */}
+                  {/* <DrawerFooter>
+                    <Button>Submit</Button>
                     <DrawerClose>
-                      {/* <Button variant="outline">Cancel</Button> */}
+                      <Button variant="outline">Cancel</Button>
                     </DrawerClose>
-                  </DrawerFooter>
+                  </DrawerFooter> */}
                 </DrawerContent>
               </Drawer>
             )}

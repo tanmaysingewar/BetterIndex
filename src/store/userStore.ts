@@ -33,7 +33,6 @@ export const useUserStore = create<UserState>()(
         }
 
         const session = await authClient.getSession();
-        console.log(session?.data?.user);
         get().setUser(session?.data?.user || undefined);
       },
     }),

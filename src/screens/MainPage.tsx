@@ -36,18 +36,13 @@ export default function MainPage({
 }: MainPageProps) {
   const { user, setUser } = useUserStore();
 
-  console.log(user);
-
   useEffect(() => {
     // setUser(session?.user || null);
     async function fetchData() {
       if (isNewUser && !user) {
-        // console.log(session);
         const user = await authClient.signIn.anonymous();
         if (user) {
-          console.log(user.data?.user);
           setUser(user?.data?.user);
-          console.log("Anonymous user signed in");
           // SetCookie user-status=guest
           return Cookies.set("user-status", "guest", { expires: 7 });
         }
@@ -76,7 +71,7 @@ export default function MainPage({
   const handleSend = () => {
     setInitialMessage(input); // Set message in the store
     const newChatId = nanoid();
-    return router.push(`/chat/${newChatId}`);
+    return router.push(`/chat?chatId=${newChatId}`);
   };
 
   return (

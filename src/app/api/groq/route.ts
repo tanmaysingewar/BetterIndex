@@ -82,15 +82,9 @@ export async function POST(req: Request) {
           );
         }
         // Chat exists and belongs to the user
-        console.log(
-          `Continuing existing chat ${currentChatId} for user ${userId}.`,
-        );
         isNewChatFlow = false;
       } else {
         // Chat does NOT exist - Create it using the ID from the frontend
-        console.log(
-          `Chat ID ${currentChatId} not found. Creating new chat for user ${userId}.`,
-        );
 
         // Generate the title
         const completion = await client.chat.completions.create({
@@ -121,14 +115,9 @@ export async function POST(req: Request) {
           userId: userId,
           createdAt: new Date(),
         });
-        console.log(`Successfully created new chat ${currentChatId}.`);
         isNewChatFlow = true; // Mark that we just created this chat
       }
     } catch (dbError) {
-      console.error(
-        `Database error during chat check/creation for ID ${currentChatId}:`,
-        dbError,
-      );
       return new Response(
         JSON.stringify({ error: "Database error during chat handling" }),
         { status: 500, headers: { "Content-Type": "application/json" } },
@@ -151,13 +140,7 @@ export async function POST(req: Request) {
           msg.content.trim() !== "",
       );
       messages_format.push(...validPreviousConversations);
-      console.log(
-        `Added ${validPreviousConversations.length} previous messages to context for chat ${currentChatId}.`,
-      );
     } else if (isNewChatFlow) {
-      console.log(
-        `New chat flow for ${currentChatId}. Using only system prompt and current message.`,
-      );
       // For new chats, we ignore any 'previous_conversations' sent (should be empty anyway)
     }
 
@@ -202,12 +185,7 @@ export async function POST(req: Request) {
                 chatId: finalChatId, // Link to the correct chat ID
                 createdAt: new Date(),
               });
-              console.log(`Saved message pair to chat ID: ${finalChatId}`);
             } catch (dbError) {
-              console.error(
-                `Error saving message pair to database for chat ${finalChatId}:`,
-                dbError,
-              );
               // Log error but don't necessarily stop the stream response
             }
           }

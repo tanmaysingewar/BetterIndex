@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect, useCallback, memo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import InputBox from "@/components/InputArea/InputBox";
 import Header from "@/components/Header";
 import Spinner from "@/components/Spinner";
@@ -67,7 +67,6 @@ const loadFromCache = (): CachedChatData | null => {
       localStorage.removeItem(CACHE_KEY);
       return null;
     }
-    console.log("Loaded chats from cache");
     return data;
   } catch (error) {
     console.error("Failed to load or parse cache:", error);
@@ -80,7 +79,6 @@ const saveToCache = (chats: Chat[], pagination: PaginationInfo) => {
   if (typeof window === "undefined") return;
   // Only cache page 1 data
   if (pagination.currentPage !== 1) {
-    console.log("Skipping cache save: Not page 1.");
     return;
   }
   try {
@@ -90,7 +88,6 @@ const saveToCache = (chats: Chat[], pagination: PaginationInfo) => {
       timestamp: Date.now(),
     };
     localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-    console.log("Saved page 1 chats to cache");
   } catch (error) {
     console.error("Failed to save cache:", error);
   }
@@ -129,7 +126,7 @@ export default function ChatPage({
   isAnonymous,
 }: ChatPageProps) {
   const router = useRouter();
-  const params = useParams();
+  const searchParams = useSearchParams();
   const [chatInitiated, setChatInitiated] = useState<boolean>(false);
   const [input, setInput] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -149,12 +146,9 @@ export default function ChatPage({
     // setUser(session?.user || null);
     async function fetchData() {
       if (isNewUser && !user) {
-        // console.log(session);
         const user = await authClient.signIn.anonymous();
         if (user) {
-          console.log(user.data?.user);
           setUser(user?.data?.user);
-          console.log("Anonymous user signed in");
           // SetCookie user-status=guest
           return Cookies.set("user-status", "guest", { expires: 7 });
         }
@@ -176,18 +170,16 @@ export default function ChatPage({
 
   // Effect 1: Set initial chat ID from URL & Load from Local Storage
   useEffect(() => {
-    const chatIdFromUrl = params?.chatId as string | undefined;
-    console.log("Chat ID from URL params:", chatIdFromUrl);
+    const chatIdFromUrl = searchParams.get("chatId") || undefined;
+    console.log("chatIdFromUrl:", chatIdFromUrl);  // Add this
 
     if (chatIdFromUrl && chatIdFromUrl !== currentChatId) {
-      console.log("Setting currentChatId from URL:", chatIdFromUrl);
       setCurrentChatId(chatIdFromUrl);
+      console.log("Setting currentChatId to:", chatIdFromUrl); // Add this
       setChatInitiated(false);
-      // Don't clear messages unconditionally here, let LS/Server handle it
-      // setMessages([]);
       serverFetchInitiated.current = {};
 
-      // Try loading from Local Storage FIRST
+
       let foundInLs = false;
       try {
         const storedMessages = localStorage.getItem(
@@ -196,10 +188,6 @@ export default function ChatPage({
         if (storedMessages) {
           const parsedMessages: Message[] = JSON.parse(storedMessages);
           if (Array.isArray(parsedMessages)) {
-            console.log(
-              "Loaded messages from Local Storage:",
-              parsedMessages.length,
-            );
             setMessages(parsedMessages); // Set state from LS
             foundInLs = true;
             // if (parsedMessages.length > 0) setChatInitiated(true); // Set initiated later
@@ -210,15 +198,11 @@ export default function ChatPage({
             );
             localStorage.removeItem(getLocalStorageKey(chatIdFromUrl));
           }
-        } else {
-          console.log("No messages found in Local Storage for", chatIdFromUrl);
         }
       } catch (error) {
-        console.error("Error reading or parsing Local Storage:", error);
         localStorage.removeItem(getLocalStorageKey(chatIdFromUrl));
       }
 
-      // If not found in LS, clear messages explicitly before potential fetch/send
       if (!foundInLs) {
         setMessages([]);
       }
@@ -227,12 +211,13 @@ export default function ChatPage({
       // Optional: Redirect or handle base route
     }
   }, [
-    params?.chatId,
+    searchParams,
     currentChatId,
     initialMessage,
     setInitialMessage,
     isGenerating,
-  ]); // Keep dependencies
+  ]);
+
 
   // Effect 2: Fetch messages from Server (if ID exists and not fetched yet)
   useEffect(() => {
@@ -244,54 +229,35 @@ export default function ChatPage({
       !initialMessage
     ) {
       const fetchMessagesFromServer = async (chatIdToFetch: string) => {
-        console.log(
-          `Fetching messages from server for chat ID: ${chatIdToFetch}`,
-        );
         serverFetchInitiated.current[chatIdToFetch] = true;
+        console.log(`Fetching messages from server for chatId: ${chatIdToFetch}`);  // Add this
 
         try {
           const response = await fetch(`/api/messages?chatId=${chatIdToFetch}`);
-          // ... (error handling for response.ok) ...
+
           if (!response.ok) {
-            // ... (existing error handling) ...
-            throw new Error(/* error message */);
+            console.error(`Error fetching messages: ${response.status}`); // Add this
+            throw new Error(`HTTP error! Status: ${response.status}`);
           }
 
           const fetchedMessages: Message[] = await response.json();
-          console.log("Fetched messages from server:", fetchedMessages.length);
+          console.log("Fetched messages:", fetchedMessages); // Add this
 
-          // --- Server is Source of Truth ---
-          // Check if an initial message was being processed optimistically
-          // const initialMsgContent = processingInitialMessageRef.current;
           const finalMessagesFromServer = fetchedMessages;
-
-          // If the server state DOES NOT include the user message we just added optimistically
-          // (which is expected if the fetch happened before the backend processed it),
-          // we might need to add it back temporarily until the *next* fetch.
-          // However, the safest approach is to trust the server state completely for existing chats.
-          // The `handleSendMessage` final update will ensure the *current user's* messages are consistent.
           setMessages(finalMessagesFromServer);
-          // if (finalMessagesFromServer.length > 0) setChatInitiated(true); // Set initiated later
 
           try {
             localStorage.setItem(
               getLocalStorageKey(chatIdToFetch),
               JSON.stringify(finalMessagesFromServer),
             );
-            console.log(
-              "Updated Local Storage from server data for",
-              chatIdToFetch,
-            );
           } catch (lsError) {
-            // Handle Local Storage error
-            // Log error or show notification to user
             console.error("Error updating Local Storage:", lsError);
           }
         } catch (error) {
           console.error("Error fetching initial messages from server:", error);
-          // Keep potentially loaded LS messages if fetch fails
         } finally {
-          processingInitialMessageRef.current = null; // Clear ref after fetch attempt
+          processingInitialMessageRef.current = null;
         }
       };
 
@@ -339,9 +305,9 @@ export default function ChatPage({
       if (!chatIdForRequest) {
         isNewChat = true;
         chatIdForRequest = generateChatId();
-        console.log("Generated new chat ID:", chatIdForRequest);
         setCurrentChatId(chatIdForRequest);
-        router.push(`/chat/${chatIdForRequest}`, { scroll: false });
+        const newUrl = `/chat?chatId=${chatIdForRequest}`;
+        router.push(newUrl, { scroll: false });
         setMessages([]); // Start clean for new chat UI
         setChatInitiated(true);
         serverFetchInitiated.current = { [chatIdForRequest]: true };
@@ -427,11 +393,7 @@ export default function ChatPage({
         // Get the header of the response
         const get_header = response.headers.get("X-Title");
 
-        console.log("Header X-Title", get_header);
-
         if (get_header != "") {
-          console.log(loadFromCache());
-
           const chatsCache = loadFromCache();
 
           const chats = [
@@ -517,10 +479,6 @@ export default function ChatPage({
             getLocalStorageKey(chatIdForRequest),
             JSON.stringify(finalMessagesState), // Save the calculated final state
           );
-          console.log(
-            "Updated Local Storage after successful message send for:",
-            chatIdForRequest,
-          );
         } catch (lsError) {
           console.error(
             "Error saving final messages to Local Storage:",
@@ -573,11 +531,6 @@ export default function ChatPage({
       currentChatId !== null &&
       !processingInitialMessageRef.current // Ensure we don't re-process if already started
     ) {
-      console.log(
-        "Processing initial message from store for chat:",
-        currentChatId,
-        initialMessage,
-      );
       const messageToSend = initialMessage;
       setInitialMessage(null); // Clear immediately from store
       handleSendMessage(messageToSend); // Trigger send
@@ -676,7 +629,7 @@ const RenderMessageOnScreen = ({
             message.role === "user"
               ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto" // Added bg-blue-500 for light mode user
               : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto" // Added bg-gray-200 for light mode assistant
-          }`}
+            }`}
         >
           {/* Conditional rendering for spinner or content */}
           {message.content === "loading" ? (
@@ -705,7 +658,7 @@ const RenderMessageOnScreen = ({
             message.role === "user"
               ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto" // Added bg-blue-500 for light mode user
               : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto" // Added bg-gray-200 for light mode assistant
-          }`}
+            }`}
         >
           {/* Conditional rendering for spinner or content */}
           {message.content === "loading" ? (

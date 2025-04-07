@@ -17,8 +17,6 @@ export default function Settings() {
   const [selected, setSelected] = useState("Account");
   const { user } = useUserStore();
 
-  // console.log(user.image); // This will now work correctly
-
   const handleLogout = async () => {
     await authClient.signOut({
       fetchOptions: {
