@@ -10,59 +10,59 @@ interface MessageRendererProps {
 }
 
 // --- Updated Fallback component for code blocks ---
-const CodeBlockFallback = ({
-  children,
-  language,
-}: {
-  children: React.ReactNode;
-  language: string | null;
-}) => {
-  return (
-    <div
-      style={{
-        backgroundColor: "#282c34", // Matches oneDark background
-        borderRadius: "5px",
-        overflow: "hidden", // Ensures children don't overflow rounded corners
-      }}
-    >
-      {/* Header for Fallback */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "0.5em 1em",
-          backgroundColor: "#3a404a", // Slightly lighter header background
-          color: "#abb2bf",
-          fontSize: "0.85em",
-        }}
-      >
-        <span>{language || "code"}</span>
-        {/* You might want a disabled-looking button here */}
-        <button
-          disabled
-          className="bg-neutral-700 text-white border-none rounded-sm px-2 py-1 cursor-not-allowed opacity-50"
-          aria-label="Copy code (loading)"
-        >
-          <CopyIcon size={16} />
-        </button>
-      </div>
-      {/* Code Area for Fallback */}
-      <pre
-        style={{
-          backgroundColor: "#282c34",
-          color: "#abb2bf",
-          padding: "1em",
-          margin: 0, // Remove default pre margin
-          overflow: "auto",
-          // No border radius here, handled by parent div
-        }}
-      >
-        <code>{children}</code>
-      </pre>
-    </div>
-  );
-};
+// const CodeBlockFallback = ({
+//   children,
+//   language,
+// }: {
+//   children: React.ReactNode;
+//   language: string | null;
+// }) => {
+//   return (
+//     <div
+//       style={{
+//         backgroundColor: "#282c34", // Matches oneDark background
+//         borderRadius: "5px",
+//         overflow: "hidden", // Ensures children don't overflow rounded corners
+//       }}
+//     >
+//       {/* Header for Fallback */}
+//       <div
+//         style={{
+//           display: "flex",
+//           justifyContent: "space-between",
+//           alignItems: "center",
+//           padding: "0.5em 1em",
+//           backgroundColor: "#3a404a", // Slightly lighter header background
+//           color: "#abb2bf",
+//           fontSize: "0.85em",
+//         }}
+//       >
+//         <span>{language || "code"}</span>
+//         {/* You might want a disabled-looking button here */}
+//         <button
+//           disabled
+//           className="bg-neutral-700 text-white border-none rounded-sm px-2 py-1 cursor-not-allowed opacity-50"
+//           aria-label="Copy code (loading)"
+//         >
+//           <CopyIcon size={16} />
+//         </button>
+//       </div>
+//       {/* Code Area for Fallback */}
+//       <pre
+//         style={{
+//           backgroundColor: "#282c34",
+//           color: "#abb2bf",
+//           padding: "1em",
+//           margin: 0, // Remove default pre margin
+//           overflow: "auto",
+//           // No border radius here, handled by parent div
+//         }}
+//       >
+//         <code>{children}</code>
+//       </pre>
+//     </div>
+//   );
+// };
 
 // Copy button component (no changes needed from previous version)
 const CopyButton = ({ text }: { text: string }) => {
