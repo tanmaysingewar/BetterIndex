@@ -26,7 +26,7 @@ import { useUserStore } from "@/store/userStore";
 import Settings from "./Setting";
 
 import Default from "@/assets/default.png";
-import Spinner from "./Spinner";
+// import Spinner from "./Spinner";
 
 interface HeaderInterface {
   landingPage: boolean | undefined;
