@@ -58,7 +58,12 @@ export default async function LandingPage() {
   if (session.user.isAnonymous) {
     return (
       <ChatInterface
-        sessionDetails={{ user: session?.user } as SessionDetailsInterface}
+        sessionDetails={{
+          user: {
+            ...session.user,
+            src: session.user.image || null,
+          }
+        } as SessionDetailsInterface}
         isNewUser={false}
         isAnonymous={true}
       />
@@ -67,7 +72,10 @@ export default async function LandingPage() {
 
   return (
     <ChatInterface
-      sessionDetails={{ user: session?.user } as SessionDetailsInterface}
+      sessionDetails={{ user: {
+        ...session.user,
+        src: session.user.image || null,
+      } } as SessionDetailsInterface}
       isNewUser={false}
       isAnonymous={false}
     />

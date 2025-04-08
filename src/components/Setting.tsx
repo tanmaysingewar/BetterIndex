@@ -10,27 +10,37 @@ import Image from "next/image";
 import { Switch } from "./ui/switch";
 import { useUserStore } from "@/store/userStore";
 import Cookies from "js-cookie";
+import Default from "@/assets/default.png";
 
 // 2. Use the SettingsProps interface and destructure 'user' from it
 export default function Settings() {
   const router = useRouter();
   const [selected, setSelected] = useState("Account");
-  const { user } = useUserStore();
+  const { user, setUser } = useUserStore();
+  const [logOutLading, setLogOutLading] = useState(false);
 
   const handleLogout = async () => {
+    setLogOutLading(true)
     await authClient.signOut({
       fetchOptions: {
-        onSuccess: () => {
-          router.push("/"); // redirect to login page
-          // Consider using router.refresh() instead of location.reload()
-          // for a potentially smoother Next.js experience
-          localStorage.clear()
+        onSuccess: async () => {
+          setUser(undefined);
+          localStorage.clear();
           Cookies.remove("user-status");
-          // return window.location.replace("/")
+          const user = await authClient.signIn.anonymous();
+          if (user) {
+            setUser(user?.data?.user);
+            // SetCookie user-status=guest
+            Cookies.set("user-status", "guest", { expires: 7 });
+          }
+          setLogOutLading(false)
+          router.push("/chat?new=true");
+          // return location.reload();
         },
       },
     });
   };
+
 
   return (
     <div className=" flex flex-col">
@@ -65,7 +75,7 @@ export default function Settings() {
               <div className="mt-5 flex flex-row items-center justify-center">
                 <Avatar className="w-12 h-12 rounded-full">
                   <Image
-                    src={user?.image || ""}
+                    src={user?.image || Default}
                     alt=""
                     className="w-full h-full rounded-full"
                     width={100}
@@ -79,9 +89,56 @@ export default function Settings() {
                   <p className="text-xs mt-1">{user?.email}</p>
                 </div>
               </div>
-              <Button className="mt-10" onClick={() => handleLogout()}>
-                <LogOutIcon strokeWidth={1.2} className="h-5 w-5" />
-                <p className="font-light">Logout</p>
+              <Button
+                className="mt-10 w-[100px] cursor-pointer"
+                onClick={() => handleLogout()}
+              >
+                {
+                  logOutLading ?
+                    <svg
+                      fill="#000000"
+                      version="1.1"
+                      id="Capa_1"
+                      xmlns="http://www.w3.org/2000/svg"
+                      xmlnsXlink="http://www.w3.org/1999/xlink"
+                      width="900px"
+                      height="900px"
+                      viewBox="0 0 26.349 26.35"
+                      style={{ animation: 'spin 1s linear infinite' }}
+                    >
+                      <style>
+                        {`
+                                      @keyframes spin {
+                                        from {
+                                          transform: rotate(0deg);
+                                        }
+                                        to {
+                                          transform: rotate(360deg);
+                                        }
+                                      }
+                                  `}
+                      </style>
+                      <g>
+                        <g>
+                          <circle cx="13.792" cy="3.082" r="3.082" />
+                          <circle cx="13.792" cy="24.501" r="1.849" />
+                          <circle cx="6.219" cy="6.218" r="2.774" />
+                          <circle cx="21.365" cy="21.363" r="1.541" />
+                          <circle cx="3.082" cy="13.792" r="2.465" />
+                          <circle cx="24.501" cy="13.791" r="1.232" />
+                          <path
+                            d="M4.694,19.84c-0.843,0.843-0.843,2.207,0,3.05c0.842,0.843,2.208,0.843,3.05,0c0.843-0.843,0.843-2.207,0-3.05 C6.902,18.996,5.537,18.988,4.694,19.84z"
+                          />
+                          <circle cx="21.364" cy="6.218" r="0.924" />
+                        </g>
+                      </g>
+                    </svg>
+                    : <>
+                      <LogOutIcon strokeWidth={1.2} className="h-5 w-5" />
+                      <p className="font-light">Logout</p>
+                    </>
+                }
+
               </Button>
             </div>
           )}

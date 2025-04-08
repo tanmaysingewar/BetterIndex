@@ -270,7 +270,7 @@ export default function ChatPage({
   useEffect(() => {
     // ... (existing scroll logic - likely okay) ...
     if (!chatInitiated && messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
     }
     if (
       messages[messages.length - 1]?.role === "assistant" &&

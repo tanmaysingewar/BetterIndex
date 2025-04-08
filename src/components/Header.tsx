@@ -25,6 +25,9 @@ import { Switch } from "./ui/switch";
 import { useUserStore } from "@/store/userStore";
 import Settings from "./Setting";
 
+import Default from "@/assets/default.png";
+import Spinner from "./Spinner";
+
 interface HeaderInterface {
   landingPage: boolean | undefined;
   isNewUser: boolean;
@@ -39,18 +42,28 @@ export default function Header({
   const [openSettings, setOpenSettings] = useState(false);
   const [openChatHistoryDialog, setOpenChatHistoryDialog] = useState(false);
   const [openChatHistoryDrawer, setOpenChatHistoryDrawer] = useState(false);
+  const [signLading, setSignLading] = useState(false);
+  const [logOutLading, setLogOutLading] = useState(false);
 
   const router = useRouter();
   const { user, fetchAndSetSession, setUser } = useUserStore();
 
   const handleLogout = async () => {
+    setLogOutLading(true)
     await authClient.signOut({
       fetchOptions: {
-        onSuccess: () => {
+        onSuccess: async () => {
           setUser(undefined);
           localStorage.clear();
           Cookies.remove("user-status");
-          router.push("/");
+          const user = await authClient.signIn.anonymous();
+          if (user) {
+            setUser(user?.data?.user);
+            // SetCookie user-status=guest
+            Cookies.set("user-status", "guest", { expires: 7 });
+          }
+          setLogOutLading(false)
+          router.push("/chat?new=true");
           // return location.reload();
         },
       },
@@ -68,16 +81,59 @@ export default function Header({
   const SignInComponent = () => {
     return (
       <Button
-        className="cursor-pointer"
+        className="cursor-pointer w-[70px]"
         onClick={async () => {
+          setSignLading(true)
           Cookies.remove("user-status");
           await authClient.signIn.social({
             provider: "google",
             callbackURL: "/chat?new=true",
           });
         }}
+        disabled={signLading}
       >
-        Sign In
+        {
+          signLading ?
+            <svg
+              fill="#000000"
+              version="1.1"
+              id="Capa_1"
+              xmlns="http://www.w3.org/2000/svg"
+              xmlnsXlink="http://www.w3.org/1999/xlink"
+              width="900px"
+              height="900px"
+              viewBox="0 0 26.349 26.35"
+              style={{ animation: 'spin 1s linear infinite' }}
+            >
+              <style>
+                {`
+                    @keyframes spin {
+                      from {
+                        transform: rotate(0deg);
+                      }
+                      to {
+                        transform: rotate(360deg);
+                      }
+                    }
+                `}
+              </style>
+              <g>
+                <g>
+                  <circle cx="13.792" cy="3.082" r="3.082" />
+                  <circle cx="13.792" cy="24.501" r="1.849" />
+                  <circle cx="6.219" cy="6.218" r="2.774" />
+                  <circle cx="21.365" cy="21.363" r="1.541" />
+                  <circle cx="3.082" cy="13.792" r="2.465" />
+                  <circle cx="24.501" cy="13.791" r="1.232" />
+                  <path
+                    d="M4.694,19.84c-0.843,0.843-0.843,2.207,0,3.05c0.842,0.843,2.208,0.843,3.05,0c0.843-0.843,0.843-2.207,0-3.05 C6.902,18.996,5.537,18.988,4.694,19.84z"
+                  />
+                  <circle cx="21.364" cy="6.218" r="0.924" />
+                </g>
+              </g>
+            </svg>
+            : "Sign In"
+        }
       </Button>
     );
   };
@@ -104,7 +160,7 @@ export default function Header({
             <div
               className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full"
               onClick={() => {
-                if (location.href.includes("/chat?new=true")) { 
+                if (location.href.includes("/chat?new=true")) {
                   return;
                 }
                 router.push("/chat?new=true");
@@ -191,7 +247,7 @@ export default function Header({
                         <div className="mt-5 flex flex-row items-center mx-5 justify-center">
                           <Avatar className="w-12 h-12 rounded-full">
                             <Image
-                              src={user?.image || ""}
+                              src={user?.image || Default}
                               alt=""
                               className="w-full h-full rounded-full"
                               width={100}
@@ -206,11 +262,55 @@ export default function Header({
                           </div>
                         </div>
                         <Button
-                          className="mt-10"
+                          className="mt-10 w-[100px] cursor-pointer"
                           onClick={() => handleLogout()}
                         >
-                          <LogOutIcon strokeWidth={1.2} className="h-5 w-5" />
-                          <p className="font-light">Logout</p>
+                          {
+                            logOutLading ?
+                              <svg
+                                fill="#000000"
+                                version="1.1"
+                                id="Capa_1"
+                                xmlns="http://www.w3.org/2000/svg"
+                                xmlnsXlink="http://www.w3.org/1999/xlink"
+                                width="900px"
+                                height="900px"
+                                viewBox="0 0 26.349 26.35"
+                                style={{ animation: 'spin 1s linear infinite' }}
+                              >
+                                <style>
+                                  {`
+                                      @keyframes spin {
+                                        from {
+                                          transform: rotate(0deg);
+                                        }
+                                        to {
+                                          transform: rotate(360deg);
+                                        }
+                                      }
+                                  `}
+                                </style>
+                                <g>
+                                  <g>
+                                    <circle cx="13.792" cy="3.082" r="3.082" />
+                                    <circle cx="13.792" cy="24.501" r="1.849" />
+                                    <circle cx="6.219" cy="6.218" r="2.774" />
+                                    <circle cx="21.365" cy="21.363" r="1.541" />
+                                    <circle cx="3.082" cy="13.792" r="2.465" />
+                                    <circle cx="24.501" cy="13.791" r="1.232" />
+                                    <path
+                                      d="M4.694,19.84c-0.843,0.843-0.843,2.207,0,3.05c0.842,0.843,2.208,0.843,3.05,0c0.843-0.843,0.843-2.207,0-3.05 C6.902,18.996,5.537,18.988,4.694,19.84z"
+                                    />
+                                    <circle cx="21.364" cy="6.218" r="0.924" />
+                                  </g>
+                                </g>
+                              </svg>
+                              : <>
+                                <LogOutIcon strokeWidth={1.2} className="h-5 w-5" />
+                                <p className="font-light">Logout</p>
+                              </>
+                          }
+
                         </Button>
                       </div>
                     </TabsContent>
