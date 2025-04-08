@@ -102,7 +102,7 @@ export default function ChatPage({
       if (navigationEntries.length > 0) {
         const navigationEntry = navigationEntries[0] as PerformanceNavigationTiming;
         const chatIdFromUrl = searchParams.get("chatId") || undefined;
-        if (navigationEntry.type === 'reload'){
+        if (navigationEntry.type === 'reload') {
           try {
             async function updateChatCache() {
               const success = await fetchAllChatsAndCache();
@@ -118,7 +118,7 @@ export default function ChatPage({
             console.error("Error updating chat cache:", error);
           }
         }
-        
+
         if (navigationEntry.type === 'reload' && chatIdFromUrl && !initialMessage) {
 
           const fetchMessagesFromServer = async (chatIdToFetch: string) => {
@@ -391,7 +391,7 @@ export default function ChatPage({
         // Get the header of the response
         const get_header = response.headers.get("X-Title");
         console.log("X-Title", get_header);
-        console.log("X-Title", typeof(get_header));
+        console.log("X-Title", typeof (get_header));
 
         if (get_header) {
 
@@ -548,9 +548,9 @@ export default function ChatPage({
       setInput("");
     }
   }, [searchParams]);
-  
 
-  if (searchParams.get("new")) {
+
+  if (searchParams.get("new") || !searchParams.get("chatId")) {
     return <MainPage sessionDetails={sessionDetails}
       isNewUser={isNewUser}
       isAnonymous={isAnonymous} />
@@ -572,23 +572,33 @@ export default function ChatPage({
           Mobile optimization is still in progress!
         </p>
       </div> */}
-      {/* 3. Messages container: Grows to fill space, allows scrolling */}
-      <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 mt-12 lg:mt-0">
-        <div className="p-4 max-w-[750px] mx-auto">
-          {messages.map((message, index) => (
-            <MemoizedRenderMessageOnScreen
-              key={index}
-              message={message}
-              index={index}
-              messages={messages}
-              chatInitiated={chatInitiated}
-              isGenerating={isGenerating}
-            />
-          ))}
-          {/* Ref for scrolling, inside the scrollable area */}
-          <div ref={messagesEndRef} />
+      {messages.length === 0 ? (
+        <div className="relative h-full w-full"> {/*  Relatively positioned container */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            <Spinner />
+          </div>
         </div>
-      </div>
+      ) : (
+        // {/* 3. Messages container: Grows to fill space, allows scrolling */ }
+        < div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 mt-12 lg:mt-0">
+          <div className="p-4 max-w-[750px] mx-auto">
+            {messages.map((message, index) => (
+              <MemoizedRenderMessageOnScreen
+                key={index}
+                message={message}
+                index={index}
+                messages={messages}
+                chatInitiated={chatInitiated}
+                isGenerating={isGenerating}
+              />
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+      )
+      }
+
+
       {/* 4. InputBox container: Takes its natural height */}
       {/* No extra wrapper needed unless for specific styling/positioning that flex doesn't handle */}
       {/* Removed the extra wrapper divs around InputBox as they weren't strictly needed for this layout */}
@@ -599,7 +609,7 @@ export default function ChatPage({
         onSend={handleSendMessage}
         disabled={isGenerating}
       />
-    </div>
+    </div >
   );
 }
 // --- Memoized Message Rendering Component ---
