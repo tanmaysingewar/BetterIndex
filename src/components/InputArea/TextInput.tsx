@@ -1,10 +1,14 @@
-import { useEffect, useRef, memo, useCallback } from "react";
+import { useEffect, useRef, memo, useCallback, useMemo, KeyboardEvent } from "react";
 
 interface TextInputProps {
   input: string;
   setInput: (value: string) => void;
   height: number;
   onSend: (message: string) => void;
+  filteredSuggestions?: string[];
+  selectedIndex?: number;
+  setSelectedIndex?: (index: number | ((prev: number) => number)) => void;
+  handleSelection?: (selection: string) => void;
 }
 
 const TextInput = memo(function TextInput({
@@ -12,7 +16,16 @@ const TextInput = memo(function TextInput({
   setInput,
   height,
   onSend,
+  filteredSuggestions = [],
+  selectedIndex = 0,
+  setSelectedIndex = () => { },
+  handleSelection = () => { },
 }: TextInputProps) {
+  const highlightedText = useMemo(() => {
+    const escaped = input.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return escaped.split(/(\s+)/).map(token => token.includes('@') ? `<mark style="background:white; color: black;">${token}</mark>` : token).join('');
+  }, [input]);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const adjustHeight = useCallback(() => {
@@ -39,30 +52,48 @@ const TextInput = memo(function TextInput({
   );
 
   return (
-    <textarea
-      ref={textareaRef}
-      placeholder="What do you want to ask?"
-      value={input}
-      className="w-full bg-transparent resize-none overflow-y-auto rounded-lg focus:outline-none dark:text-white p-3 placeholder:text-neutral-400 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
-      style={{
-        border: "none",
-        fontSize: "16px",
-        fontWeight: "300",
-        maxHeight: "200px",
-        height: height + "px",
-      }}
-      onChange={handleChange}
-      // On press Enter, send the message
-      onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault(); // Prevent new line
-          if (input.trim()) {
-            // Only send if there's content
-            onSend(input);
+    <div className="relative w-full">
+      <div className="absolute inset-0 p-3 whitespace-pre-wrap break-words pointer-events-none dark:text-white">
+        <span dangerouslySetInnerHTML={{ __html: highlightedText }} />
+      </div>
+      <textarea
+        ref={textareaRef}
+        placeholder="What do you want to ask?"
+        value={input}
+        className="w-full bg-transparent resize-none overflow-y-auto rounded-lg focus:outline-none text-transparent caret-black dark:caret-white p-3 placeholder:text-neutral-400 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
+        style={{
+          border: "none",
+          fontSize: "16px",
+          fontWeight: "300",
+          maxHeight: "200px",
+          height: height + "px",
+        }}
+        onChange={handleChange}
+        // Handle keyboard events for suggestions and sending messages
+        onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+          const hasSuggestions = filteredSuggestions.length > 0;
+
+          if (e.key === "ArrowUp" && hasSuggestions) {
+            e.preventDefault();
+            setSelectedIndex((prev: number) => (prev > 0 ? prev - 1 : filteredSuggestions.length - 1));
+          } else if (e.key === "ArrowDown" && hasSuggestions) {
+            e.preventDefault();
+            setSelectedIndex((prev: number) => (prev < filteredSuggestions.length - 1 ? prev + 1 : 0));
+          } else if (e.key === "Enter") {
+            if (!e.shiftKey && hasSuggestions) {
+              e.preventDefault();
+              handleSelection(filteredSuggestions[selectedIndex]);
+            } else if (!e.shiftKey && !input.split(" ").slice(-1)[0].includes("@")) {
+              e.preventDefault(); // Prevent new line
+              if (input.trim()) {
+                // Only send if there's content
+                onSend(input);
+              }
+            }
           }
-        }
-      }}
-    />
+        }}
+      />
+    </div>
   );
 });
 

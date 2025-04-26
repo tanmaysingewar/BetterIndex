@@ -1,28 +1,27 @@
-import Groq from "groq-sdk";
+import OpenAI from "openai";
 import { auth } from "@/lib/auth";
 import { headers as nextHeaders } from "next/headers";
 import { db } from "@/database/db";
 import { nanoid } from "nanoid";
 import { chat, messages } from "@/database/schema/auth-schema";
-import { eq } from "drizzle-orm"; // Import eq for querying
+import { eq } from "drizzle-orm";
 
 // --- API Key ---
-const groqApiKey = process.env.GROQ_API_KEY;
-if (!groqApiKey) {
-  console.warn(
-    "GROQ_API_KEY environment variable not set. Using hardcoded key (NOT RECOMMENDED).",
-  );
+const xaiApiKey = process.env.XAI_API_KEY;
+if (!xaiApiKey) {
+  console.warn("XAI_API_KEY environment variable not set.");
+  // Handle missing key appropriately
 }
-const client = new Groq({
-  apiKey:
-    groqApiKey || "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", // Replace with your actual key or env var
+
+// --- Initialize xAI Client ---
+const client = new OpenAI({
+  apiKey: xaiApiKey,
+  baseURL: "https://api.x.ai/v1",
 });
 
 export async function POST(req: Request) {
-  // --- Standard Response Headers for Streaming ---
-
   let currentChatId: string | null = null;
-  let isNewChatFlow = false; // Flag to indicate if we created the chat in this request
+  let isNewChatFlow = false;
   let title = "";
 
   try {
@@ -32,15 +31,14 @@ export async function POST(req: Request) {
     const { message, previous_conversations } = await req.json();
 
     // --- 2. Validate Input ---
+    // (Keep your existing validation logic)
     if (!currentChatId) {
-      console.error("API Error: Missing X-Chat-ID header");
       return new Response(
         JSON.stringify({ error: "Missing X-Chat-ID header" }),
         { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
     if (!message || typeof message !== "string" || message.trim() === "") {
-      console.error("API Error: Missing or invalid message content");
       return new Response(
         JSON.stringify({ error: "Message content is required" }),
         { status: 400, headers: { "Content-Type": "application/json" } },
@@ -48,9 +46,9 @@ export async function POST(req: Request) {
     }
 
     // --- 3. Authentication ---
+    // (Keep your existing authentication logic)
     const sessionData = await auth.api.getSession({ headers: requestHeaders });
     if (!sessionData?.session || !sessionData?.user?.id) {
-      console.error("API Error: Unauthorized access attempt");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
@@ -59,21 +57,19 @@ export async function POST(req: Request) {
     const userId = sessionData.user.id;
 
     // --- 4. Check Chat Existence, Ownership, or Create New ---
+    // (Keep your existing chat handling logic, including title generation)
+    // ... (ensure title generation happens here if it's a new chat) ...
     try {
-      // Attempt to find the chat
       const results = await db
-        .select({ id: chat.id, userId: chat.userId })
+        .select({ id: chat.id, userId: chat.userId, title: chat.title }) // Select title too
         .from(chat)
         .where(eq(chat.id, currentChatId))
         .limit(1);
-      const existingChat = results[0];
+      let existingChat = results[0];
 
       if (existingChat) {
-        // Chat exists - check ownership
         if (existingChat.userId !== userId) {
-          console.error(
-            `API Error: User ${userId} forbidden access to chat ${currentChatId} owned by ${existingChat.userId}.`,
-          );
+          // ... (Forbidden error) ...
           return new Response(
             JSON.stringify({
               error: "Forbidden: Chat does not belong to user",
@@ -81,61 +77,53 @@ export async function POST(req: Request) {
             { status: 403, headers: { "Content-Type": "application/json" } },
           );
         }
-        // Chat exists and belongs to the user
         isNewChatFlow = false;
+        title = existingChat.title; // Get title for existing chat
       } else {
-        // Chat does NOT exist - Create it using the ID from the frontend
-
-        // Generate the title
-        const completion = await client.chat.completions.create({
+        // Generate title
+        // Todo : make title using the GPT4.1 nano 
+        const titleCompletion = await client.chat.completions.create({
           messages: [
             {
               role: "system",
               content:
-                "Generate a concise and relevant title for the chat based solely on the user's messages. The title should be plain text without any symbols, prefixes, or formatting. Do not respond to the query or provide explanations—just return the title directly.",
+                "Generate a concise and relevant title (max 100 chars) for the chat based *only* on the user's first message. Output *only* the plain text title, without quotes, symbols, prefixes, explanations, or conversation.",
             },
-            {
-              role: "user",
-              content: message.trim().substring(0, 100),
-            },
+            { role: "user", content: message.trim().substring(0, 150) },
           ],
-          model: "llama-3.3-70b-versatile",
-          temperature: 0.7,
+          model: "grok-3-mini",
+          temperature: 0.5,
         });
-
-        // Overright the title of the current chat
-        title = completion.choices[0]?.message
-          ?.content!.trim()
-          .substring(0, 100)
-          .replace(/"/g, "");
+        console.log(titleCompletion.choices[0]?.message?.content)
+        title =
+          titleCompletion.choices[0]?.message?.content
+            ?.trim()
+            .substring(0, 100)
+            .replace(/"/g, "") || `Chat ${currentChatId.substring(0, 5)}`;
 
         await db.insert(chat).values({
-          id: currentChatId, // Use the ID provided by the frontend
-          title: title, // Use first message for title
+          id: currentChatId,
+          title: title,
           userId: userId,
           createdAt: new Date(),
         });
-        isNewChatFlow = true; // Mark that we just created this chat
+        isNewChatFlow = true;
       }
     } catch (dbError) {
-      console.error(
-        `Database error during chat check/creation for ID ${currentChatId}:`,
-        dbError,
-      );
+      // ... (Database error handling) ...
       return new Response(
         JSON.stringify({ error: "Database error during chat handling" }),
         { status: 500, headers: { "Content-Type": "application/json" } },
       );
     }
 
-    // --- 5. Prepare messages for Groq API ---
+    // --- 5. Prepare messages for xAI API ---
     const messages_format: Array<{
       role: "system" | "user" | "assistant";
       content: string;
     }> = [{ role: "system", content: "You are a helpful assistant." }];
-
+    // (Keep logic for adding previous_conversations)
     if (!isNewChatFlow && Array.isArray(previous_conversations)) {
-      // If it's an existing chat, add previous messages sent by the client
       const validPreviousConversations = previous_conversations.filter(
         (msg) =>
           msg &&
@@ -144,38 +132,78 @@ export async function POST(req: Request) {
           msg.content.trim() !== "",
       );
       messages_format.push(...validPreviousConversations);
-    } else if (isNewChatFlow) {
-      // For new chats, we ignore any 'previous_conversations' sent (should be empty anyway)
     }
-
-    // Add the current user message
     messages_format.push({ role: "user", content: message.trim() });
 
-    // --- 6. Stream Groq Response and Save Message ---
-    const encoder = new TextEncoder();
-    let fullBotResponse = "";
+    // --- 6. Call xAI API (Non-Streaming) and Assemble Response ---
     const finalChatId = currentChatId; // Use the validated/created chat ID
 
     // Streaming the Response
     const stream = new ReadableStream({
       async start(controller) {
+        let fullBotResponse = "";
+        const encoder = new TextEncoder();
+        let inReasoningBlock = false; // State to track if we are inside <think> tags
+
         try {
           const completion = await client.chat.completions.create({
             messages: messages_format,
-            model: "llama-3.1-8b-instant",
+            model: "grok-3-mini", // Ensure this model supports reasoning_content
             temperature: 0.7,
             stream: true as const,
           });
 
           for await (const chunk of completion) {
             const content = chunk.choices[0]?.delta?.content || "";
+            const reasoning_content =
+              chunk.choices[0]?.delta?.reasoning_content || "";
+
+            const isCurrentChunkReasoning = !!reasoning_content;
+            const isCurrentChunkContent = !!content; // Assuming content and reasoning are mutually exclusive per delta
+
+            // --- State transition logic ---
+
+            // 1. Entering a reasoning block?
+            if (isCurrentChunkReasoning && !inReasoningBlock) {
+              inReasoningBlock = true;
+              const thinkStartTag = "```think\n";
+              fullBotResponse += thinkStartTag;
+              controller.enqueue(encoder.encode(thinkStartTag));
+            }
+            // 2. Exiting a reasoning block (because regular content arrived)?
+            else if (isCurrentChunkContent && inReasoningBlock) {
+              // Note: This assumes reasoning blocks don't immediately follow each other
+              // without regular content in between. If they can, this logic might need adjustment.
+              inReasoningBlock = false;
+              const thinkEndTag = "\n```\n";
+              fullBotResponse += thinkEndTag;
+              controller.enqueue(encoder.encode(thinkEndTag));
+            }
+
+            // --- Enqueue actual content ---
+
+            if (reasoning_content) {
+              fullBotResponse += reasoning_content;
+              controller.enqueue(encoder.encode(reasoning_content));
+            }
             if (content) {
+              // If we were in a reasoning block and regular content arrives,
+              // the exit logic above already handled the closing tag.
               fullBotResponse += content;
               controller.enqueue(encoder.encode(content));
             }
           }
 
-          // Save message pair after successful streaming
+          // --- Final check after loop ---
+          // If the stream ended while we were still in a reasoning block, close the tag.
+          if (inReasoningBlock) {
+            // inReasoningBlock = false; // Not strictly necessary as the scope ends
+            const thinkEndTag = "</think>";
+            fullBotResponse += thinkEndTag;
+            controller.enqueue(encoder.encode(thinkEndTag));
+          }
+
+          // --- Database saving logic ---
           if (fullBotResponse.trim() === "") {
             console.warn(
               `Groq returned an empty response for chat ${finalChatId}. Not saving empty message pair.`,
@@ -185,19 +213,22 @@ export async function POST(req: Request) {
               await db.insert(messages).values({
                 id: nanoid(),
                 userMessage: message.trim(),
-                botResponse: fullBotResponse,
-                chatId: finalChatId, // Link to the correct chat ID
+                botResponse: fullBotResponse, // Save the full response with correctly placed tags
+                chatId: finalChatId,
                 createdAt: new Date(),
               });
             } catch (dbError) {
-              // Log error but don't necessarily stop the stream response
               console.error("Error saving message pair:", dbError);
             }
           }
         } catch (error) {
           console.error("Groq streaming or processing error:", error);
+          // If an error occurs mid-stream, we might have an unclosed tag sent.
+          // It's often better to let the consumer handle potentially incomplete streams on error.
           controller.error(error);
         } finally {
+          // Ensure the stream is always closed, regardless of success or error.
+          // The final </think> tag (if needed) should have been enqueued *before* this.
           controller.close();
         }
       },

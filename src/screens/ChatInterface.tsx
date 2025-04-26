@@ -357,7 +357,7 @@ export default function ChatPage({
 
       try {
         // Make the LLM provider dynamic
-        const response = await fetch("/api/groq", {
+        const response = await fetch("/api/grok-mini", {
           method: "POST",
           headers: requestHeaders,
           body: JSON.stringify(requestBody),
@@ -558,7 +558,7 @@ export default function ChatPage({
 
   return (
     // 1. Main container: Full height, flex column
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full w-full">
       {" "}
       {/* Use h-screen for fixed viewport height */}
       {/* 2. Header: Takes its natural height */}
@@ -580,8 +580,8 @@ export default function ChatPage({
         </div>
       ) : (
         // {/* 3. Messages container: Grows to fill space, allows scrolling */ }
-        < div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 mt-12 lg:mt-0">
-          <div className="p-4 max-w-[750px] mx-auto">
+        <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 mt-12 lg:mt-0">
+          <div className="max-w-[750px] mx-auto px-4 pt-4">
             {messages.map((message, index) => (
               <MemoizedRenderMessageOnScreen
                 key={index}
@@ -592,7 +592,7 @@ export default function ChatPage({
                 isGenerating={isGenerating}
               />
             ))}
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} className="pb-[120px]" />
           </div>
         </div>
       )
