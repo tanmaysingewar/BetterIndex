@@ -111,6 +111,7 @@ export async function POST(req: Request) {
       }
     } catch (dbError) {
       // ... (Database error handling) ...
+      console.error("Database error during chat handling:", dbError);
       return new Response(
         JSON.stringify({ error: "Database error during chat handling" }),
         { status: 500, headers: { "Content-Type": "application/json" } },

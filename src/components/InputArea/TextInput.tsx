@@ -1,4 +1,4 @@
-import { useEffect, useRef, memo, useCallback, useMemo, KeyboardEvent } from "react";
+import { useEffect, useRef, memo, useCallback, useMemo } from "react";
 
 interface TextInputProps {
   input: string;

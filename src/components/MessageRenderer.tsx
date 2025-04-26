@@ -1,4 +1,4 @@
-import { Check, CopyIcon, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, CopyIcon } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -54,7 +54,7 @@ const CopyButton = ({ text }: { text: string }) => {
 };
 
 const MessageRenderer = ({ content }: MessageRendererProps) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  // const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <div className="md:max-w-[710px] max-w-svw">
