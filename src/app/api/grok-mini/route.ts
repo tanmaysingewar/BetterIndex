@@ -155,8 +155,8 @@ export async function POST(req: Request) {
 
           for await (const chunk of completion) {
             const content = chunk.choices[0]?.delta?.content || "";
-            const reasoning_content =
-              chunk.choices[0]?.delta?.reasoning_content || "";
+            // const reasoning_content = chunk.choices[0]?.delta?.reasoning_content || "";
+            const reasoning_content = "";
 
             const isCurrentChunkReasoning = !!reasoning_content;
             const isCurrentChunkContent = !!content; // Assuming content and reasoning are mutually exclusive per delta
@@ -192,15 +192,6 @@ export async function POST(req: Request) {
               fullBotResponse += content;
               controller.enqueue(encoder.encode(content));
             }
-          }
-
-          // --- Final check after loop ---
-          // If the stream ended while we were still in a reasoning block, close the tag.
-          if (inReasoningBlock) {
-            // inReasoningBlock = false; // Not strictly necessary as the scope ends
-            const thinkEndTag = "</think>";
-            fullBotResponse += thinkEndTag;
-            controller.enqueue(encoder.encode(thinkEndTag));
           }
 
           // --- Database saving logic ---

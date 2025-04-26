@@ -357,7 +357,7 @@ export default function ChatPage({
 
       try {
         // Make the LLM provider dynamic
-        const response = await fetch("/api/grok-mini", {
+        const response = await fetch("/api/groq", {
           method: "POST",
           headers: requestHeaders,
           body: JSON.stringify(requestBody),
@@ -639,7 +639,7 @@ const RenderMessageOnScreen = ({
         className={`mb-2 hidden md:block ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
         // style={{ minHeight: desktopMinHeight }}
         style={{
-          minHeight: `${messages.length - 1 === index && message.role === "user" && chatInitiated ? "calc(-174px + 100vh)" : messages.length - 1 === index && message.role === "assistant" && chatInitiated ? "calc(-230px + 100vh)" : "auto"}`,
+          minHeight: `${messages.length - 1 === index && message.role === "user" && chatInitiated ? "calc(-174px + 100vh)" : messages.length - 1 === index && message.role === "assistant" && chatInitiated ? "calc(-200px + 100vh)" : "auto"}`,
         }}
       >
         <div

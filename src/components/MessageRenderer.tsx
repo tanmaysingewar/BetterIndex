@@ -1,4 +1,4 @@
-import { Check, CopyIcon } from "lucide-react";
+import { Check, CopyIcon, ChevronDown, ChevronUp } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -54,6 +54,8 @@ const CopyButton = ({ text }: { text: string }) => {
 };
 
 const MessageRenderer = ({ content }: MessageRendererProps) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   return (
     <div className="md:max-w-[710px] max-w-svw">
       <section>
@@ -66,13 +68,25 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
               const codeText = String(children).replace(/\n$/, "");
               const language = match ? match[1] : null;
 
-              if (language === "think") {
-                return (
-                  <div className="bg-neutral-900 text-wrap font-mono text-sm p-3">
-                    {codeText}
-                  </div>
-                )
-              }
+              // if (language === "think") {
+
+              //   return (
+              //     <div className="rounded-md overflow-hidden">
+              //       <div
+              //         className="flex justify-between items-center p-2 cursor-pointer transition-colors"
+              //         onClick={() => setIsExpanded(!isExpanded)}
+              //       >
+
+              //         <span className="text-white font-medium text-xs flex flex-row">AI Thinking {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</span>
+              //       </div>
+              //       {isExpanded && (
+              //         <div className="text-wrap font-mono text-sm p-3 bg-neutral-900 rounded-sm">
+              //           {codeText}
+              //         </div>
+              //       )}
+              //     </div>
+              //   )
+              // }
 
               return match ? (
                 // Container retains relative positioning if needed elsewhere,

@@ -53,7 +53,7 @@ const TextInput = memo(function TextInput({
 
   return (
     <div className="relative w-full">
-      <div className="absolute inset-0 p-3 whitespace-pre-wrap break-words pointer-events-none dark:text-white">
+      <div className="absolute inset-0 whitespace-pre-wrap break-words pointer-events-none dark:text-white p-3">
         <span dangerouslySetInnerHTML={{ __html: highlightedText }} />
       </div>
       <textarea
