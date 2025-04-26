@@ -65,7 +65,7 @@ export async function POST(req: Request) {
         .from(chat)
         .where(eq(chat.id, currentChatId))
         .limit(1);
-      let existingChat = results[0];
+      const existingChat = results[0];
 
       if (existingChat) {
         if (existingChat.userId !== userId) {
