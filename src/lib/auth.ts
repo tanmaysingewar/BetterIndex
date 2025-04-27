@@ -15,11 +15,10 @@ export const auth = betterAuth({
   plugins: [
     anonymous({
       onLinkAccount: async ({ anonymousUser, newUser }) => {
-
         // Ensure both user objects and their IDs are present
         if (!anonymousUser?.user?.id || !newUser?.user?.id) {
           console.error(
-            "Missing anonymousUser or newUser ID during account linking.",
+            "Missing anonymousUser or newUser ID during account linking."
           );
           // Depending on your auth library, you might need to throw an error
           // or return a specific value to indicate failure.
@@ -30,23 +29,28 @@ export const auth = betterAuth({
           // Use a transaction to ensure atomicity: either all chats are transferred
           // or none are if an error occurs.
           await db.transaction(async (tx) => {
-
             // Update all chats belonging to the anonymous user to belong to the new user
-          await tx
+            await tx
               .update(chat)
               .set({ userId: newUser?.user?.id })
               .where(eq(chat.userId, anonymousUser?.user?.id))
               .returning({ updatedChatId: chat.id }); // Optional: get IDs of updated chats
+
+            // Update the new user's rate limit
+            await tx
+              .update(user)
+              .set({ rateLimit: "10" }) // Set rate limit to 10
+              .where(eq(user.id, newUser.user.id));
           });
         } catch (error) {
           console.error(
             `Error transferring chats from user ${anonymousUser?.user?.id} to ${newUser?.user?.id}:`,
-            error,
+            error
           );
           // Re-throw the error or handle it as needed for your auth library
           // to know the linking process might have failed partially or fully.
           throw new Error(
-            "Failed to transfer user chats during account linking.",
+            "Failed to transfer user chats during account linking."
           );
         }
       },

@@ -1,4 +1,10 @@
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  numeric,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const user = pgTable("user", {
@@ -10,6 +16,8 @@ export const user = pgTable("user", {
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
   isAnonymous: boolean("is_anonymous"),
+  rateLimit: numeric("rate_limit").default("1"),
+  pro: boolean("pro").default(false),
 });
 
 export const userRelations = relations(user, ({ many }) => ({

@@ -73,7 +73,9 @@ export default function ChatPage({
   useEffect(() => {
     // setUser(session?.user || null);
     async function fetchData() {
-      if (isNewUser && !user) {
+      const userAlreadySet = Cookies.get("user-status")
+      if (isNewUser && !user && !userAlreadySet) {
+        console.log("Creating the Anonymous User on CI - fetchData")
         const user = await authClient.signIn.anonymous();
         if (user) {
           setUser(user?.data?.user);

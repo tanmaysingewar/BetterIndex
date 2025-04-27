@@ -2,13 +2,13 @@
 import { useState, useEffect } from "react";
 import InputBox from "@/components/InputArea/InputBox";
 import Header from "@/components/Header";
-import { authClient } from "@/lib/auth-client";
+// import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useMessageStore } from "@/store/messageStore";
 import { nanoid } from "nanoid";
 import Spinner from "@/components/Spinner";
 import { useUserStore } from "@/store/userStore";
-import Cookies from "js-cookie";
+// import Cookies from "js-cookie";
 
 interface User {
   id: string;
@@ -38,30 +38,30 @@ export default function MainPage({
 
   useEffect(() => {
     // setUser(session?.user || null);
-    async function fetchData() {
-      if (isNewUser && !user) {
-        const user = await authClient.signIn.anonymous();
-        if (user) {
-          setUser(user?.data?.user);
-          // SetCookie user-status=guest
-          return Cookies.set("user-status", "guest", { expires: 7 });
-        }
-      }
+    // async function fetchData() {
+    //   if (isNewUser && !user) {
+    //     const user = await authClient.signIn.anonymous();
+    //     if (user) {
+    //       setUser(user?.data?.user);
+    //       // SetCookie user-status=guest
+    //       return Cookies.set("user-status", "guest", { expires: 7 });
+    //     }
+    //   }
 
-      if (sessionDetails?.user) {
-        setUser(sessionDetails?.user);
-        if (!isNewUser && !isAnonymous) {
-          Cookies.set("user-status", "user", { expires: 7 });
-          return location.reload();
-        }
-        if (isAnonymous) {
-          Cookies.set("user-status", "guest", { expires: 7 });
-          return location.reload();
-        }
-      }
-    }
+    //   if (sessionDetails?.user) {
+    //     setUser(sessionDetails?.user);
+    //     if (!isNewUser && !isAnonymous) {
+    //       Cookies.set("user-status", "user", { expires: 7 });
+    //       return location.reload();
+    //     }
+    //     if (isAnonymous) {
+    //       Cookies.set("user-status", "guest", { expires: 7 });
+    //       return location.reload();
+    //     }
+    //   }
+    // }
 
-    fetchData();
+    // fetchData();
   }, [user, isNewUser, setUser, isAnonymous, sessionDetails]);
 
   const [input, setInput] = useState<string>("");

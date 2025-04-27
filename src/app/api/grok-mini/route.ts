@@ -118,6 +118,8 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check the Limit 
+
     // --- 5. Prepare messages for xAI API ---
     const messages_format: Array<{
       role: "system" | "user" | "assistant";
