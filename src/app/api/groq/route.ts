@@ -3,14 +3,14 @@ import { auth } from "@/lib/auth";
 import { headers as nextHeaders } from "next/headers";
 import { db } from "@/database/db";
 import { nanoid } from "nanoid";
-import { chat, messages } from "@/database/schema/auth-schema";
+import { chat, messages, user } from "@/database/schema/auth-schema";
 import { eq } from "drizzle-orm"; // Import eq for querying
 
 // --- API Key ---
 const groqApiKey = process.env.GROQ_API_KEY;
 if (!groqApiKey) {
   console.warn(
-    "GROQ_API_KEY environment variable not set. Using hardcoded key (NOT RECOMMENDED).",
+    "GROQ_API_KEY environment variable not set. Using hardcoded key (NOT RECOMMENDED)."
   );
 }
 const client = new Groq({
@@ -36,14 +36,14 @@ export async function POST(req: Request) {
       console.error("API Error: Missing X-Chat-ID header");
       return new Response(
         JSON.stringify({ error: "Missing X-Chat-ID header" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
     if (!message || typeof message !== "string" || message.trim() === "") {
       console.error("API Error: Missing or invalid message content");
       return new Response(
         JSON.stringify({ error: "Message content is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -58,7 +58,106 @@ export async function POST(req: Request) {
     }
     const userId = sessionData.user.id;
 
-    // --- 4. Check Chat Existence, Ownership, or Create New ---
+    // ------- Rate Limit ----------
+
+    // Check the rate limit
+    const userData = await db
+      .select({
+        id: user.id,
+        rateLimit: user.rateLimit,
+        updatedAt: user.updatedAt,
+        isAnonymous: user.isAnonymous,
+      })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    if (!userData || userData.length === 0) {
+      console.error(`API Error: User data not found for ID ${userId}`);
+      return new Response(JSON.stringify({ error: "User not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    let { rateLimit, updatedAt, isAnonymous } = userData[0];
+    const now = new Date();
+    const twelveHoursInMillis = 12 * 60 * 60 * 1000;
+    let limitWasReset = false;
+
+    // check if quoteRemain is zero and updatedAt and current has difference of the 12 hr then reset the limit
+    if (rateLimit === "0") {
+      const timeDifference = now.getTime() - updatedAt.getTime();
+      if (timeDifference >= twelveHoursInMillis) {
+        // if user is isAnonymous true then reset limit to 1
+        // if user in isAnonymous false the reset limit to 10
+        const newLimit = isAnonymous ? "1" : "10";
+        try {
+          await db
+            .update(user)
+            .set({ rateLimit: newLimit, updatedAt: now })
+            .where(eq(user.id, userId));
+          rateLimit = newLimit; // Update local variable
+          limitWasReset = true;
+          console.log(`Rate limit reset for user ${userId} to ${newLimit}.`);
+        } catch (dbError) {
+          console.error(
+            `Database error resetting rate limit for user ${userId}:`,
+            dbError
+          );
+          // Decide if you want to block the request or proceed cautiously
+          // For now, we'll return an error
+          return new Response(
+            JSON.stringify({ error: "Database error during rate limit reset" }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
+    // Check if the limit is still zero after potential reset attempt
+    if (rateLimit === "0") {
+      let remainingTimeMessage = "Please try again later.";
+      // Calculate remaining time ONLY if the limit wasn't just reset in this request
+      if (!limitWasReset) {
+        const resetTime = new Date(updatedAt.getTime() + twelveHoursInMillis);
+        const remainingMillis = resetTime.getTime() - now.getTime();
+
+        if (remainingMillis > 0) {
+          const totalSeconds = Math.max(0, Math.floor(remainingMillis / 1000)); // Ensure non-negative
+          const hours = Math.floor(totalSeconds / 3600);
+          const minutes = Math.floor((totalSeconds % 3600) / 60);
+          const seconds = totalSeconds % 60;
+
+          const parts = [];
+          if (hours > 0) parts.push(`${hours} hour${hours > 1 ? "s" : ""}`);
+          if (minutes > 0)
+            parts.push(`${minutes} minute${minutes > 1 ? "s" : ""}`);
+          // Only show seconds if the remaining time is less than a minute
+          if (hours === 0 && minutes === 0 && seconds > 0)
+            parts.push(`${seconds} second${seconds > 1 ? "s" : ""}`);
+          // Handle case where time is very short or slightly negative due to timing
+          else if (hours === 0 && minutes === 0 && seconds <= 0)
+            parts.push("a few moments");
+
+          if (parts.length > 0) {
+            remainingTimeMessage = `Please try again in approximately ${parts.join(
+              ", "
+            )}.`;
+          }
+        }
+      }
+
+      console.warn(`API Warning: Rate limit exceeded for user ${userId}.`);
+      return new Response(
+        JSON.stringify({
+          error: `Rate limit exceeded. ${remainingTimeMessage}`,
+        }),
+        { status: 429, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // --- 5. Check Chat Existence, Ownership, or Create New ---
     try {
       // Attempt to find the chat
       const results = await db
@@ -72,13 +171,13 @@ export async function POST(req: Request) {
         // Chat exists - check ownership
         if (existingChat.userId !== userId) {
           console.error(
-            `API Error: User ${userId} forbidden access to chat ${currentChatId} owned by ${existingChat.userId}.`,
+            `API Error: User ${userId} forbidden access to chat ${currentChatId} owned by ${existingChat.userId}.`
           );
           return new Response(
             JSON.stringify({
               error: "Forbidden: Chat does not belong to user",
             }),
-            { status: 403, headers: { "Content-Type": "application/json" } },
+            { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }
         // Chat exists and belongs to the user
@@ -120,15 +219,15 @@ export async function POST(req: Request) {
     } catch (dbError) {
       console.error(
         `Database error during chat check/creation for ID ${currentChatId}:`,
-        dbError,
+        dbError
       );
       return new Response(
         JSON.stringify({ error: "Database error during chat handling" }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // --- 5. Prepare messages for Groq API ---
+    // --- 6. Prepare messages for Groq API ---
     const messages_format: Array<{
       role: "system" | "user" | "assistant";
       content: string;
@@ -141,20 +240,95 @@ export async function POST(req: Request) {
           msg &&
           (msg.role === "user" || msg.role === "assistant") &&
           typeof msg.content === "string" &&
-          msg.content.trim() !== "",
+          msg.content.trim() !== ""
       );
       messages_format.push(...validPreviousConversations);
-    } else if (isNewChatFlow) {
-      // For new chats, we ignore any 'previous_conversations' sent (should be empty anyway)
     }
 
-    // Add the current user message
-    messages_format.push({ role: "user", content: message.trim() });
+    // ----------- Add the Context Here ----------
 
-    // --- 6. Stream Groq Response and Save Message ---
+    function extractAndCleanWordWithAt(sentence: string): string | undefined {
+      const words = sentence.split(/\s+/);
+      const wordWithAt = words.find((word) => word.startsWith("@"));
+
+      if (wordWithAt) {
+        return wordWithAt.slice(1).toLowerCase();
+      }
+
+      return undefined;
+    }
+
+    const searchBody = {
+      query: message,
+      name_space: extractAndCleanWordWithAt(message),
+    };
+
+    console.log(searchBody);
+
+    let docs: any[] = []; // Initialize docs as an empty array
+
+    try {
+      const response = await fetch("http://localhost:8080/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer xx-bi-qqq", // Replace with your actual token or env variable
+        },
+        body: JSON.stringify(searchBody),
+      });
+
+      if (!response.ok) {
+        console.error(
+          `Context search API error: ${response.status} ${response.statusText}`
+        );
+        // Handle non-OK responses appropriately, maybe skip context injection
+      } else {
+        const responseData = await response.json();
+        // Ensure documents is an array, default to empty if missing or not an array
+        docs = Array.isArray(responseData?.documents)
+          ? responseData.documents
+          : [];
+        console.log("Retrieved context documents:", docs.length); // Log how many documents were retrieved
+      }
+    } catch (error) {
+      console.error("Error calling context search API:", error);
+      // Handle fetch or JSON parsing errors, maybe skip context injection
+    }
+    // -------------------------------------------------
+
+    const docsString: string = JSON.stringify(docs);
+
+    // Add the current user message
+    messages_format.push({
+      role: "user",
+      content: `
+      ------------ Context ------------
+      ${docsString}
+      ----------------------------------
+      Message: 
+      ${message.trim()}`,
+    });
+
+    // --- 7. Stream Groq Response and Save Message ---
     const encoder = new TextEncoder();
     let fullBotResponse = "";
     const finalChatId = currentChatId; // Use the validated/created chat ID
+
+    // --- 4. Decrement Rate Limit (if quota allows) ---
+    try {
+      await db
+        .update(user)
+        .set({ rateLimit: String(Number(rateLimit) - 1) }) // Decrement the limit
+        .where(eq(user.id, userId));
+
+      console.log("Quote decrease", String(Number(rateLimit) - 1));
+    } catch (dbError) {
+      console.error(
+        `Database error decrementing rate limit for user ${userId}:`,
+        dbError
+      );
+      // Log error but proceed with the request as the check passed initially
+    }
 
     // Streaming the Response
     const stream = new ReadableStream({
@@ -178,7 +352,7 @@ export async function POST(req: Request) {
           // Save message pair after successful streaming
           if (fullBotResponse.trim() === "") {
             console.warn(
-              `Groq returned an empty response for chat ${finalChatId}. Not saving empty message pair.`,
+              `Groq returned an empty response for chat ${finalChatId}. Not saving empty message pair.`
             );
           } else {
             try {
@@ -211,7 +385,7 @@ export async function POST(req: Request) {
       "X-Title": title,
     });
 
-    // --- 7. Return the stream ---
+    // --- 8. Return the stream ---
     return new Response(stream, {
       headers: responseHeaders,
     });

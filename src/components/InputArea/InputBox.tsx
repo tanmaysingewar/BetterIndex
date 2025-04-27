@@ -157,7 +157,7 @@ const popularToolsAndFrameworks: string[] = [
   "Go",
   "Swift",
   "Kotlin",
-  "Modal.com", // Added Modal.com
+  "Modal", // Added Modal.com
   "BetterAuth", // Added BetterAuth
   "Git",
   "GitHub",

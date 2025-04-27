@@ -11,6 +11,7 @@ import { authClient } from "@/lib/auth-client";
 import Cookies from "js-cookie";
 import { fetchAllChatsAndCache } from "@/lib/fetchChats";
 import MainPage from "./MainPage";
+import toast, { Toaster } from 'react-hot-toast';
 
 interface Message {
   role: "user" | "assistant";
@@ -68,6 +69,8 @@ export default function ChatPage({
   const serverFetchInitiated = useRef<Record<string, boolean>>({});
   // Ref to track the initial message being processed by handleSendMessage
   const processingInitialMessageRef = useRef<string | null>(null);
+
+  const errorTost = () => toast.error('Here is your toast.');
 
 
   useEffect(() => {
@@ -481,8 +484,11 @@ export default function ChatPage({
           );
         }
       } catch (error) {
-        console.error("Error sending message:", error);
+        // console.error("Error sending message:", error);
         // Update UI with error, keeping user message but removing potential placeholder
+
+        // Raise a tost
+
         setMessages((prev) => {
           const currentMessages = prev.filter(
             (m) => !(m.role === "assistant" && m.content === ""),
@@ -499,7 +505,7 @@ export default function ChatPage({
             ...baseMessages,
             {
               role: "assistant",
-              content: `Sorry, an error occurred: ${error instanceof Error ? error.message : String(error)}`,
+              content: `${error}`,
             },
           ];
         });
