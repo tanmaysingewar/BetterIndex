@@ -11,7 +11,7 @@ import { authClient } from "@/lib/auth-client";
 import Cookies from "js-cookie";
 import { fetchAllChatsAndCache } from "@/lib/fetchChats";
 import MainPage from "./MainPage";
-import toast, { Toaster } from 'react-hot-toast';
+// import toast from 'react-hot-toast';
 
 interface Message {
   role: "user" | "assistant";
@@ -70,7 +70,7 @@ export default function ChatPage({
   // Ref to track the initial message being processed by handleSendMessage
   const processingInitialMessageRef = useRef<string | null>(null);
 
-  const errorTost = () => toast.error('Here is your toast.');
+  // const errorTost = () => toast.error('Here is your toast.');
 
 
   useEffect(() => {

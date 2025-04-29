@@ -80,7 +80,8 @@ export async function POST(req: Request) {
       });
     }
 
-    let { rateLimit, updatedAt, isAnonymous } = userData[0];
+    let { rateLimit } = userData[0];
+    const { updatedAt, isAnonymous } = userData[0];
     const now = new Date();
     const twelveHoursInMillis = 12 * 60 * 60 * 1000;
     let limitWasReset = false;
@@ -258,42 +259,46 @@ export async function POST(req: Request) {
       return undefined;
     }
 
-    const searchBody = {
-      query: message,
-      name_space: extractAndCleanWordWithAt(message),
-    };
+    const searchNameSpace = extractAndCleanWordWithAt(message);
+    let docs: string[] = []; // Initialize docs as an empty array
 
-    console.log(searchBody);
+    if (searchNameSpace) {
+      const searchBody = {
+        query: message,
+        name_space: searchNameSpace,
+      };
 
-    let docs: any[] = []; // Initialize docs as an empty array
+      console.log(searchBody);
 
-    try {
-      const response = await fetch("http://localhost:8080/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer xx-bi-qqq", // Replace with your actual token or env variable
-        },
-        body: JSON.stringify(searchBody),
-      });
+      try {
+        const response = await fetch("http://localhost:8080/search", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer xx-bi-qqq", // Replace with your actual token or env variable
+          },
+          body: JSON.stringify(searchBody),
+        });
 
-      if (!response.ok) {
-        console.error(
-          `Context search API error: ${response.status} ${response.statusText}`
-        );
-        // Handle non-OK responses appropriately, maybe skip context injection
-      } else {
-        const responseData = await response.json();
-        // Ensure documents is an array, default to empty if missing or not an array
-        docs = Array.isArray(responseData?.documents)
-          ? responseData.documents
-          : [];
-        console.log("Retrieved context documents:", docs.length); // Log how many documents were retrieved
+        if (!response.ok) {
+          console.error(
+            `Context search API error: ${response.status} ${response.statusText}`
+          );
+          // Handle non-OK responses appropriately, maybe skip context injection
+        } else {
+          const responseData = await response.json();
+          // Ensure documents is an array, default to empty if missing or not an array
+          docs = Array.isArray(responseData?.documents)
+            ? responseData.documents
+            : [];
+          console.log("Retrieved context documents:", docs.length); // Log how many documents were retrieved
+        }
+      } catch (error) {
+        console.error("Error calling context search API:", error);
+        // Handle fetch or JSON parsing errors, maybe skip context injection
       }
-    } catch (error) {
-      console.error("Error calling context search API:", error);
-      // Handle fetch or JSON parsing errors, maybe skip context injection
     }
+
     // -------------------------------------------------
 
     const docsString: string = JSON.stringify(docs);

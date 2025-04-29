@@ -1,4 +1,4 @@
-import { useEffect, useRef, memo, useCallback, useMemo } from "react";
+import { useEffect, useRef, memo, useCallback } from "react";
 
 interface TextInputProps {
   input: string;
@@ -21,10 +21,6 @@ const TextInput = memo(function TextInput({
   setSelectedIndex = () => { },
   handleSelection = () => { },
 }: TextInputProps) {
-  const highlightedText = useMemo(() => {
-    const escaped = input.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return escaped.split(/(\s+)/).map(token => token.includes('@') ? `<mark style="background:white; color: black;">${token}</mark>` : token).join('');
-  }, [input]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -46,25 +42,29 @@ const TextInput = memo(function TextInput({
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setInput(e.target.value);
+      const newValue = e.target.value;
+      // Split the input value into words and count how many start with "@"
+      const mentionCount = newValue.split(/\s+/).filter(word => word.startsWith("@")).length;
+
+      // Only update the input state if the mention count is 0 or 1
+      if (mentionCount <= 1) {
+        setInput(newValue);
+      }
+      // If mentionCount > 1, do nothing, effectively preventing the addition of a second mention.
     },
     [setInput],
   );
 
   return (
     <div className="relative w-full">
-      <div className="absolute inset-0 whitespace-pre-wrap break-words pointer-events-none dark:text-white p-3">
-        <span dangerouslySetInnerHTML={{ __html: highlightedText }} />
-      </div>
       <textarea
         ref={textareaRef}
         placeholder="What do you want to ask?"
         value={input}
-        className="w-full bg-transparent resize-none overflow-y-auto rounded-lg focus:outline-none text-transparent caret-black dark:caret-white p-3 placeholder:text-neutral-400 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
+        className="w-full bg-transparent resize-none overflow-y-auto rounded-lg focus:outline-none caret-black dark:caret-white p-3 placeholder:text-neutral-400 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
         style={{
-          border: "none",
           fontSize: "16px",
-          fontWeight: "300",
+          fontWeight: "400",
           maxHeight: "200px",
           height: height + "px",
         }}
