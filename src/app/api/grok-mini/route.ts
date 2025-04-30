@@ -1,27 +1,107 @@
-import OpenAI from "openai";
+// import Groq from "groq-sdk";
 import { auth } from "@/lib/auth";
 import { headers as nextHeaders } from "next/headers";
 import { db } from "@/database/db";
 import { nanoid } from "nanoid";
-import { chat, messages } from "@/database/schema/auth-schema";
-import { eq } from "drizzle-orm";
+import { chat, messages, user } from "@/database/schema/auth-schema";
+import { eq } from "drizzle-orm"; // Import eq for querying
+import { QdrantClient } from "@qdrant/js-client-rest"; // Import Qdrant client
+import OpenAI from "openai"; // Import OpenAI
 
-// --- API Key ---
-const xaiApiKey = process.env.XAI_API_KEY;
-if (!xaiApiKey) {
+// --- API Keys ---x
+const grokApiKey = process.env.XAI_API_KEY;
+const qdrantApiKey = process.env.QDRANT_API_KEY;
+const qdrantUrl =
+  process.env.QDRANT_URL ||
+  "https://18ba2c2a-f7d7-4ee0-bf76-40eebb84a4c5.us-east4-0.gcp.cloud.qdrant.io"; // Use env var or default
+const openaiApiKey = process.env.OPENAI_API_KEY; // Get OpenAI API Key
+// No need for a static QDRANT_COLLECTION_NAME anymore
+
+if (!grokApiKey) {
   console.warn("XAI_API_KEY environment variable not set.");
-  // Handle missing key appropriately
+}
+if (!qdrantApiKey) {
+  console.error(
+    "QDRANT_API_KEY environment variable not set. Qdrant search will fail."
+  );
+  // Potentially throw an error or handle this case depending on requirements
+}
+if (!openaiApiKey) {
+  console.error(
+    "OPENAI_API_KEY environment variable not set. Embedding generation will fail."
+  );
+  // Consider throwing an error or handling this more gracefully
 }
 
-// --- Initialize xAI Client ---
-const client = new OpenAI({
-  apiKey: xaiApiKey,
+// Instantiate Qdrant Client
+const qdrantClient = new QdrantClient({
+  url: qdrantUrl,
+  apiKey: qdrantApiKey,
+});
+
+// Instantiate OpenAI Client
+const openai = new OpenAI({
+  apiKey: openaiApiKey,
+});
+
+const grokClient = new OpenAI({
+  apiKey: grokApiKey,
   baseURL: "https://api.x.ai/v1",
 });
 
+// Function to generate embeddings using OpenAI text-embedding-3-large
+async function generateEmbedding(text: string): Promise<number[]> {
+  // Normalize the input text to replace newlines, which can affect performance.
+  const input = text.replace(/\n/g, " ");
+
+  if (!openaiApiKey) {
+    console.error("OpenAI API Key not configured. Cannot generate embeddings.");
+    throw new Error("OpenAI API Key not configured."); // Throw error to prevent proceeding
+  }
+
+  try {
+    const embeddingResponse = await openai.embeddings.create({
+      model: "text-embedding-3-large", // Specify the model
+      input: input,
+      // Optionally specify dimensions if your Qdrant collection uses a smaller size
+      // dimensions: 1536, // Or 256, 512 etc. if needed and supported by your Qdrant setup
+    });
+
+    // Check if the response structure is as expected
+    if (
+      !embeddingResponse ||
+      !embeddingResponse.data ||
+      !embeddingResponse.data[0] ||
+      !embeddingResponse.data[0].embedding
+    ) {
+      console.error(
+        "Invalid response structure from OpenAI API:",
+        embeddingResponse
+      );
+      throw new Error(
+        "Failed to get embedding from OpenAI: Invalid response structure."
+      );
+    }
+
+    const vector = embeddingResponse.data[0].embedding;
+    // console.log(`Generated embedding of dimension: ${vector.length}`); // Optional: Log dimension
+    return vector;
+  } catch (error) {
+    console.error("Error generating embedding from OpenAI:", error);
+    // Re-throw the error or handle it appropriately (e.g., return a default/empty vector or throw specific error)
+    throw new Error(
+      `Failed to generate embedding: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
+
 export async function POST(req: Request) {
+  // --- Standard Response Headers for Streaming ---
+
   let currentChatId: string | null = null;
-  let isNewChatFlow = false;
+  let isNewChatFlow = false; // Flag to indicate if we created the chat in this request
   let title = "";
 
   try {
@@ -31,24 +111,25 @@ export async function POST(req: Request) {
     const { message, previous_conversations } = await req.json();
 
     // --- 2. Validate Input ---
-    // (Keep your existing validation logic)
     if (!currentChatId) {
+      console.error("API Error: Missing X-Chat-ID header");
       return new Response(
         JSON.stringify({ error: "Missing X-Chat-ID header" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
     if (!message || typeof message !== "string" || message.trim() === "") {
+      console.error("API Error: Missing or invalid message content");
       return new Response(
         JSON.stringify({ error: "Message content is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
     // --- 3. Authentication ---
-    // (Keep your existing authentication logic)
     const sessionData = await auth.api.getSession({ headers: requestHeaders });
     if (!sessionData?.session || !sessionData?.user?.id) {
+      console.error("API Error: Unauthorized access attempt");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
@@ -56,173 +137,325 @@ export async function POST(req: Request) {
     }
     const userId = sessionData.user.id;
 
-    // --- 4. Check Chat Existence, Ownership, or Create New ---
-    // (Keep your existing chat handling logic, including title generation)
-    // ... (ensure title generation happens here if it's a new chat) ...
+    // ------- Rate Limit ----------
+
+    // Check the rate limit
+    const userData = await db
+      .select({
+        id: user.id,
+        rateLimit: user.rateLimit,
+        updatedAt: user.updatedAt,
+        isAnonymous: user.isAnonymous,
+      })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    if (!userData || userData.length === 0) {
+      console.error(`API Error: User data not found for ID ${userId}`);
+      return new Response(JSON.stringify({ error: "User not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    let { rateLimit } = userData[0];
+    const { updatedAt, isAnonymous } = userData[0];
+    const now = new Date();
+    const twelveHoursInMillis = 12 * 60 * 60 * 1000;
+    let limitWasReset = false;
+
+    // check if quoteRemain is zero and updatedAt and current has difference of the 12 hr then reset the limit
+    if (rateLimit === "0") {
+      const timeDifference = now.getTime() - updatedAt.getTime();
+      if (timeDifference >= twelveHoursInMillis) {
+        // if user is isAnonymous true then reset limit to 1
+        // if user in isAnonymous false the reset limit to 10
+        const newLimit = isAnonymous ? "1" : "10";
+        try {
+          await db
+            .update(user)
+            .set({ rateLimit: newLimit, updatedAt: now })
+            .where(eq(user.id, userId));
+          rateLimit = newLimit; // Update local variable
+          limitWasReset = true;
+          console.log(`Rate limit reset for user ${userId} to ${newLimit}.`);
+        } catch (dbError) {
+          console.error(
+            `Database error resetting rate limit for user ${userId}:`,
+            dbError
+          );
+          // Decide if you want to block the request or proceed cautiously
+          // For now, we'll return an error
+          return new Response(
+            JSON.stringify({ error: "Database error during rate limit reset" }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
+    // Check if the limit is still zero after potential reset attempt
+    if (rateLimit === "0") {
+      let remainingTimeMessage = "Please try again later.";
+      // Calculate remaining time ONLY if the limit wasn't just reset in this request
+      if (!limitWasReset) {
+        const resetTime = new Date(updatedAt.getTime() + twelveHoursInMillis);
+        const remainingMillis = resetTime.getTime() - now.getTime();
+
+        if (remainingMillis > 0) {
+          const totalSeconds = Math.max(0, Math.floor(remainingMillis / 1000)); // Ensure non-negative
+          const hours = Math.floor(totalSeconds / 3600);
+          const minutes = Math.floor((totalSeconds % 3600) / 60);
+          const seconds = totalSeconds % 60;
+
+          const parts = [];
+          if (hours > 0) parts.push(`${hours} hour${hours > 1 ? "s" : ""}`);
+          if (minutes > 0)
+            parts.push(`${minutes} minute${minutes > 1 ? "s" : ""}`);
+          // Only show seconds if the remaining time is less than a minute
+          if (hours === 0 && minutes === 0 && seconds > 0)
+            parts.push(`${seconds} second${seconds > 1 ? "s" : ""}`);
+          // Handle case where time is very short or slightly negative due to timing
+          else if (hours === 0 && minutes === 0 && seconds <= 0)
+            parts.push("a few moments");
+
+          if (parts.length > 0) {
+            remainingTimeMessage = `Please try again in approximately ${parts.join(
+              ", "
+            )}.`;
+          }
+        }
+      }
+
+      console.warn(`API Warning: Rate limit exceeded for user ${userId}.`);
+      return new Response(
+        JSON.stringify({
+          error: `Rate limit exceeded. ${remainingTimeMessage}`,
+        }),
+        { status: 429, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // --- 5. Check Chat Existence, Ownership, or Create New ---
     try {
+      // Attempt to find the chat
       const results = await db
-        .select({ id: chat.id, userId: chat.userId, title: chat.title }) // Select title too
+        .select({ id: chat.id, userId: chat.userId })
         .from(chat)
         .where(eq(chat.id, currentChatId))
         .limit(1);
       const existingChat = results[0];
 
       if (existingChat) {
+        // Chat exists - check ownership
         if (existingChat.userId !== userId) {
-          // ... (Forbidden error) ...
+          console.error(
+            `API Error: User ${userId} forbidden access to chat ${currentChatId} owned by ${existingChat.userId}.`
+          );
           return new Response(
             JSON.stringify({
               error: "Forbidden: Chat does not belong to user",
             }),
-            { status: 403, headers: { "Content-Type": "application/json" } },
+            { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }
+        // Chat exists and belongs to the user
         isNewChatFlow = false;
-        title = existingChat.title; // Get title for existing chat
       } else {
-        // Generate title
-        // Todo : make title using the GPT4.1 nano 
-        const titleCompletion = await client.chat.completions.create({
+        // Chat does NOT exist - Create it using the ID from the frontend
+
+        // Generate the title
+        const completion = await grokClient.chat.completions.create({
           messages: [
             {
               role: "system",
               content:
-                "Generate a concise and relevant title (max 100 chars) for the chat based *only* on the user's first message. Output *only* the plain text title, without quotes, symbols, prefixes, explanations, or conversation.",
+                "Generate a concise and relevant title for the chat based solely on the user's messages in less than 50 words. The title should be plain text without any symbols, prefixes, or formatting. Do not respond to the query or provide explanations—just return the title directly.",
             },
-            { role: "user", content: message.trim().substring(0, 150) },
+            {
+              role: "user",
+              content: message.trim().substring(0, 100),
+            },
           ],
-          model: "grok-3-mini",
-          temperature: 0.5,
+          model: "grok-3-beta",
+          temperature: 0.1,
         });
-        console.log(titleCompletion.choices[0]?.message?.content)
-        title =
-          titleCompletion.choices[0]?.message?.content
-            ?.trim()
-            .substring(0, 100)
-            .replace(/"/g, "") || `Chat ${currentChatId.substring(0, 5)}`;
+
+        // Overright the title of the current chat
+        title = completion.choices[0]?.message
+          ?.content!.trim()
+          .substring(0, 100)
+          .replace(/"/g, "");
 
         await db.insert(chat).values({
-          id: currentChatId,
-          title: title,
+          id: currentChatId, // Use the ID provided by the frontend
+          title: title, // Use first message for title
           userId: userId,
           createdAt: new Date(),
         });
-        isNewChatFlow = true;
+        isNewChatFlow = true; // Mark that we just created this chat
       }
     } catch (dbError) {
-      // ... (Database error handling) ...
-      console.error("Database error during chat handling:", dbError);
+      console.error(
+        `Database error during chat check/creation for ID ${currentChatId}:`,
+        dbError
+      );
       return new Response(
         JSON.stringify({ error: "Database error during chat handling" }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Check the Limit 
-
-    // --- 5. Prepare messages for xAI API ---
+    // --- 6. Prepare messages for Groq API ---
     const messages_format: Array<{
       role: "system" | "user" | "assistant";
       content: string;
     }> = [{ role: "system", content: "You are a helpful assistant." }];
-    // (Keep logic for adding previous_conversations)
+
     if (!isNewChatFlow && Array.isArray(previous_conversations)) {
+      // If it's an existing chat, add previous messages sent by the client
       const validPreviousConversations = previous_conversations.filter(
         (msg) =>
           msg &&
           (msg.role === "user" || msg.role === "assistant") &&
           typeof msg.content === "string" &&
-          msg.content.trim() !== "",
+          msg.content.trim() !== ""
       );
       messages_format.push(...validPreviousConversations);
     }
-    messages_format.push({ role: "user", content: message.trim() });
 
-    // --- 6. Call xAI API (Non-Streaming) and Assemble Response ---
+    // ----------- Add the Context Here ----------
+
+    function extractAndCleanWordWithAt(sentence: string): string | undefined {
+      const words = sentence.split(/\s+/);
+      const wordWithAt = words.find((word) => word.startsWith("@"));
+
+      if (wordWithAt) {
+        return wordWithAt.slice(1).toLowerCase();
+      }
+
+      return undefined;
+    }
+
+    const searchNameSpace = extractAndCleanWordWithAt(message); // This is now the collection name
+    let docs: string[] = []; // Initialize docs as an empty array
+
+    // Check if we have a namespace (collection name) and the Qdrant/OpenAI API keys are set
+    if (searchNameSpace && qdrantApiKey && openaiApiKey) {
+      console.log(`Searching Qdrant in collection '${searchNameSpace}'...`);
+      try {
+        // 1. Generate embedding for the user's message
+        const queryVector = await generateEmbedding(message); // Now uses OpenAI
+
+        // 2. Search Qdrant using searchNameSpace as the collection name
+        const searchResult = await qdrantClient.search(searchNameSpace, {
+          vector: queryVector,
+          limit: 5,
+          with_payload: true,
+        });
+
+        // 3. Extract content from results
+        docs = searchResult
+          .map((point) => point.payload?.content as string)
+          .filter(
+            (content) => typeof content === "string" && content.trim() !== ""
+          );
+
+        console.log("Retrieved context documents from Qdrant:", docs.length);
+      } catch (error) {
+        // Log errors from embedding generation or other Qdrant issues
+        console.error(
+          `Error during Qdrant search/embedding process for collection '${searchNameSpace}':`,
+          error
+        );
+        docs = []; // Ensure docs is empty on error
+      }
+    } else if (searchNameSpace && !qdrantApiKey) {
+      console.warn("Qdrant API Key not configured. Skipping context search.");
+    } else if (searchNameSpace && !openaiApiKey) {
+      console.warn("OpenAI API Key not configured. Skipping context search.");
+    }
+
+    // -------------------------------------------------
+
+    const docsString: string =
+      docs.length > 0 ? JSON.stringify(docs) : "No relevant context found."; // Updated message
+
+    // Add the current user message
+    messages_format.push({
+      role: "user",
+      content: `
+      ------------ Context ------------
+      ${docsString}
+      ----------------------------------
+      Message:
+      ${message.trim()}`,
+    });
+
+    // --- 7. Stream Groq Response and Save Message ---
+    const encoder = new TextEncoder();
+    let fullBotResponse = "";
     const finalChatId = currentChatId; // Use the validated/created chat ID
+
+    // --- 4. Decrement Rate Limit (if quota allows) ---
+    try {
+      await db
+        .update(user)
+        .set({ rateLimit: String(Number(rateLimit) - 1) }) // Decrement the limit
+        .where(eq(user.id, userId));
+
+      console.log("Quote decrease", String(Number(rateLimit) - 1));
+    } catch (dbError) {
+      console.error(
+        `Database error decrementing rate limit for user ${userId}:`,
+        dbError
+      );
+      // Log error but proceed with the request as the check passed initially
+    }
 
     // Streaming the Response
     const stream = new ReadableStream({
       async start(controller) {
-        let fullBotResponse = "";
-        const encoder = new TextEncoder();
-        let inReasoningBlock = false; // State to track if we are inside <think> tags
-
         try {
-          const completion = await client.chat.completions.create({
+          const completion = await grokClient.chat.completions.create({
             messages: messages_format,
-            model: "grok-3-mini", // Ensure this model supports reasoning_content
+            model: "grok-3-mini-fast-beta",
             temperature: 0.7,
             stream: true as const,
           });
 
           for await (const chunk of completion) {
             const content = chunk.choices[0]?.delta?.content || "";
-            // const reasoning_content = chunk.choices[0]?.delta?.reasoning_content || "";
-            const reasoning_content = "";
-
-            const isCurrentChunkReasoning = !!reasoning_content;
-            const isCurrentChunkContent = !!content; // Assuming content and reasoning are mutually exclusive per delta
-
-            // --- State transition logic ---
-
-            // 1. Entering a reasoning block?
-            if (isCurrentChunkReasoning && !inReasoningBlock) {
-              inReasoningBlock = true;
-              const thinkStartTag = "```think\n";
-              fullBotResponse += thinkStartTag;
-              controller.enqueue(encoder.encode(thinkStartTag));
-            }
-            // 2. Exiting a reasoning block (because regular content arrived)?
-            else if (isCurrentChunkContent && inReasoningBlock) {
-              // Note: This assumes reasoning blocks don't immediately follow each other
-              // without regular content in between. If they can, this logic might need adjustment.
-              inReasoningBlock = false;
-              const thinkEndTag = "\n```\n";
-              fullBotResponse += thinkEndTag;
-              controller.enqueue(encoder.encode(thinkEndTag));
-            }
-
-            // --- Enqueue actual content ---
-
-            if (reasoning_content) {
-              fullBotResponse += reasoning_content;
-              controller.enqueue(encoder.encode(reasoning_content));
-            }
             if (content) {
-              // If we were in a reasoning block and regular content arrives,
-              // the exit logic above already handled the closing tag.
               fullBotResponse += content;
               controller.enqueue(encoder.encode(content));
             }
           }
 
-          // --- Database saving logic ---
+          // Save message pair after successful streaming
           if (fullBotResponse.trim() === "") {
             console.warn(
-              `Groq returned an empty response for chat ${finalChatId}. Not saving empty message pair.`,
+              `Groq returned an empty response for chat ${finalChatId}. Not saving empty message pair.`
             );
           } else {
             try {
               await db.insert(messages).values({
                 id: nanoid(),
                 userMessage: message.trim(),
-                botResponse: fullBotResponse, // Save the full response with correctly placed tags
-                chatId: finalChatId,
+                botResponse: fullBotResponse,
+                chatId: finalChatId, // Link to the correct chat ID
                 createdAt: new Date(),
               });
             } catch (dbError) {
+              // Log error but don't necessarily stop the stream response
               console.error("Error saving message pair:", dbError);
             }
           }
         } catch (error) {
           console.error("Groq streaming or processing error:", error);
-          // If an error occurs mid-stream, we might have an unclosed tag sent.
-          // It's often better to let the consumer handle potentially incomplete streams on error.
           controller.error(error);
         } finally {
-          // Ensure the stream is always closed, regardless of success or error.
-          // The final </think> tag (if needed) should have been enqueued *before* this.
           controller.close();
         }
       },
@@ -236,7 +469,7 @@ export async function POST(req: Request) {
       "X-Title": title,
     });
 
-    // --- 7. Return the stream ---
+    // --- 8. Return the stream ---
     return new Response(stream, {
       headers: responseHeaders,
     });

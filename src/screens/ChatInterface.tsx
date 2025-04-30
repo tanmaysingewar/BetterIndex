@@ -362,7 +362,7 @@ export default function ChatPage({
 
       try {
         // Make the LLM provider dynamic
-        const response = await fetch("/api/groq", {
+        const response = await fetch("/api/grok-mini", {
           method: "POST",
           headers: requestHeaders,
           body: JSON.stringify(requestBody),
