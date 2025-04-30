@@ -100,7 +100,7 @@ export default function InputBox({
           />
           <div className="flex flex-row justify-between w-full mt-0">
             <div className="flex flex-row mt-2 text-neutral-200">
-              <p className="text-sm mx-3">Llama 3.3 70b Specdec</p>
+              <p className="text-sm mx-3">Grok 3 Mini</p>
             </div>
             <div className="flex flex-row justify-center items-center">
               <p className="text-xs dark:text-neutral-400 mr-3 hidden sm:block">

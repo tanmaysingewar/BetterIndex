@@ -97,12 +97,138 @@ async function generateEmbedding(text: string): Promise<number[]> {
   }
 }
 
+// Helper function to generate title
+async function generateTitle(userMessage: string): Promise<string> {
+  try {
+    const completion = await grokClient.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content:
+            "Generate a concise and relevant title for the chat based solely on the user's messages in less than 50 words. The title should be plain text without any symbols, prefixes, or formatting. Do not respond to the query or provide explanations—just return the title directly.",
+        },
+        {
+          role: "user",
+          content: userMessage.trim().substring(0, 100),
+        },
+      ],
+      model: "grok-3-beta",
+      temperature: 0.1,
+    });
+
+    return (
+      completion.choices[0]?.message
+        ?.content!.trim()
+        .substring(0, 100)
+        .replace(/"/g, "") || "Untitled Chat"
+    );
+  } catch (error) {
+    console.error("Error generating title:", error);
+    return "Untitled Chat"; // Fallback title
+  }
+}
+
+// Helper function to handle new chat creation (title generation + DB insert)
+async function handleNewChatCreation(
+  isNewChat: boolean,
+  chatId: string,
+  userMessage: string,
+  userId: string
+): Promise<string> {
+  if (!isNewChat) {
+    return ""; // Not a new chat, no title needed from this flow
+  }
+
+  const title = await generateTitle(userMessage);
+  try {
+    await db.insert(chat).values({
+      id: chatId,
+      title: title,
+      userId: userId,
+      createdAt: new Date(),
+    });
+    return title;
+  } catch (dbError) {
+    console.error(`Database error inserting new chat ${chatId}:`, dbError);
+    // Decide how to handle DB error during creation. Re-throw or return default?
+    // For now, let's return the generated title but log the error.
+    // The stream will still proceed, but the chat might not be saved correctly.
+    return title; // Return title even if DB insert fails, maybe log severity?
+  }
+}
+
+// Helper function to create the response stream and handle Groq interaction + saving
+async function createChatResponseStream(
+  messagesToSend: Array<{
+    role: "system" | "user" | "assistant";
+    content: string;
+  }>,
+  chatId: string,
+  originalUserMessage: string
+): Promise<ReadableStream> {
+  const encoder = new TextEncoder();
+  let fullBotResponse = "";
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const completion = await grokClient.chat.completions.create({
+          messages: messagesToSend,
+          model: "grok-3-mini-fast-beta",
+          temperature: 0.7,
+          stream: true as const,
+        });
+
+        for await (const chunk of completion) {
+          const content = chunk.choices[0]?.delta?.content || "";
+          if (content) {
+            fullBotResponse += content;
+            controller.enqueue(encoder.encode(content));
+          }
+        }
+
+        // Save message pair after successful streaming
+        if (fullBotResponse.trim() === "") {
+          console.warn(
+            `Groq returned an empty response for chat ${chatId}. Not saving empty message pair.`
+          );
+        } else {
+          try {
+            await db.insert(messages).values({
+              id: nanoid(),
+              userMessage: originalUserMessage.trim(),
+              botResponse: fullBotResponse,
+              chatId: chatId,
+              createdAt: new Date(),
+            });
+          } catch (dbError) {
+            console.error(
+              `Error saving message pair for chat ${chatId}:`,
+              dbError
+            );
+            // Log error but don't necessarily stop the stream response
+          }
+        }
+      } catch (error) {
+        console.error("Groq streaming or processing error:", error);
+        // Encode the error message to send it to the client if needed
+        // controller.enqueue(encoder.encode(`\n\n[Error: ${error instanceof Error ? error.message : 'Failed to get response'}]`));
+        controller.error(error); // Signal stream error
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return stream;
+}
+
 export async function POST(req: Request) {
   // --- Standard Response Headers for Streaming ---
 
   let currentChatId: string | null = null;
   let isNewChatFlow = false; // Flag to indicate if we created the chat in this request
-  let title = "";
+  let userId = "";
 
   try {
     // --- 1. Get Headers and Body ---
@@ -115,14 +241,14 @@ export async function POST(req: Request) {
       console.error("API Error: Missing X-Chat-ID header");
       return new Response(
         JSON.stringify({ error: "Missing X-Chat-ID header" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+        { status: 400 }
+      ); // Simplified error
     }
     if (!message || typeof message !== "string" || message.trim() === "") {
       console.error("API Error: Missing or invalid message content");
       return new Response(
         JSON.stringify({ error: "Message content is required" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400 }
       );
     }
 
@@ -132,14 +258,11 @@ export async function POST(req: Request) {
       console.error("API Error: Unauthorized access attempt");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
       });
     }
-    const userId = sessionData.user.id;
+    userId = sessionData.user.id; // Assign userId here
 
     // ------- Rate Limit ----------
-
-    // Check the rate limit
     const userData = await db
       .select({
         id: user.id,
@@ -155,7 +278,6 @@ export async function POST(req: Request) {
       console.error(`API Error: User data not found for ID ${userId}`);
       return new Response(JSON.stringify({ error: "User not found" }), {
         status: 404,
-        headers: { "Content-Type": "application/json" },
       });
     }
 
@@ -264,37 +386,7 @@ export async function POST(req: Request) {
         isNewChatFlow = false;
       } else {
         // Chat does NOT exist - Create it using the ID from the frontend
-
-        // Generate the title
-        const completion = await grokClient.chat.completions.create({
-          messages: [
-            {
-              role: "system",
-              content:
-                "Generate a concise and relevant title for the chat based solely on the user's messages in less than 50 words. The title should be plain text without any symbols, prefixes, or formatting. Do not respond to the query or provide explanations—just return the title directly.",
-            },
-            {
-              role: "user",
-              content: message.trim().substring(0, 100),
-            },
-          ],
-          model: "grok-3-beta",
-          temperature: 0.1,
-        });
-
-        // Overright the title of the current chat
-        title = completion.choices[0]?.message
-          ?.content!.trim()
-          .substring(0, 100)
-          .replace(/"/g, "");
-
-        await db.insert(chat).values({
-          id: currentChatId, // Use the ID provided by the frontend
-          title: title, // Use first message for title
-          userId: userId,
-          createdAt: new Date(),
-        });
-        isNewChatFlow = true; // Mark that we just created this chat
+        isNewChatFlow = true; // Mark that we need to create this chat
       }
     } catch (dbError) {
       console.error(
@@ -394,8 +486,6 @@ export async function POST(req: Request) {
     });
 
     // --- 7. Stream Groq Response and Save Message ---
-    const encoder = new TextEncoder();
-    let fullBotResponse = "";
     const finalChatId = currentChatId; // Use the validated/created chat ID
 
     // --- 4. Decrement Rate Limit (if quota allows) ---
@@ -414,65 +504,43 @@ export async function POST(req: Request) {
       // Log error but proceed with the request as the check passed initially
     }
 
-    // Streaming the Response
-    const stream = new ReadableStream({
-      async start(controller) {
-        try {
-          const completion = await grokClient.chat.completions.create({
-            messages: messages_format,
-            model: "grok-3-mini-fast-beta",
-            temperature: 0.7,
-            stream: true as const,
-          });
+    // --- 8. Run Title Creation (if needed) and Stream Generation Concurrently ---
+    try {
+      // Start both tasks concurrently
+      const [title, stream] = await Promise.all([
+        handleNewChatCreation(isNewChatFlow, finalChatId, message, userId),
+        createChatResponseStream(messages_format, finalChatId, message),
+      ]);
 
-          for await (const chunk of completion) {
-            const content = chunk.choices[0]?.delta?.content || "";
-            if (content) {
-              fullBotResponse += content;
-              controller.enqueue(encoder.encode(content));
-            }
-          }
+      // --- 9. Construct and Return the Response ---
+      const responseHeaders = new Headers({
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      });
+      // Add X-Title header ONLY if a new chat was created and title generated
+      if (isNewChatFlow && title) {
+        responseHeaders.set("X-Title", title);
+      }
 
-          // Save message pair after successful streaming
-          if (fullBotResponse.trim() === "") {
-            console.warn(
-              `Groq returned an empty response for chat ${finalChatId}. Not saving empty message pair.`
-            );
-          } else {
-            try {
-              await db.insert(messages).values({
-                id: nanoid(),
-                userMessage: message.trim(),
-                botResponse: fullBotResponse,
-                chatId: finalChatId, // Link to the correct chat ID
-                createdAt: new Date(),
-              });
-            } catch (dbError) {
-              // Log error but don't necessarily stop the stream response
-              console.error("Error saving message pair:", dbError);
-            }
-          }
-        } catch (error) {
-          console.error("Groq streaming or processing error:", error);
-          controller.error(error);
-        } finally {
-          controller.close();
+      return new Response(stream, {
+        headers: responseHeaders,
+      });
+    } catch (concurrentError) {
+      // This catches errors from Promise.all, likely from one of the helper functions
+      console.error(
+        "Error during concurrent title/stream generation:",
+        concurrentError
+      );
+      // Determine which task failed if possible, or return a generic error
+      return new Response(
+        JSON.stringify({ error: "Failed to process chat request." }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
         }
-      },
-    });
-
-    // Assigning the new header to
-    const responseHeaders = new Headers({
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-      "X-Title": title,
-    });
-
-    // --- 8. Return the stream ---
-    return new Response(stream, {
-      headers: responseHeaders,
-    });
+      );
+    }
   } catch (error) {
     console.error("Unhandled API route error:", error);
     const errorMessage =
