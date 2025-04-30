@@ -5,18 +5,100 @@ import { db } from "@/database/db";
 import { nanoid } from "nanoid";
 import { chat, messages, user } from "@/database/schema/auth-schema";
 import { eq } from "drizzle-orm"; // Import eq for querying
+import { QdrantClient } from "@qdrant/js-client-rest"; // Import Qdrant client
+import OpenAI from "openai"; // Import OpenAI
 
-// --- API Key ---
+// --- API Keys ---x
 const groqApiKey = process.env.GROQ_API_KEY;
+const qdrantApiKey = process.env.QDRANT_API_KEY;
+const qdrantUrl =
+  process.env.QDRANT_URL ||
+  "https://18ba2c2a-f7d7-4ee0-bf76-40eebb84a4c5.us-east4-0.gcp.cloud.qdrant.io"; // Use env var or default
+const openaiApiKey = process.env.OPENAI_API_KEY; // Get OpenAI API Key
+// No need for a static QDRANT_COLLECTION_NAME anymore
+
 if (!groqApiKey) {
   console.warn(
     "GROQ_API_KEY environment variable not set. Using hardcoded key (NOT RECOMMENDED)."
   );
 }
-const client = new Groq({
+if (!qdrantApiKey) {
+  console.error(
+    "QDRANT_API_KEY environment variable not set. Qdrant search will fail."
+  );
+  // Potentially throw an error or handle this case depending on requirements
+}
+if (!openaiApiKey) {
+  console.error(
+    "OPENAI_API_KEY environment variable not set. Embedding generation will fail."
+  );
+  // Consider throwing an error or handling this more gracefully
+}
+// No need to check for QDRANT_COLLECTION_NAME here
+
+const groqClient = new Groq({
   apiKey:
     groqApiKey || "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", // Replace with your actual key or env var
 });
+
+// Instantiate Qdrant Client
+const qdrantClient = new QdrantClient({
+  url: qdrantUrl,
+  apiKey: qdrantApiKey,
+});
+
+// Instantiate OpenAI Client
+const openai = new OpenAI({
+  apiKey: openaiApiKey,
+});
+
+// Function to generate embeddings using OpenAI text-embedding-3-large
+async function generateEmbedding(text: string): Promise<number[]> {
+  // Normalize the input text to replace newlines, which can affect performance.
+  const input = text.replace(/\n/g, " ");
+
+  if (!openaiApiKey) {
+    console.error("OpenAI API Key not configured. Cannot generate embeddings.");
+    throw new Error("OpenAI API Key not configured."); // Throw error to prevent proceeding
+  }
+
+  try {
+    const embeddingResponse = await openai.embeddings.create({
+      model: "text-embedding-3-large", // Specify the model
+      input: input,
+      // Optionally specify dimensions if your Qdrant collection uses a smaller size
+      // dimensions: 1536, // Or 256, 512 etc. if needed and supported by your Qdrant setup
+    });
+
+    // Check if the response structure is as expected
+    if (
+      !embeddingResponse ||
+      !embeddingResponse.data ||
+      !embeddingResponse.data[0] ||
+      !embeddingResponse.data[0].embedding
+    ) {
+      console.error(
+        "Invalid response structure from OpenAI API:",
+        embeddingResponse
+      );
+      throw new Error(
+        "Failed to get embedding from OpenAI: Invalid response structure."
+      );
+    }
+
+    const vector = embeddingResponse.data[0].embedding;
+    // console.log(`Generated embedding of dimension: ${vector.length}`); // Optional: Log dimension
+    return vector;
+  } catch (error) {
+    console.error("Error generating embedding from OpenAI:", error);
+    // Re-throw the error or handle it appropriately (e.g., return a default/empty vector or throw specific error)
+    throw new Error(
+      `Failed to generate embedding: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
 
 export async function POST(req: Request) {
   // --- Standard Response Headers for Streaming ---
@@ -187,7 +269,7 @@ export async function POST(req: Request) {
         // Chat does NOT exist - Create it using the ID from the frontend
 
         // Generate the title
-        const completion = await client.chat.completions.create({
+        const completion = await groqClient.chat.completions.create({
           messages: [
             {
               role: "system",
@@ -259,49 +341,52 @@ export async function POST(req: Request) {
       return undefined;
     }
 
-    const searchNameSpace = extractAndCleanWordWithAt(message);
+    const searchNameSpace = extractAndCleanWordWithAt(message); // This is now the collection name
     let docs: string[] = []; // Initialize docs as an empty array
 
-    if (searchNameSpace) {
-      const searchBody = {
-        query: message,
-        name_space: searchNameSpace,
-      };
-
-      console.log(searchBody);
-
+    // Check if we have a namespace (collection name) and the Qdrant/OpenAI API keys are set
+    if (searchNameSpace && qdrantApiKey && openaiApiKey) {
+      console.log(`Searching Qdrant in collection '${searchNameSpace}'...`);
       try {
-        const response = await fetch("http://localhost:8080/search", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer xx-bi-qqq", // Replace with your actual token or env variable
-          },
-          body: JSON.stringify(searchBody),
+        // 1. Generate embedding for the user's message
+        const queryVector = await generateEmbedding(message); // Now uses OpenAI
+
+        // 2. Search Qdrant using searchNameSpace as the collection name
+        const searchResult = await qdrantClient.search(searchNameSpace, {
+          vector: queryVector,
+          limit: 5,
+          with_payload: true,
         });
 
-        if (!response.ok) {
-          console.error(
-            `Context search API error: ${response.status} ${response.statusText}`
+        // 3. Extract content from results
+        docs = searchResult
+          .map((point) => point.payload?.content as string)
+          .filter(
+            (content) => typeof content === "string" && content.trim() !== ""
           );
-          // Handle non-OK responses appropriately, maybe skip context injection
-        } else {
-          const responseData = await response.json();
-          // Ensure documents is an array, default to empty if missing or not an array
-          docs = Array.isArray(responseData?.documents)
-            ? responseData.documents
-            : [];
-          console.log("Retrieved context documents:", docs.length); // Log how many documents were retrieved
-        }
+
+        console.log("Retrieved context documents from Qdrant:", docs.length);
       } catch (error) {
-        console.error("Error calling context search API:", error);
-        // Handle fetch or JSON parsing errors, maybe skip context injection
+        // Log errors from embedding generation or other Qdrant issues
+        console.error(
+          `Error during Qdrant search/embedding process for collection '${searchNameSpace}':`,
+          error
+        );
+        docs = []; // Ensure docs is empty on error
       }
+      console.log(docs);
+    } else if (searchNameSpace && !qdrantApiKey) {
+      console.warn("Qdrant API Key not configured. Skipping context search.");
+    } else if (searchNameSpace && !openaiApiKey) {
+      console.warn("OpenAI API Key not configured. Skipping context search.");
     }
 
     // -------------------------------------------------
 
-    const docsString: string = JSON.stringify(docs);
+    const docsString: string =
+      docs.length > 0 ? JSON.stringify(docs) : "No relevant context found."; // Updated message
+
+    console.log(docsString);
 
     // Add the current user message
     messages_format.push({
@@ -310,7 +395,7 @@ export async function POST(req: Request) {
       ------------ Context ------------
       ${docsString}
       ----------------------------------
-      Message: 
+      Message:
       ${message.trim()}`,
     });
 
@@ -339,7 +424,7 @@ export async function POST(req: Request) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const completion = await client.chat.completions.create({
+          const completion = await groqClient.chat.completions.create({
             messages: messages_format,
             model: "llama-3.1-8b-instant",
             temperature: 0.7,
