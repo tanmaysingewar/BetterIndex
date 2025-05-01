@@ -11,6 +11,7 @@ import { authClient } from "@/lib/auth-client";
 import Cookies from "js-cookie";
 import { fetchAllChatsAndCache } from "@/lib/fetchChats";
 import MainPage from "./MainPage";
+import getRateLimit from "@/lib/fetchRateLimit";
 // import toast from 'react-hot-toast';
 
 interface Message {
@@ -105,7 +106,6 @@ export default function ChatPage({
       const userAlreadySet = Cookies.get("user-status");
       // Condition for anonymous sign-in
       // Check the ref *before* attempting sign-in
-      console.log(user)
       if (isNewUser && !user && !userAlreadySet && !anonymousSignInAttempted.current) {
         anonymousSignInAttempted.current = true; // <-- Set the ref immediately
         console.log("Attempting Anonymous User creation on CI - fetchData"); // Updated log
@@ -139,10 +139,14 @@ export default function ChatPage({
          // Cookie setting logic moved slightly to avoid redundant sets
          if (!isNewUser && !isAnonymous && !userAlreadySet) {
              console.log("Setting user cookie based on session.");
+             await getRateLimit()
+             await fetchAllChatsAndCache()
              return Cookies.set("user-status", "user", { expires: 7 });
          }
          if (isAnonymous && !userAlreadySet) {
              console.log("Setting guest cookie based on session (anonymous).");
+             await getRateLimit()
+             await fetchAllChatsAndCache()
              return Cookies.set("user-status", "guest", { expires: 7 });
          }
       }
@@ -162,6 +166,7 @@ export default function ChatPage({
         if (navigationEntry.type === 'reload') {
           try {
             async function updateChatCache() {
+              await getRateLimit()
               const success = await fetchAllChatsAndCache();
               if (success) {
                 console.log("Chat cache updated.");
