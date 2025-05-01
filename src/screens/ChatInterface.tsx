@@ -26,6 +26,31 @@ const generateChatId = (): string => {
   }
 };
 
+const decrementRateLimit = () => {
+  if (typeof window === "undefined" || !window.localStorage) {
+    console.error("localStorage is not available. Cannot decrement rate limit.");
+    return;
+  }
+
+  const storedRateLimit = localStorage.getItem("userRateLimit");
+
+  if (storedRateLimit) {
+    const currentRateLimit = parseInt(storedRateLimit, 10);
+
+    if (!isNaN(currentRateLimit) && currentRateLimit > 0) {
+      const newRateLimit = currentRateLimit - 1;
+      localStorage.setItem("userRateLimit", newRateLimit.toString());
+      console.log(`Rate limit decremented to: ${newRateLimit}`);
+    } else if (isNaN(currentRateLimit)) {
+      console.warn("Rate limit in local storage is not a valid number.");
+    } else {
+        console.log("Rate limit is already 0 or less, cannot decrement.");
+    }
+  } else {
+    console.warn("Rate limit not found in local storage.");
+  }
+};
+
 const getLocalStorageKey = (chatId: string): string => `chatMessages_${chatId}`;
 
 interface User {
@@ -37,6 +62,7 @@ interface User {
   updatedAt?: Date;
   image?: string | null | undefined;
   isAnonymous?: boolean | null | undefined;
+  rateLimit?: string | null | undefined;
 }
 
 interface ChatPageProps {
@@ -79,12 +105,14 @@ export default function ChatPage({
       const userAlreadySet = Cookies.get("user-status");
       // Condition for anonymous sign-in
       // Check the ref *before* attempting sign-in
+      console.log(user)
       if (isNewUser && !user && !userAlreadySet && !anonymousSignInAttempted.current) {
         anonymousSignInAttempted.current = true; // <-- Set the ref immediately
         console.log("Attempting Anonymous User creation on CI - fetchData"); // Updated log
         const userResult = await authClient.signIn.anonymous(); // API call
         if (userResult?.data?.user) {
           console.log("Anonymous user created, setting state and cookie."); // Added log
+          console.log(userResult.data.user)
           setUser(userResult.data.user); // State Update
           // Return the promise from Cookies.set
           return Cookies.set("user-status", "guest", { expires: 7 });
@@ -101,6 +129,7 @@ export default function ChatPage({
       } else if (user && !userAlreadySet && !isNewUser && !isAnonymous) {
          console.log("User exists in state, setting user cookie.");
          Cookies.set("user-status", "user", { expires: 7 });
+         console.log(user)
       }
 
       // Condition for handling existing session (might run on the second pass)
@@ -493,6 +522,7 @@ export default function ChatPage({
 
         // Set the final state
         setMessages(finalMessagesState);
+        decrementRateLimit()
 
         // Save the definitive final state to Local Storage
         try {

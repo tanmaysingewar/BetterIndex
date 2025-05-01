@@ -25,6 +25,28 @@ export const auth = betterAuth({
           throw new Error("Cannot link accounts without valid user IDs.");
         }
 
+        // Check if a user with this email already existed before linking
+        const [preExistingUser] = await db
+          .select({ createdAt: user.createdAt, id: user.id })
+          .from(user)
+          .where(eq(user.email, newUser.user.email));
+
+        console.log(preExistingUser);
+        // Check if the pre-existing user was created recently
+        if (preExistingUser?.createdAt) {
+          const fortySecondsAgo = new Date(Date.now() - 40 * 1000);
+          if (preExistingUser.createdAt > fortySecondsAgo) {
+            // Apply rate limiting logic for recently created accounts
+            console.log(
+              `User account ${newUser.user.email} was created recently. Applying rate limit.`
+            );
+            await db
+              .update(user)
+              .set({ rateLimit: "10" })
+              .where(eq(user.id, preExistingUser?.id));
+          }
+        }
+
         try {
           // Use a transaction to ensure atomicity: either all chats are transferred
           // or none are if an error occurs.
@@ -36,31 +58,6 @@ export const auth = betterAuth({
               .where(eq(chat.userId, anonymousUser?.user?.id))
               .returning({ updatedChatId: chat.id }); // Optional: get IDs of updated chats
           });
-
-          // Check if the user is existing
-
-          const existing_User = await db
-            .select({ rateLimit: user.rateLimit, userId: user.id })
-            .from(user)
-            .where(eq(user?.email, newUser?.user?.email));
-
-          console.log(existing_User[0]);
-          if (existing_User[0]) {
-            await db.transaction(async (tx) => {
-              await tx
-                .update(user)
-                .set({ rateLimit: existing_User[0].rateLimit }) // Set rate limit to 10
-                .where(eq(user.id, newUser.user.id));
-            });
-          } else {
-            // Update the new user's rate limit
-            await db.transaction(async (tx) => {
-              await tx
-                .update(user)
-                .set({ rateLimit: "10" }) // Set rate limit to 10
-                .where(eq(user.id, newUser.user.id));
-            });
-          }
         } catch (error) {
           console.error(
             `Error transferring chats from user ${anonymousUser?.user?.id} to ${newUser?.user?.id}:`,
