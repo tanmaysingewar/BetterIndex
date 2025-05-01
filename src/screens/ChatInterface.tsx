@@ -70,36 +70,59 @@ export default function ChatPage({
   // Ref to track the initial message being processed by handleSendMessage
   const processingInitialMessageRef = useRef<string | null>(null);
 
+  const anonymousSignInAttempted = useRef(false); // <-- Add this ref
+
   // const errorTost = () => toast.error('Here is your toast.');
 
-
   useEffect(() => {
-    // setUser(session?.user || null);
     async function fetchData() {
-      const userAlreadySet = Cookies.get("user-status")
-      if (isNewUser && !user && !userAlreadySet) {
-        console.log("Creating the Anonymous User on CI - fetchData")
-        const user = await authClient.signIn.anonymous();
-        if (user) {
-          setUser(user?.data?.user);
-          // SetCookie user-status=guest
+      const userAlreadySet = Cookies.get("user-status");
+      // Condition for anonymous sign-in
+      // Check the ref *before* attempting sign-in
+      if (isNewUser && !user && !userAlreadySet && !anonymousSignInAttempted.current) {
+        anonymousSignInAttempted.current = true; // <-- Set the ref immediately
+        console.log("Attempting Anonymous User creation on CI - fetchData"); // Updated log
+        const userResult = await authClient.signIn.anonymous(); // API call
+        if (userResult?.data?.user) {
+          console.log("Anonymous user created, setting state and cookie."); // Added log
+          setUser(userResult.data.user); // State Update
+          // Return the promise from Cookies.set
           return Cookies.set("user-status", "guest", { expires: 7 });
+        } else {
+          console.warn("Anonymous sign-in failed or returned no user.");
+          // Reset the ref if the sign-in *fails* structurally, allowing a retry maybe?
+          // Or handle the error state appropriately. For now, we leave it true.
+          // anonymousSignInAttempted.current = false;
         }
+      } else if (user && !userAlreadySet && (isNewUser || isAnonymous)) {
+         // If user exists in state but cookie is missing (e.g., after state update), set cookie
+         console.log("User exists in state, setting guest cookie.");
+         Cookies.set("user-status", "guest", { expires: 7 });
+      } else if (user && !userAlreadySet && !isNewUser && !isAnonymous) {
+         console.log("User exists in state, setting user cookie.");
+         Cookies.set("user-status", "user", { expires: 7 });
       }
 
-      if (sessionDetails?.user) {
-        setUser(sessionDetails?.user);
-        if (!isNewUser && !isAnonymous) {
-          return Cookies.set("user-status", "user", { expires: 7 });
-        }
-        if (isAnonymous) {
-          return Cookies.set("user-status", "guest", { expires: 7 });
-        }
+      // Condition for handling existing session (might run on the second pass)
+      if (sessionDetails?.user && !user) { // Only set if user state isn't already set
+          console.log("Setting user from sessionDetails.");
+          setUser(sessionDetails.user); // State Update 2 (potentially)
+         // Cookie setting logic moved slightly to avoid redundant sets
+         if (!isNewUser && !isAnonymous && !userAlreadySet) {
+             console.log("Setting user cookie based on session.");
+             return Cookies.set("user-status", "user", { expires: 7 });
+         }
+         if (isAnonymous && !userAlreadySet) {
+             console.log("Setting guest cookie based on session (anonymous).");
+             return Cookies.set("user-status", "guest", { expires: 7 });
+         }
       }
     }
 
     fetchData();
+    // Dependency array remains the same. The ref handles the execution logic.
   }, [user, isNewUser, setUser, isAnonymous, sessionDetails]);
+
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
