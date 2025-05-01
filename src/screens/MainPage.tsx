@@ -69,6 +69,8 @@ export default function MainPage({
   const setInitialMessage = useMessageStore((state) => state.setInitialMessage);
 
   const handleSend = () => {
+    const trimmedMessage = input.trim();
+    if (!trimmedMessage) return;
     setInitialMessage(input); // Set message in the store
     const newChatId = nanoid();
     return router.push(`/chat?chatId=${newChatId}`);
