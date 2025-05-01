@@ -69,6 +69,7 @@ export default function Header({
       },
     });
   };
+  
 
   useEffect(() => {
     const setUser = async () => {
@@ -77,6 +78,44 @@ export default function Header({
 
     setUser();
   }, [fetchAndSetSession]);
+
+  // Added state for current usage and total limit
+  const [currentUsage, setCurrentUsage] = useState<number | null>(null);
+  const [totalLimit, setTotalLimit] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Placeholder logic: Set example values
+    // TODO: Replace this with your actual logic to get these values
+    // Maybe fetch from an API, read from Zustand store, or parse from local storage
+    const storedRateLimit = localStorage.getItem("userRateLimit"); // Example: assuming this stores the *total* limit like "20"
+    if (storedRateLimit) {
+        const remainingLimit = parseInt(storedRateLimit, 10);
+        if (!isNaN(remainingLimit)) {
+            setTotalLimit(10);
+            // --- HOW DO YOU GET THE CURRENT USAGE? ---
+            // Example: Set a static value for now
+            setCurrentUsage(10-remainingLimit);
+        } else {
+            console.error("Could not parse totalLimit from localStorage:", storedRateLimit);
+             // Set defaults if parsing fails
+            setTotalLimit(10);
+            setCurrentUsage(0);
+        }
+    } else {
+        // Set defaults if nothing in local storage
+        console.warn("userRateLimit not found in localStorage. Using default values.");
+        setTotalLimit(10);
+        setCurrentUsage(0);
+    }
+
+  }, []);
+
+
+  // Calculate derived values for the progress bar and remaining messages
+  const remainingMessages = totalLimit !== null && currentUsage !== null ? totalLimit - currentUsage : null;
+  const progressPercentage = totalLimit !== null && currentUsage !== null && totalLimit > 0
+    ? (currentUsage / totalLimit) * 100
+    : 0;
 
   const SignInComponent = () => {
     return (
@@ -261,6 +300,30 @@ export default function Header({
                             <p className="text-xs mt-1">{user?.email}</p>
                           </div>
                         </div>
+                        {/* Rate Limit Section - Replaced */}
+              <div className="mt-5 w-full max-w-xs"> {/* Added max-width for better control */}
+                {(currentUsage !== null && totalLimit !== null) ? (
+                  <>
+                    <div className="flex justify-between items-center mb-1 text-sm">
+                      <span className="font-medium text-white">Standard</span> {/* Label */}
+                      <span className="font-medium text-gray-400">{`${currentUsage}/${totalLimit}`}</span> {/* Usage/Total */}
+                    </div>
+                    <div className="w-full bg-neutral-600 rounded-full h-1.5 dark:bg-gray-700"> {/* Progress bar container */}
+                      <div
+                        className="bg-white h-1.5 rounded-full" // Progress bar fill (pink)
+                        style={{ width: `${progressPercentage}%` }}
+                      ></div>
+                    </div>
+                    {remainingMessages !== null && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        {`${remainingMessages} message${remainingMessages !== 1 ? 's' : ''} remaining`} {/* Remaining text */}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-400">Loading rate limit...</p> // Loading state
+                )}
+              </div>
                         <Button
                           className="mt-10 w-[100px] cursor-pointer"
                           onClick={() => handleLogout()}
