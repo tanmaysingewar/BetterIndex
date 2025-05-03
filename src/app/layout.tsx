@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Horizora",
-  description: "Multi model chat interface",
+  title: "Better Index",
+  description: "Your Indexing Company",
 };
 
 export default function RootLayout({
