@@ -237,6 +237,7 @@ export async function POST(req: Request) {
     const { message, previous_conversations } = await req.json();
 
     // --- 2. Validate Input ---
+    console.log("currentChatId : ", currentChatId);
     if (!currentChatId) {
       console.error("API Error: Missing X-Chat-ID header");
       return new Response(

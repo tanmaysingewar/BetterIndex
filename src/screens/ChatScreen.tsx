@@ -10,7 +10,7 @@ import { useUserStore } from "@/store/userStore";
 import { authClient } from "@/lib/auth-client";
 import Cookies from "js-cookie";
 import { fetchAllChatsAndCache } from "@/lib/fetchChats";
-import MainPage from "./MainPage";
+// import MainPage from "./MainPage";
 import getRateLimit from "@/lib/fetchRateLimit";
 // import toast from 'react-hot-toast';
 
@@ -192,7 +192,7 @@ export default function ChatPage({
 
               if (!response.ok) {
                 console.error(`Error fetching messages: ${response.status}`); // Add this
-                throw new Error(`HTTP error! Status: ${response.status}`);
+                return router.push("/chat")
               }
 
               const fetchedMessages: Message[] = await response.json();
@@ -611,17 +611,16 @@ export default function ChatPage({
       setCurrentChatId(null);
       setChatInitiated(false);
       setMessages([]);
-      setInput("");
     }
   }, [searchParams]);
 
 
-  if (searchParams.get("new") || !searchParams.get("chatId")) {
-    return <MainPage sessionDetails={sessionDetails}
-      isNewUser={isNewUser}
-      isAnonymous={isAnonymous} />
-  }
-
+  // if (searchParams.get("new") || !searchParams.get("chatId")) {
+  //   return <MainPage sessionDetails={sessionDetails}
+  //     isNewUser={isNewUser}
+  //     isAnonymous={isAnonymous} />
+  // }
+  
   return (
     // 1. Main container: Full height, flex column
     <div className="flex flex-col h-full w-full">
@@ -639,10 +638,8 @@ export default function ChatPage({
         </p>
       </div> */}
       {messages.length === 0 ? (
-        <div className="relative h-full w-full"> {/*  Relatively positioned container */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-            <Spinner />
-          </div>
+        <div className="max-w-[750px] mx-auto px-4 pt-4 my-auto">
+          <p className="text-xl">Welcome to Horizora</p>
         </div>
       ) : (
         // {/* 3. Messages container: Grows to fill space, allows scrolling */ }

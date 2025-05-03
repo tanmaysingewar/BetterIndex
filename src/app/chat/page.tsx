@@ -1,5 +1,5 @@
 "use server";
-import ChatInterface from "@/screens/ChatInterface";
+import ChatInterface from "@/screens/ChatScreen";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 

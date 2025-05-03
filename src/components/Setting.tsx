@@ -130,7 +130,7 @@ export default function Settings() {
                 {(currentUsage !== null && totalLimit !== null) ? (
                   <>
                     <div className="flex justify-between items-center mb-1 text-sm">
-                      <span className="font-medium text-white">Standard</span> {/* Label */}
+                      <span className="font-medium text-white">Free Tier</span> {/* Label */}
                       <span className="font-medium text-gray-400">{`${currentUsage}/${totalLimit}`}</span> {/* Usage/Total */}
                     </div>
                     <div className="w-full bg-neutral-600 rounded-full h-1.5 dark:bg-gray-700"> {/* Progress bar container */}
