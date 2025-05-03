@@ -44,12 +44,10 @@ const TextInput = memo(function TextInput({
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const newValue = e.target.value;
       // Split the input value into words and count how many start with "@"
-      const mentionCount = newValue.split(/\s+/).filter(word => word.startsWith("@")).length;
+      // const mentionCount = newValue.split(/\s+/).filter(word => word.startsWith("@")).length;
 
       // Only update the input state if the mention count is 0 or 1
-      if (mentionCount <= 1) {
         setInput(newValue);
-      }
       // If mentionCount > 1, do nothing, effectively preventing the addition of a second mention.
     },
     [setInput],

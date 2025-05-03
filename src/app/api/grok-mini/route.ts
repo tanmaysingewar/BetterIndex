@@ -5,97 +5,20 @@ import { db } from "@/database/db";
 import { nanoid } from "nanoid";
 import { chat, messages, user } from "@/database/schema/auth-schema";
 import { eq } from "drizzle-orm"; // Import eq for querying
-import { QdrantClient } from "@qdrant/js-client-rest"; // Import Qdrant client
 import OpenAI from "openai"; // Import OpenAI
+import getContext from "@/lib/addContext";
 
 // --- API Keys ---x
 const grokApiKey = process.env.XAI_API_KEY;
-const qdrantApiKey = process.env.QDRANT_API_KEY;
-const qdrantUrl =
-  process.env.QDRANT_URL ||
-  "https://18ba2c2a-f7d7-4ee0-bf76-40eebb84a4c5.us-east4-0.gcp.cloud.qdrant.io"; // Use env var or default
-const openaiApiKey = process.env.OPENAI_API_KEY; // Get OpenAI API Key
-// No need for a static QDRANT_COLLECTION_NAME anymore
 
 if (!grokApiKey) {
   console.warn("XAI_API_KEY environment variable not set.");
 }
-if (!qdrantApiKey) {
-  console.error(
-    "QDRANT_API_KEY environment variable not set. Qdrant search will fail."
-  );
-  // Potentially throw an error or handle this case depending on requirements
-}
-if (!openaiApiKey) {
-  console.error(
-    "OPENAI_API_KEY environment variable not set. Embedding generation will fail."
-  );
-  // Consider throwing an error or handling this more gracefully
-}
-
-// Instantiate Qdrant Client
-const qdrantClient = new QdrantClient({
-  url: qdrantUrl,
-  apiKey: qdrantApiKey,
-});
-
-// Instantiate OpenAI Client
-const openai = new OpenAI({
-  apiKey: openaiApiKey,
-});
 
 const grokClient = new OpenAI({
   apiKey: grokApiKey,
   baseURL: "https://api.x.ai/v1",
 });
-
-// Function to generate embeddings using OpenAI text-embedding-3-large
-async function generateEmbedding(text: string): Promise<number[]> {
-  // Normalize the input text to replace newlines, which can affect performance.
-  const input = text.replace(/\n/g, " ");
-
-  if (!openaiApiKey) {
-    console.error("OpenAI API Key not configured. Cannot generate embeddings.");
-    throw new Error("OpenAI API Key not configured."); // Throw error to prevent proceeding
-  }
-
-  try {
-    const embeddingResponse = await openai.embeddings.create({
-      model: "text-embedding-3-large", // Specify the model
-      input: input,
-      // Optionally specify dimensions if your Qdrant collection uses a smaller size
-      // dimensions: 1536, // Or 256, 512 etc. if needed and supported by your Qdrant setup
-    });
-
-    // Check if the response structure is as expected
-    if (
-      !embeddingResponse ||
-      !embeddingResponse.data ||
-      !embeddingResponse.data[0] ||
-      !embeddingResponse.data[0].embedding
-    ) {
-      console.error(
-        "Invalid response structure from OpenAI API:",
-        embeddingResponse
-      );
-      throw new Error(
-        "Failed to get embedding from OpenAI: Invalid response structure."
-      );
-    }
-
-    const vector = embeddingResponse.data[0].embedding;
-    // console.log(`Generated embedding of dimension: ${vector.length}`); // Optional: Log dimension
-    return vector;
-  } catch (error) {
-    console.error("Error generating embedding from OpenAI:", error);
-    // Re-throw the error or handle it appropriately (e.g., return a default/empty vector or throw specific error)
-    throw new Error(
-      `Failed to generate embedding: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
-  }
-}
 
 // Helper function to generate title
 async function generateTitle(userMessage: string): Promise<string> {
@@ -174,8 +97,8 @@ async function createChatResponseStream(
       try {
         const completion = await grokClient.chat.completions.create({
           messages: messagesToSend,
-          model: "grok-3-mini-fast-beta",
-          temperature: 0.7,
+          model: "grok-3-mini-beta",
+          temperature: 0.1,
           stream: true as const,
         });
 
@@ -420,60 +343,14 @@ export async function POST(req: Request) {
 
     // ----------- Add the Context Here ----------
 
-    function extractAndCleanWordWithAt(sentence: string): string | undefined {
-      const words = sentence.split(/\s+/);
-      const wordWithAt = words.find((word) => word.startsWith("@"));
+    // Assume getContext returns an array like [{ query: string, searchResult: string }]
+    // Concatenate the searchResult strings into a single docsString
+    const contextResults = await getContext(message.trim());
+    const docsString: string = Array.isArray(contextResults)
+      ? contextResults.map((item) => item.searchResult).join("\n") // Join results with a newline
+      : ""; // Handle cases where getContext might not return an array
 
-      if (wordWithAt) {
-        return wordWithAt.slice(1).toLowerCase();
-      }
-
-      return undefined;
-    }
-
-    const searchNameSpace = extractAndCleanWordWithAt(message); // This is now the collection name
-    let docs: string[] = []; // Initialize docs as an empty array
-
-    // Check if we have a namespace (collection name) and the Qdrant/OpenAI API keys are set
-    if (searchNameSpace && qdrantApiKey && openaiApiKey) {
-      console.log(`Searching Qdrant in collection '${searchNameSpace}'...`);
-      try {
-        // 1. Generate embedding for the user's message
-        const queryVector = await generateEmbedding(message); // Now uses OpenAI
-
-        // 2. Search Qdrant using searchNameSpace as the collection name
-        const searchResult = await qdrantClient.search(searchNameSpace, {
-          vector: queryVector,
-          limit: 5,
-          with_payload: true,
-        });
-
-        // 3. Extract content from results
-        docs = searchResult
-          .map((point) => point.payload?.content as string)
-          .filter(
-            (content) => typeof content === "string" && content.trim() !== ""
-          );
-
-        console.log("Retrieved context documents from Qdrant:", docs.length);
-      } catch (error) {
-        // Log errors from embedding generation or other Qdrant issues
-        console.error(
-          `Error during Qdrant search/embedding process for collection '${searchNameSpace}':`,
-          error
-        );
-        docs = []; // Ensure docs is empty on error
-      }
-    } else if (searchNameSpace && !qdrantApiKey) {
-      console.warn("Qdrant API Key not configured. Skipping context search.");
-    } else if (searchNameSpace && !openaiApiKey) {
-      console.warn("OpenAI API Key not configured. Skipping context search.");
-    }
-
-    // -------------------------------------------------
-
-    const docsString: string =
-      docs.length > 0 ? JSON.stringify(docs) : "No relevant context found."; // Updated message
+    // --------------------------------------------
 
     // Add the current user message
     messages_format.push({
