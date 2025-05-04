@@ -176,6 +176,22 @@ export async function POST(req: Request) {
       );
     }
 
+    // --- Check Word Count (early check) ---
+    const wordCount = message.trim().split(/\s+/).length;
+    if (wordCount > 1000) {
+      console.warn(
+        `API Warning: Message content exceeds 1000 words (${wordCount}).`
+      );
+      return new Response(
+        JSON.stringify({
+          error:
+            "Message content is more than 1000 words. It should be less than 1000.",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    // --------------------------------------
+
     // --- 3. Authentication ---
     const sessionData = await auth.api.getSession({ headers: requestHeaders });
     if (!sessionData?.session || !sessionData?.user?.id) {
