@@ -59,7 +59,7 @@ const TextInput = memo(function TextInput({
     <div className="relative w-full">
       <textarea
         ref={textareaRef}
-        placeholder="What do you want to ask?"
+        placeholder="Use @ to mention index"
         value={input}
         className="w-full bg-transparent resize-none overflow-y-auto rounded-lg focus:outline-none caret-black dark:caret-white p-3 placeholder:text-neutral-400 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
         style={{

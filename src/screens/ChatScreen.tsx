@@ -13,6 +13,14 @@ import { fetchAllChatsAndCache } from "@/lib/fetchChats";
 // import MainPage from "./MainPage";
 import getRateLimit from "@/lib/fetchRateLimit";
 // import toast from 'react-hot-toast';
+import { Pacifico } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const pacifico = Pacifico({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-pacifico",
+});
 
 interface Message {
   role: "user" | "assistant";
@@ -637,11 +645,19 @@ export default function ChatPage({
           Mobile optimization is still in progress!
         </p>
       </div> */}
-      {messages.length === 0 ? (
-        <div className="max-w-[750px] mx-auto px-4 pt-4 my-auto">
-          <p className="text-xl">Welcome to Horizora</p>
+      {messages.length === 0 && searchParams.get("new") ? (
+        <div className="max-w-[750px] mx-auto px-4 text-center md:mt-[250px] mt-[200px]">
+          <p className="text-xl">Welcome to </p>  <span className={cn("text-3xl",pacifico.className)} > Better Index</span>
+          {/* <video src={"https://t76ttg8lis.ufs.sh/f/pgTEF6LrMdDVZh7Pdys3ALxyiq5OdmkV4T06NKXCPBuRWhHp"}  loop autoPlay className="md:max-w-[450px] mt-5"/> */}
+          <div className="bg-neutral-600/35 px-2 py-2 rounded-md mt-8 backdrop-blur-md">
+           <p className="max-w-[450px] text-sm">Use '@' followed by the Index name and your query to pull relevant context directly into the model's context window for more accurate responses.</p>
+           </div>
         </div>
-      ) : (
+      ): messages.length === 0 ? 
+        <div className="max-w-[750px] mx-auto px-4 pt-4 my-auto">
+          <Spinner/>
+        </div>
+      : (
         // {/* 3. Messages container: Grows to fill space, allows scrolling */ }
         <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 mt-12 lg:mt-0">
           <div className="max-w-[750px] mx-auto px-4 pt-4">
@@ -709,7 +725,7 @@ const RenderMessageOnScreen = ({
           className={`p-3 rounded-3xl w-fit max-w-full ${
             // Added max-w-full
             message.role === "user"
-              ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto" // Added bg-blue-500 for light mode user
+              ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto px-4" // Added bg-blue-500 for light mode user
               : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto" // Added bg-gray-200 for light mode assistant
             }`}
         >
