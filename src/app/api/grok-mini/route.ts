@@ -364,7 +364,7 @@ export async function POST(req: Request) {
     // Assume getContext returns an array like [{ query: string, searchResult: string }]
     // Concatenate the searchResult strings into a single docsString
     if (message.trim().includes("@")) {
-      let contextResults = await getContext(message.trim());
+      const contextResults = await getContext(message.trim());
       docsString = Array.isArray(contextResults)
         ? contextResults.map((item) => item.searchResult).join("\n") // Join results with a newline
         : ""; // Handle cases where getContext might not return an array
