@@ -208,8 +208,8 @@ export default function Header({
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
             <Dialog open={openChatHistoryDialog} onOpenChange={setOpenChatHistoryDialog}>
-              <DialogTrigger>
-                <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
+              <DialogTrigger className="outline-none">
+                <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full outline-none">
                   <TextSearch
                     className="w-5 h-5 text-white"
                     strokeWidth={2.5}
@@ -223,11 +223,11 @@ export default function Header({
             </Dialog>
             {!isAnonymous && !isNewUser && (
               <button
-                className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full"
+                className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full outline-none"
                 onClick={() => setOpenSettings(true)}
               >
                 <SettingsIcon
-                  className="w-[17px] h-[17px] text-white"
+                  className="w-[17px] h-[17px] text-white outline-none"
                   strokeWidth={2.5}
                 />
               </button>
@@ -252,8 +252,8 @@ export default function Header({
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
             <Drawer open={openChatHistoryDrawer} onOpenChange={setOpenChatHistoryDrawer}>
-              <DrawerTrigger>
-                <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
+              <DrawerTrigger className="outline-none">
+                <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full outline-none">
                   <TextSearch
                     className="w-5 h-5 text-white"
                     strokeWidth={2.5}
@@ -268,10 +268,10 @@ export default function Header({
             {isAnonymous && SignInComponent()}
             {!isAnonymous && (
               <Drawer>
-                <DrawerTrigger>
-                  <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full">
+                <DrawerTrigger className="outline-none">
+                  <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full outline-none">
                     <SettingsIcon
-                      className="w-[17px] h-[17px] text-white"
+                      className="w-[17px] h-[17px] text-white outline-none"
                       strokeWidth={2.5}
                     />
                   </div>
@@ -325,7 +325,7 @@ export default function Header({
                 )}
               </div>
                         <Button
-                          className="mt-10 w-[100px] cursor-pointer"
+                          className="mt-10 w-[100px] cursor-pointer outline-none"
                           onClick={() => handleLogout()}
                         >
                           {
@@ -369,7 +369,7 @@ export default function Header({
                                 </g>
                               </svg>
                               : <>
-                                <LogOutIcon strokeWidth={1.2} className="h-5 w-5" />
+                                <LogOutIcon strokeWidth={1.2} className="h-5 w-5 outline-none" />
                                 <p className="font-light">Logout</p>
                               </>
                           }

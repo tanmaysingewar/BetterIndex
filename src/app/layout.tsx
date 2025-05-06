@@ -28,6 +28,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Add your favicon links here */}
+        <link rel="icon" href="/logo_dark.svg" sizes="any" media="(prefers-color-scheme: dark)" />
+        <link rel="icon" href="/logo_light.svg" sizes="any" media="(prefers-color-scheme: light)" />
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.webmanifest" />
+
         {/* <script
           crossOrigin="anonymous"
           src="//unpkg.com/react-scan/dist/auto.global.js"

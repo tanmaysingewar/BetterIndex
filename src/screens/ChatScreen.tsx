@@ -15,6 +15,9 @@ import getRateLimit from "@/lib/fetchRateLimit";
 // import toast from 'react-hot-toast';
 import { Pacifico } from "next/font/google";
 import { cn } from "@/lib/utils";
+import Logo_light from "@/assets/logo_light.svg"
+import Logo_Dark from "@/assets/logo_dark.svg"
+import Image from "next/image";
 
 const pacifico = Pacifico({
   subsets: ["latin"],
@@ -646,8 +649,10 @@ export default function ChatPage({
         </p>
       </div> */}
       {messages.length === 0 && searchParams.get("new") ? (
-        <div className="max-w-[750px] mx-auto px-4 text-center md:mt-[250px] mt-[200px]">
-          <p className="text-xl">Welcome to </p>  <span className={cn("text-3xl",pacifico.className)} > Better Index</span>
+        <div className="max-w-[750px] mx-auto px-4 text-center md:mt-[250px] mt-[170px]">
+          <Image src={Logo_Dark} alt="Logo" className="mx-auto dark:block hidden" height={36} />
+          <Image src={Logo_light} alt="Logo" className="mx-auto dark:hidden block" height={36} />
+          <p className="text-xl mt-7">Welcome to </p>  <span className={cn("text-3xl",pacifico.className)} > Better Index</span>
           {/* <video src={"https://t76ttg8lis.ufs.sh/f/pgTEF6LrMdDVZh7Pdys3ALxyiq5OdmkV4T06NKXCPBuRWhHp"}  loop autoPlay className="md:max-w-[450px] mt-5"/> */}
           <div className="bg-neutral-600/35 px-2 py-2 rounded-md mt-8 backdrop-blur-md">
            <p className="max-w-[450px] text-sm">Use @ followed by the Index name and your query to pull relevant context directly into the models context window for more accurate responses.</p>
