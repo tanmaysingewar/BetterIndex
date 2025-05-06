@@ -127,5 +127,6 @@ export default function InputBox({
 
 const popularToolsAndFrameworks: string[] = [
   "Modal",
-  "Manim"
+  "Manim",
+  "IndianConstitution"
 ];
