@@ -97,7 +97,7 @@ const tonePrompts: TonePrompt[] = [
   {
     tone: "linkedinghostwriter",
     prompt:
-      "Act as an Expert Technical Architecture in Mobile, having more then 20 years of expertise in mobile technologies and development of various domain with cloud and native architecting design. Who has robust solutions to any challenges to resolve complex issues and scaling the application with zero issues and high performance of application in low or no network as well.",
+      "I want you to act like a linkedin ghostwriter.Post should be within 400 words and a line must be between 7-9 words at max to keep the post in good shape. Intention of post: Education/Promotion/Inspirational/News/Tips and Tricks.",
   },
 ];
 
