@@ -20,15 +20,27 @@ export default function InputBox({
   disabled,
 }: InputBoxProps) {
   // Suggestion filtering and navigation state
-  const filteredSuggestions = input.split(" ").slice(-1)[0].includes("@")
+  const lastWord = input.split(" ").slice(-1)[0];
+  const hasExistingTone = input.split(" ").some(word => word.startsWith("!") && word !== lastWord);
+  
+  const filteredSuggestions = lastWord.startsWith("@")
     ? popularToolsAndFrameworks
       .filter(tool =>
         tool.toLowerCase().includes(
-          input
-            .split(" ")
-            .slice(-1)[0]
+          lastWord
             .trim()
             .replace("@", "")
+            .toLowerCase()
+        )
+      )
+      .slice(0, 5)
+    : lastWord.startsWith("!") && !hasExistingTone
+    ? friendlySuggestions
+      .filter(suggestion =>
+        suggestion.toLowerCase().includes(
+          lastWord
+            .trim()
+            .replace("!", "")
             .toLowerCase()
         )
       )
@@ -38,11 +50,49 @@ export default function InputBox({
   const handleSelection = useCallback(
     (selection: string) => {
       const tokens = input.split(" ");
-      tokens[tokens.length - 1] = "@" + selection + " ";
-      setInput(tokens.join(" "));
+      const lastToken = tokens[tokens.length - 1];
+      const prefix = lastToken.startsWith("@") ? "@" : "!";
+      
+      // If adding a !word, remove any existing !words
+      if (prefix === "!") {
+        const newTokens = tokens.filter((token, index) => {
+          // Keep the current token if it's the last one
+          if (index === tokens.length - 1) return true;
+          // Remove any previous !words
+          return !token.startsWith("!");
+        });
+        newTokens[newTokens.length - 1] = prefix + selection + " ";
+        setInput(newTokens.join(" "));
+      } else {
+        tokens[tokens.length - 1] = prefix + selection + " ";
+        setInput(tokens.join(" "));
+      }
     },
     [input, setInput]
   );
+
+  // Update input change handling in TextInput component
+  const handleInputChange = useCallback((newValue: string) => {
+    const tokens = newValue.split(" ");
+    const exclamationWords = tokens.filter(token => token.startsWith("!"));
+    
+    if (exclamationWords.length > 1) {
+      // Keep only the last !word
+      const cleanedTokens = tokens.map((token, index) => {
+        if (token.startsWith("!")) {
+          // Keep only the last !word
+          return index === tokens.lastIndexOf(exclamationWords[exclamationWords.length - 1]) 
+            ? token 
+            : token.substring(1); // Remove ! from other words
+        }
+        return token;
+      });
+      setInput(cleanedTokens.join(" "));
+    } else {
+      setInput(newValue);
+    }
+  }, [setInput]);
+
   // This function is now handled in TextInput component
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLParagraphElement>, selection: string) => {
@@ -97,6 +147,7 @@ export default function InputBox({
             selectedIndex={selectedIndex}
             setSelectedIndex={setSelectedIndex}
             handleSelection={handleSelection}
+            handleInputChange={handleInputChange}
           />
           <div className="flex flex-row justify-between w-full mt-0">
             <div className="flex flex-row mt-2 text-neutral-200">
@@ -129,4 +180,13 @@ const popularToolsAndFrameworks: string[] = [
   "Modal",
   "Manim",
   "IndianConstitution"
+];
+
+const friendlySuggestions: string[] = [
+  "friendly",
+  "formal",
+  "casual",
+  "professional",
+  "technical",
+  "simple"
 ];

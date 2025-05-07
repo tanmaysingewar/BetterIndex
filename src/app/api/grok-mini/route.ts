@@ -6,7 +6,8 @@ import { nanoid } from "nanoid";
 import { chat, messages, user } from "@/database/schema/auth-schema";
 import { eq } from "drizzle-orm"; // Import eq for querying
 import OpenAI from "openai"; // Import OpenAI
-import getContext from "@/lib/addContext";
+import getContext from "@/support/addContext";
+import { generateSystemPrompt } from "@/support/addPrompt";
 
 // --- API Keys ---x
 const grokApiKey = process.env.XAI_API_KEY;
@@ -339,11 +340,21 @@ export async function POST(req: Request) {
       );
     }
 
+    // --- Add the System Prompt Here ---
+    const systemPrompt = generateSystemPrompt(message);
+    console.log("systemPrompt : ", systemPrompt);
+    console.log("message : ", message);
+
     // --- 6. Prepare messages for Groq API ---
     const messages_format: Array<{
       role: "system" | "user" | "assistant";
       content: string;
-    }> = [{ role: "system", content: "You are a helpful assistant." }];
+    }> = [
+      {
+        role: "system",
+        content: systemPrompt ? systemPrompt : "You are a helpful assistant.",
+      },
+    ];
 
     if (!isNewChatFlow && Array.isArray(previous_conversations)) {
       // If it's an existing chat, add previous messages sent by the client

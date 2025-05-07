@@ -9,6 +9,7 @@ interface TextInputProps {
   selectedIndex?: number;
   setSelectedIndex?: (index: number | ((prev: number) => number)) => void;
   handleSelection?: (selection: string) => void;
+  handleInputChange?: (value: string) => void;
 }
 
 const TextInput = memo(function TextInput({
@@ -20,6 +21,7 @@ const TextInput = memo(function TextInput({
   selectedIndex = 0,
   setSelectedIndex = () => { },
   handleSelection = () => { },
+  handleInputChange = setInput,
 }: TextInputProps) {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -43,16 +45,17 @@ const TextInput = memo(function TextInput({
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const newValue = e.target.value;
-      // Split the input value into words and count how many start with "@"
-      const mentionCount = newValue.split(/\s+/).filter(word => word.startsWith("@")).length;
-
-      // Only update the input state if the mention count is 0 or 1
-      if (mentionCount <= 3) {
-        setInput(newValue);
+      const words = input.split(" ");
+      const hasExistingTone = words.some(word => word.startsWith("!"));
+      
+      // If there's an existing tone and user is trying to add another !, prevent it
+      if (hasExistingTone && newValue.length > input.length && newValue.slice(-1) === "!") {
+        return;
       }
-      // If mentionCount > 1, do nothing, effectively preventing the addition of a second mention.
+      
+      handleInputChange(newValue);
     },
-    [setInput],
+    [handleInputChange, input],
   );
 
   return (

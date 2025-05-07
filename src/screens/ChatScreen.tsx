@@ -707,6 +707,21 @@ interface RenderMessageProps {
 }
 
 /**
+ * Helper function to highlight special words in text
+ */
+const highlightSpecialWords = (text: string) => {
+  // Split the text into words while preserving spaces and punctuation
+  return text.split(/(\s+)/).map((word, index) => {
+    if (word.includes('!')) {
+      return <span key={index} className="bg-blue-500/30 rounded px-1 py-1">{word}</span>;
+    } else if (word.includes('@')) {
+      return <span key={index} className="bg-pink-500/30 rounded px-1 py-1">{word}</span>;
+    }
+    return word;
+  });
+};
+
+/**
  * Renders a single message bubble.
  * Memoized to prevent re-rendering if props haven't changed.
  */
@@ -721,20 +736,17 @@ const RenderMessageOnScreen = ({
       {/* Desktop Message Bubble */}
       <div
         className={`mb-2 hidden md:block ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
-        // style={{ minHeight: desktopMinHeight }}
         style={{
           minHeight: `${messages.length - 1 === index && message.role === "user" && chatInitiated ? "calc(-174px + 100vh)" : messages.length - 1 === index && message.role === "assistant" && chatInitiated ? "calc(-200px + 100vh)" : "auto"}`,
         }}
       >
         <div
           className={`p-3 rounded-3xl w-fit max-w-full ${
-            // Added max-w-full
             message.role === "user"
-              ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto px-4" // Added bg-blue-500 for light mode user
-              : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto" // Added bg-gray-200 for light mode assistant
+              ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto px-4"
+              : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto"
             }`}
         >
-          {/* Conditional rendering for spinner or content */}
           {message.content === "loading" ? (
             <Spinner />
           ) : message.role === "assistant" ? (
@@ -742,7 +754,9 @@ const RenderMessageOnScreen = ({
               <MessageRenderer content={message.content || " "} />
             </div>
           ) : (
-            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+            <div className="whitespace-pre-wrap break-words">
+              {highlightSpecialWords(message.content)}
+            </div>
           )}
         </div>
       </div>
@@ -750,20 +764,17 @@ const RenderMessageOnScreen = ({
       {/* Mobile Message Bubble */}
       <div
         className={`mb-2 block md:hidden ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
-        // style={{ minHeight: mobileMinHeight }}
         style={{
           minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-360px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-380px + 100vh)" : "auto"}`,
         }}
       >
         <div
           className={`p-3 rounded-3xl w-fit max-w-full ${
-            // Added max-w-full
             message.role === "user"
-              ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto" // Added bg-blue-500 for light mode user
-              : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto" // Added bg-gray-200 for light mode assistant
+              ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto"
+              : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto"
             }`}
         >
-          {/* Conditional rendering for spinner or content */}
           {message.content === "loading" ? (
             <Spinner />
           ) : message.role === "assistant" ? (
@@ -771,7 +782,9 @@ const RenderMessageOnScreen = ({
               <MessageRenderer content={message.content || " "} />
             </div>
           ) : (
-            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+            <div className="whitespace-pre-wrap break-words">
+              {highlightSpecialWords(message.content)}
+            </div>
           )}
         </div>
       </div>
