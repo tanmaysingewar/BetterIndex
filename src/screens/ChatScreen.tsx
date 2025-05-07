@@ -655,7 +655,7 @@ export default function ChatPage({
           <p className="text-xl mt-7">Welcome to </p>  <span className={cn("text-3xl",pacifico.className)} > Better Index</span>
           {/* <video src={"https://t76ttg8lis.ufs.sh/f/pgTEF6LrMdDVZh7Pdys3ALxyiq5OdmkV4T06NKXCPBuRWhHp"}  loop autoPlay className="md:max-w-[450px] mt-5"/> */}
           <div className="bg-neutral-600/35 px-2 py-2 rounded-md mt-8 backdrop-blur-md">
-           <p className="max-w-[450px] text-sm">Use @ followed by the Index name and your query to pull relevant context directly into the models context window for more accurate responses.</p>
+           <p className="max-w-[450px] text-sm">Use @IndexName to specify an index and #YourPrompt to add a prompt to your query.</p>
            </div>
         </div>
       ): messages.length === 0 ? 
