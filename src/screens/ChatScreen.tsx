@@ -712,10 +712,10 @@ interface RenderMessageProps {
 const highlightSpecialWords = (text: string) => {
   // Split the text into words while preserving spaces and punctuation
   return text.split(/(\s+)/).map((word, index) => {
-    if (word.includes('!')) {
-      return <span key={index} className="bg-blue-500/30 rounded px-1 py-1">{word}</span>;
+    if (word.includes('#')) {
+      return <span key={index} className="bg-blue-500/30 rounded px-1 py-1 text-sm font-semibold">{word}</span>;
     } else if (word.includes('@')) {
-      return <span key={index} className="bg-pink-500/30 rounded px-1 py-1">{word}</span>;
+      return <span key={index} className="bg-pink-500/30 rounded px-1 py-1 text-sm font-semibold">{word}</span>;
     }
     return word;
   });

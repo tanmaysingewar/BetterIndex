@@ -21,7 +21,7 @@ export default function InputBox({
 }: InputBoxProps) {
   // Suggestion filtering and navigation state
   const lastWord = input.split(" ").slice(-1)[0];
-  const hasExistingTone = input.split(" ").some(word => word.startsWith("!") && word !== lastWord);
+  const hasExistingTone = input.split(" ").some(word => word.startsWith("#") && word !== lastWord);
   
   const filteredSuggestions = lastWord.startsWith("@")
     ? popularToolsAndFrameworks
@@ -34,13 +34,13 @@ export default function InputBox({
         )
       )
       .slice(0, 5)
-    : lastWord.startsWith("!") && !hasExistingTone
-    ? friendlySuggestions
+    : lastWord.startsWith("#") && !hasExistingTone
+    ? promptSuggestions
       .filter(suggestion =>
         suggestion.toLowerCase().includes(
           lastWord
             .trim()
-            .replace("!", "")
+            .replace("#", "")
             .toLowerCase()
         )
       )
@@ -51,15 +51,15 @@ export default function InputBox({
     (selection: string) => {
       const tokens = input.split(" ");
       const lastToken = tokens[tokens.length - 1];
-      const prefix = lastToken.startsWith("@") ? "@" : "!";
+      const prefix = lastToken.startsWith("@") ? "@" : "#";
       
       // If adding a !word, remove any existing !words
-      if (prefix === "!") {
+      if (prefix === "#") {
         const newTokens = tokens.filter((token, index) => {
           // Keep the current token if it's the last one
           if (index === tokens.length - 1) return true;
           // Remove any previous !words
-          return !token.startsWith("!");
+          return !token.startsWith("#");
         });
         newTokens[newTokens.length - 1] = prefix + selection + " ";
         setInput(newTokens.join(" "));
@@ -74,12 +74,12 @@ export default function InputBox({
   // Update input change handling in TextInput component
   const handleInputChange = useCallback((newValue: string) => {
     const tokens = newValue.split(" ");
-    const exclamationWords = tokens.filter(token => token.startsWith("!"));
+    const exclamationWords = tokens.filter(token => token.startsWith("#"));
     
     if (exclamationWords.length > 1) {
       // Keep only the last !word
       const cleanedTokens = tokens.map((token, index) => {
-        if (token.startsWith("!")) {
+        if (token.startsWith("#")) {
           // Keep only the last !word
           return index === tokens.lastIndexOf(exclamationWords[exclamationWords.length - 1]) 
             ? token 
@@ -182,11 +182,24 @@ const popularToolsAndFrameworks: string[] = [
   "IndianConstitution"
 ];
 
-const friendlySuggestions: string[] = [
-  "friendly",
-  "formal",
-  "casual",
-  "professional",
-  "technical",
-  "simple"
+const promptSuggestions: string[] = [
+  "TravelGuide",
+  "StoryTeller",
+  "MotivationalCoach",
+  "ScreenWriter",
+  "CareerCounselor",
+  "PromptGenerator",
+  "PasswordGenerator",
+  "Psychologist",
+  "Gaslighter",
+  "Yogi",
+  "Astrologer",
+  "TechWriter",
+  "LegalAdvisor",
+  "RegexGenerator",
+  "StartupIdeaGenerator",
+  "ProductManager",
+  "DrunkPerson",
+  "Rephraser",
+  "LinkedinGhostwriter"
 ];

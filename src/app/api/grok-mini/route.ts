@@ -209,6 +209,7 @@ export async function POST(req: Request) {
         id: user.id,
         rateLimit: user.rateLimit,
         updatedAt: user.updatedAt,
+        lastRateLimitReset: user.lastRateLimitReset,
         isAnonymous: user.isAnonymous,
       })
       .from(user)
@@ -223,22 +224,32 @@ export async function POST(req: Request) {
     }
 
     let { rateLimit } = userData[0];
-    const { updatedAt, isAnonymous } = userData[0];
+    const { lastRateLimitReset, isAnonymous } = userData[0];
     const now = new Date();
     const twelveHoursInMillis = 12 * 60 * 60 * 1000;
     let limitWasReset = false;
 
-    // check if quoteRemain is zero and updatedAt and current has difference of the 12 hr then reset the limit
-    if (rateLimit === "0") {
-      const timeDifference = now.getTime() - updatedAt.getTime();
+    // Convert rateLimit to number for proper comparison
+    const rateLimitNum = Number(rateLimit);
+
+    // Check if rate limit needs to be reset
+    if (rateLimitNum <= 0) {
+      const lastReset = lastRateLimitReset || new Date(0); // If never reset, use epoch
+      const timeDifference = now.getTime() - lastReset.getTime();
+
+      console.log("timeDifference : ", timeDifference);
+      console.log("twelveHoursInMillis : ", twelveHoursInMillis);
+
       if (timeDifference >= twelveHoursInMillis) {
-        // if user is isAnonymous true then reset limit to 1
-        // if user in isAnonymous false the reset limit to 10
+        // Set new limit based on user type
         const newLimit = isAnonymous ? "1" : "10";
         try {
           await db
             .update(user)
-            .set({ rateLimit: newLimit, updatedAt: now })
+            .set({
+              rateLimit: newLimit,
+              lastRateLimitReset: now, // Update the last reset timestamp
+            })
             .where(eq(user.id, userId));
           rateLimit = newLimit; // Update local variable
           limitWasReset = true;
@@ -248,8 +259,6 @@ export async function POST(req: Request) {
             `Database error resetting rate limit for user ${userId}:`,
             dbError
           );
-          // Decide if you want to block the request or proceed cautiously
-          // For now, we'll return an error
           return new Response(
             JSON.stringify({ error: "Database error during rate limit reset" }),
             { status: 500, headers: { "Content-Type": "application/json" } }
@@ -259,11 +268,12 @@ export async function POST(req: Request) {
     }
 
     // Check if the limit is still zero after potential reset attempt
-    if (rateLimit === "0") {
+    if (rateLimitNum <= 0) {
       let remainingTimeMessage = "Please try again later.";
       // Calculate remaining time ONLY if the limit wasn't just reset in this request
       if (!limitWasReset) {
-        const resetTime = new Date(updatedAt.getTime() + twelveHoursInMillis);
+        const lastReset = lastRateLimitReset || new Date(0);
+        const resetTime = new Date(lastReset.getTime() + twelveHoursInMillis);
         const remainingMillis = resetTime.getTime() - now.getTime();
 
         if (remainingMillis > 0) {

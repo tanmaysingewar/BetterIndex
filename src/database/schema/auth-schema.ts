@@ -17,6 +17,7 @@ export const user = pgTable("user", {
   updatedAt: timestamp("updated_at").notNull(),
   isAnonymous: boolean("is_anonymous"),
   rateLimit: numeric("rate_limit").default("3"),
+  lastRateLimitReset: timestamp("last_rate_limit_reset"),
   pro: boolean("pro").default(false),
 });
 
