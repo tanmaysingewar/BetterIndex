@@ -21,6 +21,94 @@ const grokClient = new OpenAI({
   baseURL: "https://api.x.ai/v1",
 });
 
+// Helper function to check and update rate limit
+async function checkAndUpdateRateLimit(
+  userId: string
+): Promise<{ allowed: boolean; error?: string; remainingTime?: string }> {
+  try {
+    // Get user's current rate limit info
+    const userInfo = await db
+      .select({
+        rateLimit: user.rateLimit,
+        lastRateLimitReset: user.lastRateLimitReset,
+        isAnonymous: user.isAnonymous,
+        pro: user.pro,
+      })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    if (!userInfo.length) {
+      return { allowed: false, error: "User not found" };
+    }
+
+    const { rateLimit, lastRateLimitReset, isAnonymous, pro } = userInfo[0];
+    const now = new Date();
+
+    // Pro users bypass rate limit
+    if (pro) {
+      return { allowed: true };
+    }
+
+    // Check if we need to reset the rate limit (24 hours have passed)
+    if (
+      !lastRateLimitReset ||
+      now.getTime() - lastRateLimitReset.getTime() > 24 * 60 * 60 * 1000
+    ) {
+      // Reset rate limit based on user type
+      const resetLimit = isAnonymous ? "1" : "10";
+      await db
+        .update(user)
+        .set({
+          rateLimit: resetLimit,
+          lastRateLimitReset: now,
+        })
+        .where(eq(user.id, userId));
+      return { allowed: true };
+    }
+
+    // Check if user has any requests left
+    if (Number(rateLimit) <= 0) {
+      // Calculate remaining time until reset
+      const resetTime = new Date(
+        lastRateLimitReset.getTime() + 12 * 60 * 60 * 1000
+      );
+      const remainingMillis = resetTime.getTime() - now.getTime();
+
+      if (remainingMillis > 0) {
+        const hours = Math.floor(remainingMillis / (60 * 60 * 1000));
+        const minutes = Math.floor(
+          (remainingMillis % (60 * 60 * 1000)) / (60 * 1000)
+        );
+        const seconds = Math.floor((remainingMillis % (60 * 1000)) / 1000);
+
+        const remainingTime = `${hours}h ${minutes}m ${seconds}s`;
+
+        return {
+          allowed: false,
+          error: `Rate limit exceeded. Please try again in ${remainingTime} ${
+            isAnonymous ? "or sign in for 10 requests per day" : ""
+          }`,
+          remainingTime,
+        };
+      }
+    }
+
+    // Decrease rate limit by 1
+    await db
+      .update(user)
+      .set({
+        rateLimit: String(Number(rateLimit) - 1), // Convert to string after calculation
+      })
+      .where(eq(user.id, userId));
+
+    return { allowed: true };
+  } catch (error) {
+    console.error("Error checking rate limit:", error);
+    return { allowed: false, error: "Error checking rate limit" };
+  }
+}
+
 // Helper function to generate title
 async function generateTitle(userMessage: string): Promise<string> {
   try {
@@ -203,110 +291,18 @@ export async function POST(req: Request) {
     }
     userId = sessionData.user.id; // Assign userId here
 
-    // ------- Rate Limit ----------
-    const userData = await db
-      .select({
-        id: user.id,
-        rateLimit: user.rateLimit,
-        updatedAt: user.updatedAt,
-        lastRateLimitReset: user.lastRateLimitReset,
-        isAnonymous: user.isAnonymous,
-      })
-      .from(user)
-      .where(eq(user.id, userId))
-      .limit(1);
-
-    if (!userData || userData.length === 0) {
-      console.error(`API Error: User data not found for ID ${userId}`);
-      return new Response(JSON.stringify({ error: "User not found" }), {
-        status: 404,
-      });
-    }
-
-    let { rateLimit } = userData[0];
-    const { lastRateLimitReset, isAnonymous } = userData[0];
-    const now = new Date();
-    const twelveHoursInMillis = 12 * 60 * 60 * 1000;
-    let limitWasReset = false;
-
-    // Convert rateLimit to number for proper comparison
-    const rateLimitNum = Number(rateLimit);
-
-    // Check if rate limit needs to be reset
-    if (rateLimitNum <= 0) {
-      const lastReset = lastRateLimitReset || new Date(0); // If never reset, use epoch
-      const timeDifference = now.getTime() - lastReset.getTime();
-
-      console.log("timeDifference : ", timeDifference);
-      console.log("twelveHoursInMillis : ", twelveHoursInMillis);
-
-      if (timeDifference >= twelveHoursInMillis) {
-        // Set new limit based on user type
-        const newLimit = isAnonymous ? "1" : "10";
-        try {
-          await db
-            .update(user)
-            .set({
-              rateLimit: newLimit,
-              lastRateLimitReset: now, // Update the last reset timestamp
-            })
-            .where(eq(user.id, userId));
-          rateLimit = newLimit; // Update local variable
-          limitWasReset = true;
-          console.log(`Rate limit reset for user ${userId} to ${newLimit}.`);
-        } catch (dbError) {
-          console.error(
-            `Database error resetting rate limit for user ${userId}:`,
-            dbError
-          );
-          return new Response(
-            JSON.stringify({ error: "Database error during rate limit reset" }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-          );
-        }
-      }
-    }
-
-    // Check if the limit is still zero after potential reset attempt
-    if (rateLimitNum <= 0) {
-      let remainingTimeMessage = "Please try again later.";
-      // Calculate remaining time ONLY if the limit wasn't just reset in this request
-      if (!limitWasReset) {
-        const lastReset = lastRateLimitReset || new Date(0);
-        const resetTime = new Date(lastReset.getTime() + twelveHoursInMillis);
-        const remainingMillis = resetTime.getTime() - now.getTime();
-
-        if (remainingMillis > 0) {
-          const totalSeconds = Math.max(0, Math.floor(remainingMillis / 1000)); // Ensure non-negative
-          const hours = Math.floor(totalSeconds / 3600);
-          const minutes = Math.floor((totalSeconds % 3600) / 60);
-          const seconds = totalSeconds % 60;
-
-          const parts = [];
-          if (hours > 0) parts.push(`${hours} hour${hours > 1 ? "s" : ""}`);
-          if (minutes > 0)
-            parts.push(`${minutes} minute${minutes > 1 ? "s" : ""}`);
-          // Only show seconds if the remaining time is less than a minute
-          if (hours === 0 && minutes === 0 && seconds > 0)
-            parts.push(`${seconds} second${seconds > 1 ? "s" : ""}`);
-          // Handle case where time is very short or slightly negative due to timing
-          else if (hours === 0 && minutes === 0 && seconds <= 0)
-            parts.push("a few moments");
-
-          if (parts.length > 0) {
-            remainingTimeMessage = `Please try again in approximately ${parts.join(
-              ", "
-            )}.`;
-          }
-        }
-      }
-
-      console.warn(`API Warning: Rate limit exceeded for user ${userId}.`);
+    // --- 4. Check Rate Limit ---
+    const rateLimitCheck = await checkAndUpdateRateLimit(userId);
+    if (!rateLimitCheck.allowed) {
       return new Response(
         JSON.stringify({
-          error: `Rate limit exceeded. ${remainingTimeMessage}`,
+          error: rateLimitCheck.error,
+          remainingTime: rateLimitCheck.remainingTime,
         }),
-        { status: 429, headers: { "Content-Type": "application/json" } }
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -408,22 +404,6 @@ export async function POST(req: Request) {
 
     // --- 7. Stream Groq Response and Save Message ---
     const finalChatId = currentChatId; // Use the validated/created chat ID
-
-    // --- 4. Decrement Rate Limit (if quota allows) ---
-    try {
-      await db
-        .update(user)
-        .set({ rateLimit: String(Number(rateLimit) - 1) }) // Decrement the limit
-        .where(eq(user.id, userId));
-
-      console.log("Quote decrease", String(Number(rateLimit) - 1));
-    } catch (dbError) {
-      console.error(
-        `Database error decrementing rate limit for user ${userId}:`,
-        dbError
-      );
-      // Log error but proceed with the request as the check passed initially
-    }
 
     // --- 8. Run Title Creation (if needed) and Stream Generation Concurrently ---
     try {
