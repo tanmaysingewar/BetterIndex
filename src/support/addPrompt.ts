@@ -99,6 +99,11 @@ const tonePrompts: TonePrompt[] = [
     prompt:
       "I want you to act like a linkedin ghostwriter.Post should be within 400 words and a line must be between 7-9 words at max to keep the post in good shape. Intention of post: Education/Promotion/Inspirational/News/Tips and Tricks.",
   },
+  {
+    tone: "productdemotweeter",
+    prompt:
+      "I want you to act as a tweet generator for promoting a product demo. I will provide details about my product, such as its features, benefits, or key highlights, and you will create engaging, promotional tweets based on that information. Each tweet should be concise, under 280 characters, and include relevant hashtags, emojis, and calls to action to maximize engagement. Do not include any explanations, introductions, or additional text—just generate the tweets.",
+  },
 ];
 
 export function getPromptByTone(tone: string): string {

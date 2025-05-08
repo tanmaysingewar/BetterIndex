@@ -201,5 +201,6 @@ const promptSuggestions: string[] = [
   "ProductManager",
   "DrunkPerson",
   "Rephraser",
-  "LinkedinGhostwriter"
+  "LinkedinGhostwriter",
+  "ProductDemoTweeter"
 ];
