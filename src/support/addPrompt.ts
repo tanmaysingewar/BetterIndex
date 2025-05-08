@@ -104,6 +104,11 @@ const tonePrompts: TonePrompt[] = [
     prompt:
       "I want you to act as a tweet generator for promoting a product demo. I will provide details about my product, such as its features, benefits, or key highlights, and you will create engaging, promotional tweets based on that information. Each tweet should be concise, under 280 characters, and include relevant hashtags, emojis, and calls to action to maximize engagement. Do not include any explanations, introductions, or additional text—just generate the tweets.",
   },
+  {
+    tone: "tweetgenerator",
+    prompt:
+      "I want you to act as a viral tweet generator. I will provide you with ideas or messages that I want to share, and you will convert them into engaging, viral-ready tweets. These tweets should be concise (under 280 characters), use relevant hashtags, emojis, and elements that increase shareability, such as questions, calls to action, or trending topics. Only reply with the final tweet text, and nothing else. Do not add explanations, suggestions, or any additional content in your responses.",
+  },
 ];
 
 export function getPromptByTone(tone: string): string {
