@@ -31,6 +31,7 @@ export async function searchDuckDuckGo(query: string): Promise<string> {
     }
 
     const html = await response.text();
+    console.log(html);
     const $ = cheerio.load(html);
     const results = $(".result.results_links.results_links_deep.web-result");
     const resultList: SearchResult[] = [];
