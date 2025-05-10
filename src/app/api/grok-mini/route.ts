@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm"; // Import eq for querying
 import OpenAI from "openai"; // Import OpenAI
 import getContext from "@/support/addContext";
 import { generateSystemPrompt } from "@/support/addPrompt";
+import { searchDuckDuckGo } from "@/utils/search";
 
 // --- API Keys ---x
 const grokApiKey = process.env.XAI_API_KEY;
@@ -389,12 +390,27 @@ export async function POST(req: Request) {
       docsString = "";
     }
 
+    let searchResultsString: string = "";
+
+    if (message.trim().includes("$")) {
+      // Remove everything up to and including '$Search' or just '$'
+      const searchTerm = message
+        .trim()
+        .replace(/^.*?\$Search\s*/i, "") // Remove '$Search' and everything before it
+        .trim();
+      const results = await searchDuckDuckGo(searchTerm);
+      console.log(results);
+      searchResultsString = results;
+    }
+
     // --------------------------------------------
 
     // Add the current user message
     messages_format.push({
       role: "user",
       content: `
+      ------------ Search Results ------------
+      ${searchResultsString}
       ------------ Context ------------
       ${docsString}
       ----------------------------------

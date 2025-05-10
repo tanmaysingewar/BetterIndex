@@ -15,8 +15,8 @@ import getRateLimit from "@/lib/fetchRateLimit";
 // import toast from 'react-hot-toast';
 import { Pacifico } from "next/font/google";
 import { cn } from "@/lib/utils";
-import Logo_light from "@/assets/logo_light.svg"
-import Logo_Dark from "@/assets/logo_dark.svg"
+import Logo_light from "@/assets/logo_light.svg";
+import Logo_Dark from "@/assets/logo_dark.svg";
 import Image from "next/image";
 
 const pacifico = Pacifico({
@@ -34,13 +34,17 @@ const generateChatId = (): string => {
   if (typeof window !== "undefined" && window.crypto?.randomUUID) {
     return window.crypto.randomUUID();
   } else {
-    return `fallback-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+    return `fallback-${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(2, 15)}`;
   }
 };
 
 const decrementRateLimit = () => {
   if (typeof window === "undefined" || !window.localStorage) {
-    console.error("localStorage is not available. Cannot decrement rate limit.");
+    console.error(
+      "localStorage is not available. Cannot decrement rate limit."
+    );
     return;
   }
 
@@ -56,7 +60,7 @@ const decrementRateLimit = () => {
     } else if (isNaN(currentRateLimit)) {
       console.warn("Rate limit in local storage is not a valid number.");
     } else {
-        console.log("Rate limit is already 0 or less, cannot decrement.");
+      console.log("Rate limit is already 0 or less, cannot decrement.");
     }
   } else {
     console.warn("Rate limit not found in local storage.");
@@ -84,7 +88,6 @@ interface ChatPageProps {
   isNewUser: boolean;
   isAnonymous: boolean;
 }
-
 
 export default function ChatPage({
   sessionDetails,
@@ -117,13 +120,18 @@ export default function ChatPage({
       const userAlreadySet = Cookies.get("user-status");
       // Condition for anonymous sign-in
       // Check the ref *before* attempting sign-in
-      if (isNewUser && !user && !userAlreadySet && !anonymousSignInAttempted.current) {
+      if (
+        isNewUser &&
+        !user &&
+        !userAlreadySet &&
+        !anonymousSignInAttempted.current
+      ) {
         anonymousSignInAttempted.current = true; // <-- Set the ref immediately
         console.log("Attempting Anonymous User creation on CI - fetchData"); // Updated log
         const userResult = await authClient.signIn.anonymous(); // API call
         if (userResult?.data?.user) {
           console.log("Anonymous user created, setting state and cookie."); // Added log
-          console.log(userResult.data.user)
+          console.log(userResult.data.user);
           setUser(userResult.data.user); // State Update
           // Return the promise from Cookies.set
           return Cookies.set("user-status", "guest", { expires: 7 });
@@ -134,32 +142,33 @@ export default function ChatPage({
           // anonymousSignInAttempted.current = false;
         }
       } else if (user && !userAlreadySet && (isNewUser || isAnonymous)) {
-         // If user exists in state but cookie is missing (e.g., after state update), set cookie
-         console.log("User exists in state, setting guest cookie.");
-         Cookies.set("user-status", "guest", { expires: 7 });
+        // If user exists in state but cookie is missing (e.g., after state update), set cookie
+        console.log("User exists in state, setting guest cookie.");
+        Cookies.set("user-status", "guest", { expires: 7 });
       } else if (user && !userAlreadySet && !isNewUser && !isAnonymous) {
-         console.log("User exists in state, setting user cookie.");
-         Cookies.set("user-status", "user", { expires: 7 });
-         console.log(user)
+        console.log("User exists in state, setting user cookie.");
+        Cookies.set("user-status", "user", { expires: 7 });
+        console.log(user);
       }
 
       // Condition for handling existing session (might run on the second pass)
-      if (sessionDetails?.user && !user) { // Only set if user state isn't already set
-          console.log("Setting user from sessionDetails.");
-          setUser(sessionDetails.user); // State Update 2 (potentially)
-         // Cookie setting logic moved slightly to avoid redundant sets
-         if (!isNewUser && !isAnonymous && !userAlreadySet) {
-             console.log("Setting user cookie based on session.");
-             await getRateLimit()
-             await fetchAllChatsAndCache()
-             return Cookies.set("user-status", "user", { expires: 7 });
-         }
-         if (isAnonymous && !userAlreadySet) {
-             console.log("Setting guest cookie based on session (anonymous).");
-             await getRateLimit()
-             await fetchAllChatsAndCache()
-             return Cookies.set("user-status", "guest", { expires: 7 });
-         }
+      if (sessionDetails?.user && !user) {
+        // Only set if user state isn't already set
+        console.log("Setting user from sessionDetails.");
+        setUser(sessionDetails.user); // State Update 2 (potentially)
+        // Cookie setting logic moved slightly to avoid redundant sets
+        if (!isNewUser && !isAnonymous && !userAlreadySet) {
+          console.log("Setting user cookie based on session.");
+          await getRateLimit();
+          await fetchAllChatsAndCache();
+          return Cookies.set("user-status", "user", { expires: 7 });
+        }
+        if (isAnonymous && !userAlreadySet) {
+          console.log("Setting guest cookie based on session (anonymous).");
+          await getRateLimit();
+          await fetchAllChatsAndCache();
+          return Cookies.set("user-status", "guest", { expires: 7 });
+        }
       }
     }
 
@@ -167,17 +176,18 @@ export default function ChatPage({
     // Dependency array remains the same. The ref handles the execution logic.
   }, [user, isNewUser, setUser, isAnonymous, sessionDetails]);
 
-
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const navigationEntries = window.performance.getEntriesByType('navigation');
+    if (typeof window !== "undefined") {
+      const navigationEntries =
+        window.performance.getEntriesByType("navigation");
       if (navigationEntries.length > 0) {
-        const navigationEntry = navigationEntries[0] as PerformanceNavigationTiming;
+        const navigationEntry =
+          navigationEntries[0] as PerformanceNavigationTiming;
         const chatIdFromUrl = searchParams.get("chatId") || undefined;
-        if (navigationEntry.type === 'reload') {
+        if (navigationEntry.type === "reload") {
           try {
             async function updateChatCache() {
-              await getRateLimit()
+              await getRateLimit();
               const success = await fetchAllChatsAndCache();
               if (success) {
                 console.log("Chat cache updated.");
@@ -186,24 +196,30 @@ export default function ChatPage({
               }
             }
             updateChatCache();
-          }
-          catch (error) {
+          } catch (error) {
             console.error("Error updating chat cache:", error);
           }
         }
 
-        if (navigationEntry.type === 'reload' && chatIdFromUrl && !initialMessage) {
-
+        if (
+          navigationEntry.type === "reload" &&
+          chatIdFromUrl &&
+          !initialMessage
+        ) {
           const fetchMessagesFromServer = async (chatIdToFetch: string) => {
             serverFetchInitiated.current[chatIdToFetch] = true;
-            console.log(`Fetching messages from server for chatId: ${chatIdToFetch}`);  // Add this
+            console.log(
+              `Fetching messages from server for chatId: ${chatIdToFetch}`
+            ); // Add this
 
             try {
-              const response = await fetch(`/api/messages?chatId=${chatIdToFetch}`);
+              const response = await fetch(
+                `/api/messages?chatId=${chatIdToFetch}`
+              );
 
               if (!response.ok) {
                 console.error(`Error fetching messages: ${response.status}`); // Add this
-                return router.push("/chat")
+                return router.push("/chat");
               }
 
               const fetchedMessages: Message[] = await response.json();
@@ -215,13 +231,16 @@ export default function ChatPage({
               try {
                 localStorage.setItem(
                   getLocalStorageKey(chatIdToFetch),
-                  JSON.stringify(finalMessagesFromServer),
+                  JSON.stringify(finalMessagesFromServer)
                 );
               } catch (lsError) {
                 console.error("Error updating Local Storage:", lsError);
               }
             } catch (error) {
-              console.error("Error fetching initial messages from server:", error);
+              console.error(
+                "Error fetching initial messages from server:",
+                error
+              );
             } finally {
               processingInitialMessageRef.current = null;
             }
@@ -235,11 +254,10 @@ export default function ChatPage({
     }
   }, []);
 
-
   // Effect 1: Set initial chat ID from URL & Load from Local Storage
   useEffect(() => {
     const chatIdFromUrl = searchParams.get("chatId") || undefined;
-    console.log("chatIdFromUrl:", chatIdFromUrl);  // Add this
+    console.log("chatIdFromUrl:", chatIdFromUrl); // Add this
 
     if (chatIdFromUrl && chatIdFromUrl !== currentChatId) {
       setCurrentChatId(chatIdFromUrl);
@@ -247,11 +265,10 @@ export default function ChatPage({
       setChatInitiated(false);
       serverFetchInitiated.current = {};
 
-
       let foundInLs = false;
       try {
         const storedMessages = localStorage.getItem(
-          getLocalStorageKey(chatIdFromUrl),
+          getLocalStorageKey(chatIdFromUrl)
         );
         if (storedMessages) {
           const parsedMessages: Message[] = JSON.parse(storedMessages);
@@ -262,17 +279,21 @@ export default function ChatPage({
           } else {
             console.warn(
               "Invalid data format in Local Storage for",
-              chatIdFromUrl,
+              chatIdFromUrl
             );
             localStorage.removeItem(getLocalStorageKey(chatIdFromUrl));
           }
         } else if (!initialMessage) {
           const fetchMessagesFromServer = async (chatIdToFetch: string) => {
             serverFetchInitiated.current[chatIdToFetch] = true;
-            console.log(`Fetching messages from server for chatId: ${chatIdToFetch}`);  // Add this
+            console.log(
+              `Fetching messages from server for chatId: ${chatIdToFetch}`
+            ); // Add this
 
             try {
-              const response = await fetch(`/api/messages?chatId=${chatIdToFetch}`);
+              const response = await fetch(
+                `/api/messages?chatId=${chatIdToFetch}`
+              );
 
               if (!response.ok) {
                 console.error(`Error fetching messages: ${response.status}`); // Add this
@@ -288,13 +309,16 @@ export default function ChatPage({
               try {
                 localStorage.setItem(
                   getLocalStorageKey(chatIdToFetch),
-                  JSON.stringify(finalMessagesFromServer),
+                  JSON.stringify(finalMessagesFromServer)
                 );
               } catch (lsError) {
                 console.error("Error updating Local Storage:", lsError);
               }
             } catch (error) {
-              console.error("Error fetching initial messages from server:", error);
+              console.error(
+                "Error fetching initial messages from server:",
+                error
+              );
             } finally {
               processingInitialMessageRef.current = null;
             }
@@ -322,7 +346,6 @@ export default function ChatPage({
     isGenerating,
   ]);
 
-
   // Effect 2: Fetch messages from Server (if ID exists and not fetched yet)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -332,7 +355,6 @@ export default function ChatPage({
       !serverFetchInitiated.current[currentChatId] &&
       !initialMessage
     ) {
-
     }
     // Do not add initialMessage as dependency
   }, [currentChatId]);
@@ -343,7 +365,10 @@ export default function ChatPage({
   useEffect(() => {
     // ... (existing scroll logic - likely okay) ...
     if (!chatInitiated && messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+      messagesEndRef.current?.scrollIntoView({
+        behavior: "auto",
+        block: "end",
+      });
     }
     if (
       messages[messages.length - 1]?.role === "assistant" &&
@@ -451,7 +476,7 @@ export default function ChatPage({
             // This is complex. For now, we keep the new URL/ID.
             console.warn(
               "First message failed for new chat ID:",
-              chatIdForRequest,
+              chatIdForRequest
             );
             // Optionally clear the failed user message:
             // setMessages([]);
@@ -464,15 +489,14 @@ export default function ChatPage({
         // Get the header of the response
         const get_header = response.headers.get("X-Title");
         console.log("X-Title", get_header);
-        console.log("X-Title", typeof (get_header));
+        console.log("X-Title", typeof get_header);
 
         if (get_header) {
-
           const chat = {
             id: chatIdForRequest,
             title: get_header!,
             createdAt: new Date().toString(),
-          }
+          };
 
           const added = addChatToCache(chat);
 
@@ -538,18 +562,18 @@ export default function ChatPage({
 
         // Set the final state
         setMessages(finalMessagesState);
-        decrementRateLimit()
+        decrementRateLimit();
 
         // Save the definitive final state to Local Storage
         try {
           localStorage.setItem(
             getLocalStorageKey(chatIdForRequest),
-            JSON.stringify(finalMessagesState), // Save the calculated final state
+            JSON.stringify(finalMessagesState) // Save the calculated final state
           );
         } catch (lsError) {
           console.error(
             "Error saving final messages to Local Storage:",
-            lsError,
+            lsError
           );
         }
       } catch (error) {
@@ -560,11 +584,11 @@ export default function ChatPage({
 
         setMessages((prev) => {
           const currentMessages = prev.filter(
-            (m) => !(m.role === "assistant" && m.content === ""),
+            (m) => !(m.role === "assistant" && m.content === "")
           );
           // Ensure the user message that caused the error is still present
           const userMessageExists = currentMessages.some(
-            (m) => m.role === "user" && m.content === trimmedMessage,
+            (m) => m.role === "user" && m.content === trimmedMessage
           );
           const baseMessages = userMessageExists
             ? currentMessages
@@ -590,7 +614,7 @@ export default function ChatPage({
       router,
       initialMessage, // Keep dependency to check if it's the initial one
       // setInitialMessage // Keep if needed elsewhere, but not directly for sending logic state capture
-    ],
+    ]
   );
 
   // Effect 4: Handle Initial Message from Store
@@ -625,13 +649,12 @@ export default function ChatPage({
     }
   }, [searchParams]);
 
-
   // if (searchParams.get("new") || !searchParams.get("chatId")) {
   //   return <MainPage sessionDetails={sessionDetails}
   //     isNewUser={isNewUser}
   //     isAnonymous={isAnonymous} />
   // }
-  
+
   return (
     // 1. Main container: Full height, flex column
     <div className="flex flex-col h-full w-full">
@@ -650,19 +673,59 @@ export default function ChatPage({
       </div> */}
       {messages.length === 0 && searchParams.get("new") ? (
         <div className="max-w-[750px] mx-auto px-4 text-center md:mt-[250px] mt-[170px]">
-          <Image src={Logo_Dark} alt="Logo" className="mx-auto dark:block hidden" height={36} />
-          <Image src={Logo_light} alt="Logo" className="mx-auto dark:hidden block" height={36} />
-          <p className="text-xl mt-7">Welcome to </p>  <span className={cn("text-3xl",pacifico.className)} > Better Index</span>
+          <Image
+            src={Logo_Dark}
+            alt="Logo"
+            className="mx-auto dark:block hidden"
+            height={36}
+          />
+          <Image
+            src={Logo_light}
+            alt="Logo"
+            className="mx-auto dark:hidden block"
+            height={36}
+          />
+          <p className="text-xl mt-7">Welcome to </p>{" "}
+          <span className={cn("text-3xl", pacifico.className)}>
+            {" "}
+            Better Index
+          </span>
           {/* <video src={"https://t76ttg8lis.ufs.sh/f/pgTEF6LrMdDVZh7Pdys3ALxyiq5OdmkV4T06NKXCPBuRWhHp"}  loop autoPlay className="md:max-w-[450px] mt-5"/> */}
-          <div className="bg-neutral-600/35 px-2 py-2 rounded-md mt-8 backdrop-blur-md">
-           <p className="max-w-[450px] text-sm">Use @IndexName to specify an index and #YourPrompt to add a prompt to your query.</p>
-           </div>
+          <div className="bg-neutral-600/35 px-2 py-2 rounded-md mt-8 backdrop-blur-md text-left max-w-[450px] text-sm">
+            <p className="text-center text-[16px] font-bold mb-2">
+              Special Symbols Use Cases
+            </p>
+            <p className="">
+              <span>
+                <span className="bg-blue-500/30 rounded px-1 py-1 text-sm font-semibold">
+                  #
+                </span>{" "}
+                - Use the # to to access the default prompts
+              </span>
+            </p>
+            <p className="mt-2 ">
+              <span>
+                <span className="bg-pink-500/30 rounded px-1 py-1 text-sm font-semibold">
+                  @
+                </span>{" "}
+                - Use the @ to to access the default indexes
+              </span>
+            </p>
+            <p className="mt-2">
+              <span>
+                <span className="bg-orange-500/30 rounded px-1 py-1 text-sm font-semibold">
+                  $
+                </span>{" "}
+                - Use the $ to to access the tools
+              </span>
+            </p>
+          </div>
         </div>
-      ): messages.length === 0 ? 
+      ) : messages.length === 0 ? (
         <div className="max-w-[750px] mx-auto px-4 pt-4 my-auto">
-          <Spinner/>
+          <Spinner />
         </div>
-      : (
+      ) : (
         // {/* 3. Messages container: Grows to fill space, allows scrolling */ }
         <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 mt-12 lg:mt-0">
           <div className="max-w-[750px] mx-auto px-4 pt-4">
@@ -679,10 +742,7 @@ export default function ChatPage({
             <div ref={messagesEndRef} className="pb-[120px]" />
           </div>
         </div>
-      )
-      }
-
-
+      )}
       {/* 4. InputBox container: Takes its natural height */}
       {/* No extra wrapper needed unless for specific styling/positioning that flex doesn't handle */}
       {/* Removed the extra wrapper divs around InputBox as they weren't strictly needed for this layout */}
@@ -693,7 +753,7 @@ export default function ChatPage({
         onSend={handleSendMessage}
         disabled={isGenerating}
       />
-    </div >
+    </div>
   );
 }
 // --- Memoized Message Rendering Component ---
@@ -712,10 +772,33 @@ interface RenderMessageProps {
 const highlightSpecialWords = (text: string) => {
   // Split the text into words while preserving spaces and punctuation
   return text.split(/(\s+)/).map((word, index) => {
-    if (word.includes('#')) {
-      return <span key={index} className="bg-blue-500/30 rounded px-1 py-1 text-sm font-semibold">{word}</span>;
-    } else if (word.includes('@')) {
-      return <span key={index} className="bg-pink-500/30 rounded px-1 py-1 text-sm font-semibold">{word}</span>;
+    if (word.includes("#")) {
+      return (
+        <span
+          key={index}
+          className="bg-blue-500/30 rounded px-1 py-1 text-sm font-semibold"
+        >
+          {word}
+        </span>
+      );
+    } else if (word.includes("@")) {
+      return (
+        <span
+          key={index}
+          className="bg-pink-500/30 rounded px-1 py-1 text-sm font-semibold"
+        >
+          {word}
+        </span>
+      );
+    } else if (word.includes("$")) {
+      return (
+        <span
+          key={index}
+          className="bg-orange-500/30 rounded px-1 py-1 text-sm font-semibold"
+        >
+          {word}
+        </span>
+      );
     }
     return word;
   });
@@ -735,9 +818,21 @@ const RenderMessageOnScreen = ({
     <>
       {/* Desktop Message Bubble */}
       <div
-        className={`mb-2 hidden md:block ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
+        className={`mb-2 hidden md:block ${
+          message.role === "user" ? "ml-auto" : "mr-auto"
+        }`}
         style={{
-          minHeight: `${messages.length - 1 === index && message.role === "user" && chatInitiated ? "calc(-174px + 100vh)" : messages.length - 1 === index && message.role === "assistant" && chatInitiated ? "calc(-200px + 100vh)" : "auto"}`,
+          minHeight: `${
+            messages.length - 1 === index &&
+            message.role === "user" &&
+            chatInitiated
+              ? "calc(-174px + 100vh)"
+              : messages.length - 1 === index &&
+                message.role === "assistant" &&
+                chatInitiated
+              ? "calc(-200px + 100vh)"
+              : "auto"
+          }`,
         }}
       >
         <div
@@ -745,7 +840,7 @@ const RenderMessageOnScreen = ({
             message.role === "user"
               ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto px-4"
               : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto"
-            }`}
+          }`}
         >
           {message.content === "loading" ? (
             <Spinner />
@@ -763,9 +858,21 @@ const RenderMessageOnScreen = ({
 
       {/* Mobile Message Bubble */}
       <div
-        className={`mb-2 block md:hidden ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
+        className={`mb-2 block md:hidden ${
+          message.role === "user" ? "ml-auto" : "mr-auto"
+        }`}
         style={{
-          minHeight: `${messages.length - 1 === index && chatInitiated && message.role === "user" ? "calc(-360px + 100vh)" : messages.length - 1 === index && chatInitiated && message.role === "assistant" ? "calc(-380px + 100vh)" : "auto"}`,
+          minHeight: `${
+            messages.length - 1 === index &&
+            chatInitiated &&
+            message.role === "user"
+              ? "calc(-360px + 100vh)"
+              : messages.length - 1 === index &&
+                chatInitiated &&
+                message.role === "assistant"
+              ? "calc(-380px + 100vh)"
+              : "auto"
+          }`,
         }}
       >
         <div
@@ -773,7 +880,7 @@ const RenderMessageOnScreen = ({
             message.role === "user"
               ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto"
               : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto"
-            }`}
+          }`}
         >
           {message.content === "loading" ? (
             <Spinner />
@@ -835,7 +942,7 @@ const addChatToCache = (newChat: Chat): boolean => {
         // Basic validation of existing cache structure
         if (!cacheData || !Array.isArray(cacheData.chats)) {
           console.warn(
-            "Existing cache data is corrupted. Creating a new cache.",
+            "Existing cache data is corrupted. Creating a new cache."
           );
           // Treat as if cache didn't exist
           cacheData = {
@@ -861,7 +968,7 @@ const addChatToCache = (newChat: Chat): boolean => {
       cacheData.totalChats += 1; // Increment total count
       cacheData.timestamp = Date.now(); // Update timestamp
       console.log(
-        `Added chat to existing cache. New total: ${cacheData.totalChats}`,
+        `Added chat to existing cache. New total: ${cacheData.totalChats}`
       );
     } else {
       // --- Step 2b/3b: Create new cache if none exists ---
@@ -877,20 +984,20 @@ const addChatToCache = (newChat: Chat): boolean => {
     try {
       localStorage.setItem(ALL_CHATS_CACHE_KEY, JSON.stringify(cacheData));
       console.log(
-        `Successfully updated cache with chat (ID: ${newChat.id}) under key "${ALL_CHATS_CACHE_KEY}".`,
+        `Successfully updated cache with chat (ID: ${newChat.id}) under key "${ALL_CHATS_CACHE_KEY}".`
       );
       return true;
     } catch (storageError) {
       console.error(
         "Failed to save updated cache to localStorage:",
-        storageError,
+        storageError
       );
       if (
         storageError instanceof Error &&
         storageError.name === "QuotaExceededError"
       ) {
         console.error(
-          "LocalStorage quota exceeded. Unable to save updated cache.",
+          "LocalStorage quota exceeded. Unable to save updated cache."
         );
         // Optional: Implement cache eviction strategy here if needed
       }
@@ -900,7 +1007,10 @@ const addChatToCache = (newChat: Chat): boolean => {
     }
   } catch (error) {
     // Catch any unexpected errors during the process
-    console.error("An unexpected error occurred while adding chat to cache:", error);
+    console.error(
+      "An unexpected error occurred while adding chat to cache:",
+      error
+    );
     return false;
   }
 };

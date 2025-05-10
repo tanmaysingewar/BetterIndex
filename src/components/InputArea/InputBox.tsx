@@ -45,13 +45,24 @@ export default function InputBox({
         )
       )
       .slice(0, 5)
+    : lastWord.startsWith("$")
+    ? tools
+      .filter(tool =>
+        tool.toLowerCase().includes(
+          lastWord
+            .trim()
+            .replace("$", "")
+            .toLowerCase()
+        )
+      )
+      .slice(0, 5)
     : [];
   const [selectedIndex, setSelectedIndex] = useState(0);
   const handleSelection = useCallback(
     (selection: string) => {
       const tokens = input.split(" ");
       const lastToken = tokens[tokens.length - 1];
-      const prefix = lastToken.startsWith("@") ? "@" : "#";
+      const prefix = lastToken.startsWith("@") ? "@" : lastToken.startsWith("#") ? "#" : "$";
       
       // If adding a !word, remove any existing !words
       if (prefix === "#") {
@@ -204,4 +215,8 @@ const promptSuggestions: string[] = [
   "LinkedinGhostwriter",
   "ProductDemoTweeter",
   "TweetGenerator",
+];
+
+const tools = [
+  "Search",
 ];
