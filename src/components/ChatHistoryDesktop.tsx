@@ -92,35 +92,69 @@ export default function ChatHistoryDesktop({ onClose }: ChatHistoryProps) {
 
   const router = useRouter();
 
-  // Filter chats based on search term
-  const filterChats = useCallback((search: string) => {
-    setIsLoading(true);
-    setError(null);
+  // Function to reload cache data from localStorage
+  const reloadCacheData = useCallback(() => {
+    const freshCacheData = loadFromCache();
+    if (freshCacheData) {
+      allCachedChats.current = freshCacheData.chats;
 
-    try {
-      // Filter based on search term (case-insensitive)
-      const filteredChats = search
-        ? allCachedChats.current.filter((chat) =>
-            (chat.title || "Untitled Chat")
-              .toLowerCase()
-              .includes(search.toLowerCase())
-          )
-        : allCachedChats.current;
+      // Inline filtering logic instead of calling filterChats
+      setIsLoading(true);
+      setError(null);
 
-      setDisplayedChats(filteredChats);
-    } catch (err) {
-      console.error("Error processing local chats:", err);
-      setError("Failed to process cached chat data.");
-      setDisplayedChats([]);
-    } finally {
-      setIsLoading(false);
+      try {
+        // Filter based on search term (case-insensitive)
+        const filteredChats = debouncedSearchTerm
+          ? freshCacheData.chats.filter((chat) =>
+              (chat.title || "Untitled Chat")
+                .toLowerCase()
+                .includes(debouncedSearchTerm.toLowerCase())
+            )
+          : freshCacheData.chats;
+
+        setDisplayedChats(filteredChats);
+      } catch (err) {
+        console.error("Error processing local chats:", err);
+        setError("Failed to process cached chat data.");
+        setDisplayedChats([]);
+      } finally {
+        setIsLoading(false);
+      }
     }
-  }, []);
+  }, [debouncedSearchTerm]);
+
+  // Filter chats based on search term
+  const filterChats = useCallback(
+    (search: string) => {
+      // Just call reloadCacheData which already handles the filtering
+      reloadCacheData();
+    },
+    [reloadCacheData]
+  );
 
   // Effect to filter chats when search term changes
   useEffect(() => {
     filterChats(debouncedSearchTerm);
   }, [debouncedSearchTerm, filterChats]);
+
+  // Add storage event listener to detect changes to localStorage
+  useEffect(() => {
+    // This function will be called when localStorage changes in any tab/window
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === CACHE_KEY) {
+        console.log("Chat history cache updated in localStorage");
+        reloadCacheData();
+      }
+    };
+
+    // Add the event listener
+    window.addEventListener("storage", handleStorageChange);
+
+    // Clean up
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [reloadCacheData]);
 
   // Initial processing on mount
   useEffect(() => {
@@ -204,7 +238,7 @@ export default function ChatHistoryDesktop({ onClose }: ChatHistoryProps) {
                 key={chat.id}
                 className={`hover:bg-neutral-200 dark:hover:bg-neutral-800 cursor-pointer rounded-sm p-2 px-3 transition-colors duration-150 ${
                   new URLSearchParams(location.search).get("chatId") === chat.id
-                    ? "bg-neutral-100 dark:bg-neutral-700/80"
+                    ? "bg-neutral-100 dark:bg-[#2f2f2f]"
                     : ""
                 }`}
                 onClick={() => handleChatClick(chat.id)}

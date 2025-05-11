@@ -231,7 +231,9 @@ export default function ChatPage({
               console.log("Fetched messages:", fetchedMessages); // Add this
 
               const finalMessagesFromServer = fetchedMessages;
-              setMessages(finalMessagesFromServer);
+              // if (chatIdFromUrl === chatIdToFetch) {
+              //   setMessages(finalMessagesFromServer);
+              // }
 
               try {
                 localStorage.setItem(
@@ -655,6 +657,35 @@ export default function ChatPage({
     }
   }, [searchParams]);
 
+  // Add localStorage event listener to sync messages across tabs
+  useEffect(() => {
+    if (!currentChatId) return;
+
+    const handleStorageChange = (event: StorageEvent) => {
+      const chatStorageKey = getLocalStorageKey(currentChatId);
+
+      if (event.key === chatStorageKey && event.newValue) {
+        try {
+          const updatedMessages = JSON.parse(event.newValue);
+          if (Array.isArray(updatedMessages)) {
+            setMessages(updatedMessages);
+          }
+        } catch (error) {
+          console.error(
+            "Error parsing updated messages from localStorage:",
+            error
+          );
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [currentChatId]);
+
   return (
     <div className="flex w-full h-full">
       {/* Chat History - Hidden on mobile by default */}
@@ -693,7 +724,7 @@ export default function ChatPage({
               {" "}
               Better Index
             </span>
-            <div className="bg-neutral-600/35 px-2 py-2 mt-8 backdrop-blur-md text-left max-w-[450px] text-sm">
+            <div className="bg-neutral-600/35 px-5 py-5 mt-8 backdrop-blur-md text-left max-w-[450px] text-sm rounded-lg">
               <p className="text-center text-[16px] font-bold mb-2">
                 Special Symbols Use Cases
               </p>
@@ -702,7 +733,7 @@ export default function ChatPage({
                   <span className="bg-blue-500/30 rounded px-1 py-1 text-sm font-semibold">
                     #
                   </span>{" "}
-                  - Use the # to to access the default prompts
+                  - Use the # to add the prompt
                 </span>
               </p>
               <p className="mt-2 ">
@@ -826,7 +857,7 @@ const RenderMessageOnScreen = ({
               : messages.length - 1 === index &&
                 message.role === "assistant" &&
                 chatInitiated
-              ? "calc(-200px + 100vh)"
+              ? "calc(-212px + 100vh)"
               : "auto"
           }`,
         }}
@@ -982,6 +1013,25 @@ const addChatToCache = (newChat: Chat): boolean => {
       console.log(
         `Successfully updated cache with chat (ID: ${newChat.id}) under key "${ALL_CHATS_CACHE_KEY}".`
       );
+
+      // Dispatch a storage event to notify other components of the change
+      // This will be picked up by the event listener in ChatHistoryDesktop
+      try {
+        // The storage event only fires in other tabs/windows by default
+        // To make it work in the same tab, we need to manually dispatch an event
+        window.dispatchEvent(
+          new StorageEvent("storage", {
+            key: ALL_CHATS_CACHE_KEY,
+            newValue: JSON.stringify(cacheData),
+            storageArea: localStorage,
+          })
+        );
+        console.log("Dispatched storage event for chat history update");
+      } catch (eventError) {
+        console.error("Failed to dispatch storage event:", eventError);
+        // Continue anyway since the localStorage was updated successfully
+      }
+
       return true;
     } catch (storageError) {
       console.error(
