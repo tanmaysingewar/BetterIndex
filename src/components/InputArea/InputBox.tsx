@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback, KeyboardEvent } from 'react';
+import React, { useState, useEffect, useCallback, KeyboardEvent } from "react";
 import { OctagonPause, Send } from "lucide-react";
 import { Button } from "../ui/button";
 import TextInput from "./TextInput";
@@ -21,49 +21,47 @@ export default function InputBox({
 }: InputBoxProps) {
   // Suggestion filtering and navigation state
   const lastWord = input.split(" ").slice(-1)[0];
-  const hasExistingTone = input.split(" ").some(word => word.startsWith("#") && word !== lastWord);
-  
+  const hasExistingTone = input
+    .split(" ")
+    .some((word) => word.startsWith("#") && word !== lastWord);
+
   const filteredSuggestions = lastWord.startsWith("@")
     ? popularToolsAndFrameworks
-      .filter(tool =>
-        tool.toLowerCase().includes(
-          lastWord
-            .trim()
-            .replace("@", "")
+        .filter((tool) =>
+          tool
             .toLowerCase()
+            .includes(lastWord.trim().replace("@", "").toLowerCase())
         )
-      )
-      .slice(0, 5)
+        .slice(0, 5)
     : lastWord.startsWith("#") && !hasExistingTone
     ? promptSuggestions
-      .filter(suggestion =>
-        suggestion.toLowerCase().includes(
-          lastWord
-            .trim()
-            .replace("#", "")
+        .filter((suggestion) =>
+          suggestion
             .toLowerCase()
+            .includes(lastWord.trim().replace("#", "").toLowerCase())
         )
-      )
-      .slice(0, 5)
-    : lastWord.startsWith("$")
-    ? tools
-      .filter(tool =>
-        tool.toLowerCase().includes(
-          lastWord
-            .trim()
-            .replace("$", "")
-            .toLowerCase()
-        )
-      )
-      .slice(0, 5)
+        .slice(0, 5)
     : [];
+  // lastWord.startsWith("$")
+  // ? tools
+  //     .filter((tool) =>
+  //       tool
+  //         .toLowerCase()
+  //         .includes(lastWord.trim().replace("$", "").toLowerCase())
+  //     )
+  //     .slice(0, 5)
+  // :
   const [selectedIndex, setSelectedIndex] = useState(0);
   const handleSelection = useCallback(
     (selection: string) => {
       const tokens = input.split(" ");
       const lastToken = tokens[tokens.length - 1];
-      const prefix = lastToken.startsWith("@") ? "@" : lastToken.startsWith("#") ? "#" : "$";
-      
+      const prefix = lastToken.startsWith("@")
+        ? "@"
+        : lastToken.startsWith("#")
+        ? "#"
+        : "$";
+
       // If adding a !word, remove any existing !words
       if (prefix === "#") {
         const newTokens = tokens.filter((token, index) => {
@@ -83,26 +81,30 @@ export default function InputBox({
   );
 
   // Update input change handling in TextInput component
-  const handleInputChange = useCallback((newValue: string) => {
-    const tokens = newValue.split(" ");
-    const exclamationWords = tokens.filter(token => token.startsWith("#"));
-    
-    if (exclamationWords.length > 1) {
-      // Keep only the last !word
-      const cleanedTokens = tokens.map((token, index) => {
-        if (token.startsWith("#")) {
-          // Keep only the last !word
-          return index === tokens.lastIndexOf(exclamationWords[exclamationWords.length - 1]) 
-            ? token 
-            : token.substring(1); // Remove ! from other words
-        }
-        return token;
-      });
-      setInput(cleanedTokens.join(" "));
-    } else {
-      setInput(newValue);
-    }
-  }, [setInput]);
+  const handleInputChange = useCallback(
+    (newValue: string) => {
+      const tokens = newValue.split(" ");
+      const exclamationWords = tokens.filter((token) => token.startsWith("#"));
+
+      if (exclamationWords.length > 1) {
+        // Keep only the last !word
+        const cleanedTokens = tokens.map((token, index) => {
+          if (token.startsWith("#")) {
+            // Keep only the last !word
+            return index ===
+              tokens.lastIndexOf(exclamationWords[exclamationWords.length - 1])
+              ? token
+              : token.substring(1); // Remove ! from other words
+          }
+          return token;
+        });
+        setInput(cleanedTokens.join(" "));
+      } else {
+        setInput(newValue);
+      }
+    },
+    [setInput]
+  );
 
   // This function is now handled in TextInput component
   const handleKeyDown = useCallback(
@@ -112,10 +114,14 @@ export default function InputBox({
         handleSelection(selection);
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        setSelectedIndex(prev => (prev > 0 ? prev - 1 : filteredSuggestions.length - 1));
+        setSelectedIndex((prev) =>
+          prev > 0 ? prev - 1 : filteredSuggestions.length - 1
+        );
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
-        setSelectedIndex(prev => (prev < filteredSuggestions.length - 1 ? prev + 1 : 0));
+        setSelectedIndex((prev) =>
+          prev < filteredSuggestions.length - 1 ? prev + 1 : 0
+        );
       }
     },
     [handleSelection, filteredSuggestions.length]
@@ -135,9 +141,11 @@ export default function InputBox({
               {filteredSuggestions.map((match, index) => (
                 <p
                   key={index}
-                  className={`mb-1 cursor-pointer rounded-sm p-1 ${index === selectedIndex ? 'bg-white/20' : ''}`}
+                  className={`mb-1 cursor-pointer rounded-sm p-1 ${
+                    index === selectedIndex ? "bg-white/20" : ""
+                  }`}
                   onClick={() => handleSelection(match)}
-                  onKeyDown={e => handleKeyDown(e, match)}
+                  onKeyDown={(e) => handleKeyDown(e, match)}
                   tabIndex={0}
                 >
                   <span className="text-white rounded-md px-2 py-1">
@@ -190,7 +198,7 @@ export default function InputBox({
 const popularToolsAndFrameworks: string[] = [
   "Modal",
   "Manim",
-  "IndianConstitution"
+  "IndianConstitution",
 ];
 
 const promptSuggestions: string[] = [
@@ -217,6 +225,6 @@ const promptSuggestions: string[] = [
   "TweetGenerator",
 ];
 
-const tools = [
-  "Search",
-];
+// const tools = [
+//   "Search",
+// ];
