@@ -698,7 +698,7 @@ export default function ChatPage({
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex flex-col w-full rounded-tl-2xl bg-[#1d1e20] mt-2">
+      <div className="flex flex-col w-full rounded-tl-2xl bg-[#1d1e20] lg:mt-2">
         <Header
           landingPage={true}
           isNewUser={isNewUser}
