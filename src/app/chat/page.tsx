@@ -1,7 +1,9 @@
-"use server";
+"use client";
+import { useEffect, useState } from "react";
 import ChatInterface from "@/screens/ChatScreen";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { useSearchParams } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+import Cookies from "js-cookie";
 
 interface User {
   id: string;
@@ -15,69 +17,94 @@ interface User {
 }
 
 interface SessionDetailsInterface {
-  user: User | null; // Allow user to be null
+  user: User | null;
 }
 
-export default async function LandingPage() {
-  const head = await headers();
+export default function ChatPage() {
+  const [sessionDetails, setSessionDetails] = useState<SessionDetailsInterface>(
+    { user: null }
+  );
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams();
 
-  if (head.get("cookie")?.includes("user-status=user")) {
+  useEffect(() => {
+    async function checkUserStatus() {
+      const userStatus = Cookies.get("user-status");
+
+      if (userStatus === "user") {
+        setSessionDetails({ user: null });
+        setIsNewUser(false);
+        setIsAnonymous(false);
+        setLoading(false);
+        return;
+      }
+
+      if (userStatus === "guest") {
+        setSessionDetails({ user: null });
+        setIsNewUser(false);
+        setIsAnonymous(true);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const sessionResult = await authClient.getSession();
+
+        if (!sessionResult || !sessionResult.data) {
+          setSessionDetails({ user: null });
+          setIsNewUser(true);
+          setIsAnonymous(false);
+          setLoading(false);
+          return;
+        }
+
+        const userData = sessionResult.data.user;
+
+        if (userData?.isAnonymous) {
+          setSessionDetails({
+            user: {
+              ...userData,
+            },
+          });
+          setIsNewUser(false);
+          setIsAnonymous(true);
+        } else if (userData) {
+          setSessionDetails({
+            user: {
+              ...userData,
+            },
+          });
+          setIsNewUser(false);
+          setIsAnonymous(false);
+        }
+      } catch (error) {
+        console.error("Error fetching session:", error);
+        setSessionDetails({ user: null });
+        setIsNewUser(true);
+        setIsAnonymous(false);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    checkUserStatus();
+  }, [searchParams]);
+
+  if (loading) {
     return (
-      <ChatInterface
-        sessionDetails={{ user: null } as SessionDetailsInterface}
-        isNewUser={false}
-        isAnonymous={false}
-      />
-    );
-  }
-
-  if (head.get("cookie")?.includes("user-status=guest")) {
-    return (
-      <ChatInterface
-        sessionDetails={{ user: null } as SessionDetailsInterface}
-        isNewUser={false}
-        isAnonymous={true}
-      />
-    );
-  }
-
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) {
-    return (
-      <ChatInterface
-        sessionDetails={{ user: null } as SessionDetailsInterface}
-        isNewUser={true}
-        isAnonymous={false}
-      />
-    );
-  }
-
-  if (session.user.isAnonymous) {
-    return (
-      <ChatInterface
-        sessionDetails={{
-          user: {
-            ...session.user,
-            src: session.user.image || null,
-          }
-        } as SessionDetailsInterface}
-        isNewUser={false}
-        isAnonymous={true}
-      />
+      <div className="flex items-center justify-center h-screen">
+        Loading...
+      </div>
     );
   }
 
   return (
     <ChatInterface
-      sessionDetails={{ user: {
-        ...session.user,
-        src: session.user.image || null,
-      } } as SessionDetailsInterface}
-      isNewUser={false}
-      isAnonymous={false}
+      sessionDetails={sessionDetails}
+      isNewUser={isNewUser}
+      isAnonymous={isAnonymous}
     />
   );
 }
