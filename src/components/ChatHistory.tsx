@@ -169,6 +169,7 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
   // Define a wrapper function to maintain the same API as before for effect dependencies
   const processLocalChats = useCallback(
     (page: number, search: string) => {
+      console.log(page, search);
       // We'll just call reloadCacheData instead of duplicating the logic
       // Since reloadCacheData already uses the current page and search term from state,
       // we don't need to use the parameters

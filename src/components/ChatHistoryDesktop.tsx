@@ -127,6 +127,7 @@ export default function ChatHistoryDesktop({ onClose }: ChatHistoryProps) {
   const filterChats = useCallback(
     (search: string) => {
       // Just call reloadCacheData which already handles the filtering
+      console.log(search);
       reloadCacheData();
     },
     [reloadCacheData]
