@@ -187,7 +187,7 @@ export default function Header({
   };
 
   return (
-    <div className="w-full block md:hidden">
+    <div className="w-full block lg:hidden">
       <div
         className={`flex flex-row items-center justify-between w-full max-w-full bg-[#1d1e20] md:bg-transparent shadow-lg shadow-neutral-800 dark:shadow-[#1d1e20] md:shadow-none md:fixed top-0 ${
           landingPage ? "fixed top-0" : ""

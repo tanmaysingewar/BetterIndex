@@ -691,7 +691,7 @@ export default function ChatPage({
       {/* Chat History - Hidden on mobile by default */}
       <div
         className={cn(
-          "max-w-[300px] w-full h-full fixed md:relative z-50 transition-transform duration-200 ease-in-out scrollbar-hide bg-[#080808]"
+          "hidden lg:block max-w-[300px] w-full h-full fixed md:relative z-50 transition-transform duration-200 ease-in-out scrollbar-hide bg-[#080808]"
         )}
       >
         <ChatHistoryDesktop onClose={() => setIsChatHistoryOpen(false)} />
