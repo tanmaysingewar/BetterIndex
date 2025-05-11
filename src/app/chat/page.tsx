@@ -4,6 +4,7 @@ import ChatInterface from "@/screens/ChatScreen";
 import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import Cookies from "js-cookie";
+import Spinner from "@/components/Spinner";
 
 interface User {
   id: string;
@@ -95,7 +96,7 @@ export default function ChatPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        Loading...
+        <Spinner />
       </div>
     );
   }

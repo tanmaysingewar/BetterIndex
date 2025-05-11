@@ -660,14 +660,14 @@ export default function ChatPage({
       {/* Chat History - Hidden on mobile by default */}
       <div
         className={cn(
-          "max-w-[300px] w-full h-full fixed md:relative z-50 transition-transform duration-200 ease-in-out scrollbar-hide bg-[#181317]"
+          "max-w-[300px] w-full h-full fixed md:relative z-50 transition-transform duration-200 ease-in-out scrollbar-hide bg-[#080808]"
         )}
       >
         <ChatHistoryDesktop onClose={() => setIsChatHistoryOpen(false)} />
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex flex-col w-full rounded-2xl bg-[#1d1e20] mt-2">
+      <div className="flex flex-col w-full rounded-tl-2xl bg-[#1d1e20] mt-2">
         <Header
           landingPage={true}
           isNewUser={isNewUser}
@@ -693,7 +693,7 @@ export default function ChatPage({
               {" "}
               Better Index
             </span>
-            <div className="bg-neutral-600/35 px-2 py-2 rounded-md mt-8 backdrop-blur-md text-left max-w-[450px] text-sm">
+            <div className="bg-neutral-600/35 px-2 py-2 mt-8 backdrop-blur-md text-left max-w-[450px] text-sm">
               <p className="text-center text-[16px] font-bold mb-2">
                 Special Symbols Use Cases
               </p>
