@@ -121,6 +121,16 @@ export default function ChatPage({
   // const errorTost = () => toast.error('Here is your toast.');
 
   useEffect(() => {
+    if (searchParams.get("login") === "true") {
+      return router.replace("/chat?new=true");
+    } else if (searchParams.get("new")) {
+      return router.replace("/chat?new=true");
+    } else if (!searchParams.get("chatId")) {
+      return router.replace("/chat?new=true");
+    }
+  }, [searchParams, router]);
+
+  useEffect(() => {
     async function fetchData() {
       const userAlreadySet = Cookies.get("user-status");
       // Condition for anonymous sign-in
@@ -230,10 +240,16 @@ export default function ChatPage({
               const fetchedMessages: Message[] = await response.json();
               console.log("Fetched messages:", fetchedMessages); // Add this
 
-              const finalMessagesFromServer = fetchedMessages;
-              // if (chatIdFromUrl === chatIdToFetch) {
-              //   setMessages(finalMessagesFromServer);
-              // }
+              const finalMessagesFromServer =
+                fetchedMessages.length === 0
+                  ? [
+                      {
+                        role: "assistant" as const,
+                        content: "How can I help you?",
+                      },
+                    ]
+                  : fetchedMessages;
+              setMessages(finalMessagesFromServer);
 
               try {
                 localStorage.setItem(
@@ -310,7 +326,15 @@ export default function ChatPage({
               const fetchedMessages: Message[] = await response.json();
               console.log("Fetched messages:", fetchedMessages); // Add this
 
-              const finalMessagesFromServer = fetchedMessages;
+              const finalMessagesFromServer =
+                fetchedMessages.length === 0
+                  ? [
+                      {
+                        role: "assistant" as const,
+                        content: "How can I help you?",
+                      },
+                    ]
+                  : fetchedMessages;
               setMessages(finalMessagesFromServer);
 
               try {
@@ -694,7 +718,11 @@ export default function ChatPage({
           "hidden lg:block max-w-[300px] w-full h-full fixed md:relative z-50 transition-transform duration-200 ease-in-out scrollbar-hide bg-[#080808]"
         )}
       >
-        <ChatHistoryDesktop onClose={() => setIsChatHistoryOpen(false)} />
+        <ChatHistoryDesktop
+          onClose={() => setIsChatHistoryOpen(false)}
+          isNewUser={isNewUser}
+          isAnonymous={isAnonymous}
+        />
       </div>
 
       {/* Main Chat Area */}

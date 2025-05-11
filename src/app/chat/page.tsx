@@ -5,6 +5,9 @@ import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import Cookies from "js-cookie";
 import Spinner from "@/components/Spinner";
+import { useUserStore } from "@/store/userStore";
+import { fetchAllChatsAndCache } from "@/lib/fetchChats";
+import getRateLimit from "@/lib/fetchRateLimit";
 
 interface User {
   id: string;
@@ -29,10 +32,20 @@ export default function ChatPage() {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
+  const { refreshSession } = useUserStore();
 
   useEffect(() => {
     async function checkUserStatus() {
       const userStatus = Cookies.get("user-status");
+      const isLoginRedirect = searchParams.get("login") === "true";
+
+      // If coming from login redirect, refresh the user session
+      if (isLoginRedirect) {
+        Cookies.set("user-status", "user", { expires: 7 });
+        await refreshSession();
+        await fetchAllChatsAndCache();
+        await getRateLimit();
+      }
 
       if (userStatus === "user") {
         setSessionDetails({ user: null });

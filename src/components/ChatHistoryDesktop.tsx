@@ -4,6 +4,11 @@ import { Input } from "./ui/input";
 import { cn } from "@/lib/utils";
 import { Pacifico } from "next/font/google";
 import { Button } from "./ui/button";
+import { useUserStore } from "@/store/userStore";
+import { User } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import Settings from "./Setting";
+import { authClient } from "@/lib/auth-client";
 
 const pacifico = Pacifico({
   subsets: ["latin"],
@@ -76,9 +81,15 @@ function useDebounce<T>(value: T, delay: number): T {
 
 interface ChatHistoryProps {
   onClose: () => void;
+  isNewUser?: boolean;
+  isAnonymous?: boolean;
 }
 
-export default function ChatHistoryDesktop({ onClose }: ChatHistoryProps) {
+export default function ChatHistoryDesktop({
+  onClose,
+  isNewUser = true,
+  isAnonymous = true,
+}: ChatHistoryProps) {
   const initialCacheDataRef = useRef<RawCacheData | null>(loadFromCache());
   const allCachedChats = useRef<Chat[]>(
     initialCacheDataRef.current?.chats || []
@@ -89,6 +100,8 @@ export default function ChatHistoryDesktop({ onClose }: ChatHistoryProps) {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const [openSettings, setOpenSettings] = useState(false);
+  const { user } = useUserStore();
 
   const router = useRouter();
 
@@ -196,7 +209,7 @@ export default function ChatHistoryDesktop({ onClose }: ChatHistoryProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <span className={cn("text-3xl text-center mt-5", pacifico.className)}>
+      <span className={cn("text-2xl text-center mt-5", pacifico.className)}>
         {" "}
         Better Index
       </span>
@@ -218,11 +231,8 @@ export default function ChatHistoryDesktop({ onClose }: ChatHistoryProps) {
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 no-scrollbar">
+      <div className="flex-1 overflow-y-auto p-2 no-scrollbar h-screen">
         {isLoading && <p className="text-center text-gray-500">Loading...</p>}
-        {error && !isLoading && (
-          <p className="text-center text-red-500 text-sm">Error: {error}</p>
-        )}
         {showEmptySearchResults && (
           <p
             className="text-center text-gray-500 text-sm"
@@ -233,7 +243,7 @@ export default function ChatHistoryDesktop({ onClose }: ChatHistoryProps) {
         )}
 
         {!isLoading && !error && displayedChats.length > 0 && (
-          <div className="space-y-2">
+          <div className="space-y-2 h-full">
             {displayedChats.map((chat) => (
               <div
                 key={chat.id}
@@ -255,6 +265,101 @@ export default function ChatHistoryDesktop({ onClose }: ChatHistoryProps) {
           </div>
         )}
       </div>
+
+      {isNewUser || isAnonymous || user?.isAnonymous === false ? (
+        <SignInComponent />
+      ) : (
+        <div
+          className="flex items-center gap-2 p-3 mx-3 mb-5 mt-3 bg-neutral-800 rounded-md cursor-pointer"
+          onClick={() => {
+            setOpenSettings(true);
+          }}
+        >
+          <div className="bg-neutral-700 p-0 rounded-full">
+            {user?.image ? (
+              <img
+                src={user.image}
+                alt="Profile picture"
+                className="h-9 w-9 rounded-full"
+              />
+            ) : (
+              <User size={20} className="text-white" />
+            )}
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-white">
+              {user?.name || "User"}
+            </span>
+            <span className="text-xs text-neutral-400 truncate max-w-[200px]">
+              {user?.email || ""}
+            </span>
+          </div>
+        </div>
+      )}
+      <Dialog open={openSettings} onOpenChange={setOpenSettings}>
+        <DialogContent className="bg-[#1d1e20] h-[60vh] w-[53vw]">
+          <DialogTitle className="sr-only">Settings</DialogTitle>
+          <Settings onClose={() => setOpenSettings(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+const SignInComponent = () => {
+  const [signLoading, setSignLoading] = useState(false);
+  return (
+    <Button
+      className="cursor-pointer mx-5 mt-3 mb-2"
+      onClick={async () => {
+        setSignLoading(true);
+        await authClient.signIn.social({
+          provider: "google",
+          callbackURL: "/chat?login=true",
+        });
+      }}
+      disabled={signLoading}
+    >
+      {signLoading ? (
+        <svg
+          fill="#000000"
+          version="1.1"
+          id="Capa_1"
+          xmlns="http://www.w3.org/2000/svg"
+          xmlnsXlink="http://www.w3.org/1999/xlink"
+          width="900px"
+          height="900px"
+          viewBox="0 0 26.349 26.35"
+          style={{ animation: "spin 1s linear infinite" }}
+        >
+          <style>
+            {`
+                    @keyframes spin {
+                      from {
+                        transform: rotate(0deg);
+                      }
+                      to {
+                        transform: rotate(360deg);
+                      }
+                    }
+                `}
+          </style>
+          <g>
+            <g>
+              <circle cx="13.792" cy="3.082" r="3.082" />
+              <circle cx="13.792" cy="24.501" r="1.849" />
+              <circle cx="6.219" cy="6.218" r="2.774" />
+              <circle cx="21.365" cy="21.363" r="1.541" />
+              <circle cx="3.082" cy="13.792" r="2.465" />
+              <circle cx="24.501" cy="13.791" r="1.232" />
+              <path d="M4.694,19.84c-0.843,0.843-0.843,2.207,0,3.05c0.842,0.843,2.208,0.843,3.05,0c0.843-0.843,0.843-2.207,0-3.05 C6.902,18.996,5.537,18.988,4.694,19.84z" />
+              <circle cx="21.364" cy="6.218" r="0.924" />
+            </g>
+          </g>
+        </svg>
+      ) : (
+        "Sign In"
+      )}
+    </Button>
+  );
+};

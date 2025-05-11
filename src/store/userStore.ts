@@ -17,7 +17,8 @@ interface User {
 interface UserState {
   user: User | null;
   setUser: (user: User | undefined) => void;
-  fetchAndSetSession: () => Promise<void>;
+  fetchAndSetSession: (forceRefresh?: boolean) => Promise<void>;
+  refreshSession: () => Promise<void>;
 }
 
 export const useUserStore = create<UserState>()(
@@ -27,12 +28,18 @@ export const useUserStore = create<UserState>()(
       setUser: (user: User | undefined) => {
         set({ user: user });
       },
-      fetchAndSetSession: async () => {
-        // Check if user data is already present in the store
-        if (get().user) {
-          return; // Do not fetch again if user data exists
+      fetchAndSetSession: async (forceRefresh = false) => {
+        // Check if user data is already present in the store and not forcing refresh
+        if (get().user && !forceRefresh) {
+          return; // Do not fetch again if user data exists and not forcing refresh
         }
 
+        const session = await authClient.getSession();
+        get().setUser(session?.data?.user || undefined);
+        fetchAllChatsAndCache();
+      },
+      refreshSession: async () => {
+        // Always fetch fresh session data
         const session = await authClient.getSession();
         get().setUser(session?.data?.user || undefined);
         fetchAllChatsAndCache();
