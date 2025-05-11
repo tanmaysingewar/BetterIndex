@@ -134,7 +134,7 @@ export default function InputBox({
 
   return (
     <div>
-      <div className="max-w-3xl mx-auto text-base font-sans lg:px-0 w-screen md:rounded-t-3xl px-2 fixed bottom-0 left-1/2 transform -translate-x-1/2 ">
+      <div className="max-w-3xl text-base font-sans lg:px-0 w-screen md:rounded-t-3xl px-2 fixed bottom-0">
         {filteredSuggestions.length > 0 && (
           <div className="mx-5">
             <div className="bg-[#303335]/20 backdrop-blur-xs rounded-t-md p-2">

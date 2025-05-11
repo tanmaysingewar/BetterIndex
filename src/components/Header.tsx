@@ -6,7 +6,7 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  DialogTrigger
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Drawer,
@@ -49,7 +49,7 @@ export default function Header({
   const { user, fetchAndSetSession, setUser } = useUserStore();
 
   const handleLogout = async () => {
-    setLogOutLading(true)
+    setLogOutLading(true);
     await authClient.signOut({
       fetchOptions: {
         onSuccess: async () => {
@@ -62,14 +62,13 @@ export default function Header({
             // SetCookie user-status=guest
             Cookies.set("user-status", "guest", { expires: 7 });
           }
-          setLogOutLading(false)
+          setLogOutLading(false);
           router.push("/chat?new=true");
           // return location.reload();
         },
       },
     });
   };
-  
 
   useEffect(() => {
     const setUser = async () => {
@@ -89,40 +88,47 @@ export default function Header({
     // Maybe fetch from an API, read from Zustand store, or parse from local storage
     const storedRateLimit = localStorage.getItem("userRateLimit"); // Example: assuming this stores the *total* limit like "20"
     if (storedRateLimit) {
-        const remainingLimit = parseInt(storedRateLimit, 10);
-        if (!isNaN(remainingLimit)) {
-            setTotalLimit(10);
-            // --- HOW DO YOU GET THE CURRENT USAGE? ---
-            // Example: Set a static value for now
-            setCurrentUsage(10-remainingLimit);
-        } else {
-            console.error("Could not parse totalLimit from localStorage:", storedRateLimit);
-             // Set defaults if parsing fails
-            setTotalLimit(10);
-            setCurrentUsage(0);
-        }
-    } else {
-        // Set defaults if nothing in local storage
-        console.warn("userRateLimit not found in localStorage. Using default values.");
+      const remainingLimit = parseInt(storedRateLimit, 10);
+      if (!isNaN(remainingLimit)) {
+        setTotalLimit(10);
+        // --- HOW DO YOU GET THE CURRENT USAGE? ---
+        // Example: Set a static value for now
+        setCurrentUsage(10 - remainingLimit);
+      } else {
+        console.error(
+          "Could not parse totalLimit from localStorage:",
+          storedRateLimit
+        );
+        // Set defaults if parsing fails
         setTotalLimit(10);
         setCurrentUsage(0);
+      }
+    } else {
+      // Set defaults if nothing in local storage
+      console.warn(
+        "userRateLimit not found in localStorage. Using default values."
+      );
+      setTotalLimit(10);
+      setCurrentUsage(0);
     }
-
   }, []);
 
-
   // Calculate derived values for the progress bar and remaining messages
-  const remainingMessages = totalLimit !== null && currentUsage !== null ? totalLimit - currentUsage : null;
-  const progressPercentage = totalLimit !== null && currentUsage !== null && totalLimit > 0
-    ? (currentUsage / totalLimit) * 100
-    : 0;
+  const remainingMessages =
+    totalLimit !== null && currentUsage !== null
+      ? totalLimit - currentUsage
+      : null;
+  const progressPercentage =
+    totalLimit !== null && currentUsage !== null && totalLimit > 0
+      ? (currentUsage / totalLimit) * 100
+      : 0;
 
   const SignInComponent = () => {
     return (
       <Button
         className="cursor-pointer w-[70px]"
         onClick={async () => {
-          setSignLading(true)
+          setSignLading(true);
           Cookies.remove("user-status");
           await authClient.signIn.social({
             provider: "google",
@@ -131,21 +137,20 @@ export default function Header({
         }}
         disabled={signLading}
       >
-        {
-          signLading ?
-            <svg
-              fill="#000000"
-              version="1.1"
-              id="Capa_1"
-              xmlns="http://www.w3.org/2000/svg"
-              xmlnsXlink="http://www.w3.org/1999/xlink"
-              width="900px"
-              height="900px"
-              viewBox="0 0 26.349 26.35"
-              style={{ animation: 'spin 1s linear infinite' }}
-            >
-              <style>
-                {`
+        {signLading ? (
+          <svg
+            fill="#000000"
+            version="1.1"
+            id="Capa_1"
+            xmlns="http://www.w3.org/2000/svg"
+            xmlnsXlink="http://www.w3.org/1999/xlink"
+            width="900px"
+            height="900px"
+            viewBox="0 0 26.349 26.35"
+            style={{ animation: "spin 1s linear infinite" }}
+          >
+            <style>
+              {`
                     @keyframes spin {
                       from {
                         transform: rotate(0deg);
@@ -155,24 +160,23 @@ export default function Header({
                       }
                     }
                 `}
-              </style>
+            </style>
+            <g>
               <g>
-                <g>
-                  <circle cx="13.792" cy="3.082" r="3.082" />
-                  <circle cx="13.792" cy="24.501" r="1.849" />
-                  <circle cx="6.219" cy="6.218" r="2.774" />
-                  <circle cx="21.365" cy="21.363" r="1.541" />
-                  <circle cx="3.082" cy="13.792" r="2.465" />
-                  <circle cx="24.501" cy="13.791" r="1.232" />
-                  <path
-                    d="M4.694,19.84c-0.843,0.843-0.843,2.207,0,3.05c0.842,0.843,2.208,0.843,3.05,0c0.843-0.843,0.843-2.207,0-3.05 C6.902,18.996,5.537,18.988,4.694,19.84z"
-                  />
-                  <circle cx="21.364" cy="6.218" r="0.924" />
-                </g>
+                <circle cx="13.792" cy="3.082" r="3.082" />
+                <circle cx="13.792" cy="24.501" r="1.849" />
+                <circle cx="6.219" cy="6.218" r="2.774" />
+                <circle cx="21.365" cy="21.363" r="1.541" />
+                <circle cx="3.082" cy="13.792" r="2.465" />
+                <circle cx="24.501" cy="13.791" r="1.232" />
+                <path d="M4.694,19.84c-0.843,0.843-0.843,2.207,0,3.05c0.842,0.843,2.208,0.843,3.05,0c0.843-0.843,0.843-2.207,0-3.05 C6.902,18.996,5.537,18.988,4.694,19.84z" />
+                <circle cx="21.364" cy="6.218" r="0.924" />
               </g>
-            </svg>
-            : "Sign In"
-        }
+            </g>
+          </svg>
+        ) : (
+          "Sign In"
+        )}
       </Button>
     );
   };
@@ -183,10 +187,11 @@ export default function Header({
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full block md:hidden">
       <div
-        className={`flex flex-row items-center justify-between w-full max-w-full bg-[#1d1e20] md:bg-transparent shadow-lg shadow-neutral-800 dark:shadow-[#1d1e20] md:shadow-none md:fixed top-0 ${landingPage ? "fixed top-0" : ""
-          }`}
+        className={`flex flex-row items-center justify-between w-full max-w-full bg-[#1d1e20] md:bg-transparent shadow-lg shadow-neutral-800 dark:shadow-[#1d1e20] md:shadow-none md:fixed top-0 ${
+          landingPage ? "fixed top-0" : ""
+        }`}
       >
         <div>
           {/* <h1 className='text-3xl font-bold text-white ml-2'>Logo</h1> */}
@@ -207,7 +212,10 @@ export default function Header({
             >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
-            <Dialog open={openChatHistoryDialog} onOpenChange={setOpenChatHistoryDialog}>
+            <Dialog
+              open={openChatHistoryDialog}
+              onOpenChange={setOpenChatHistoryDialog}
+            >
               <DialogTrigger className="outline-none">
                 <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full outline-none">
                   <TextSearch
@@ -251,7 +259,10 @@ export default function Header({
             >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
             </div>
-            <Drawer open={openChatHistoryDrawer} onOpenChange={setOpenChatHistoryDrawer}>
+            <Drawer
+              open={openChatHistoryDrawer}
+              onOpenChange={setOpenChatHistoryDrawer}
+            >
               <DrawerTrigger className="outline-none">
                 <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full outline-none">
                   <TextSearch
@@ -301,48 +312,60 @@ export default function Header({
                           </div>
                         </div>
                         {/* Rate Limit Section - Replaced */}
-              <div className="mt-5 w-full max-w-xs"> {/* Added max-width for better control */}
-                {(currentUsage !== null && totalLimit !== null) ? (
-                  <>
-                    <div className="flex justify-between items-center mb-1 text-sm">
-                      <span className="font-medium text-white">Standard</span> {/* Label */}
-                      <span className="font-medium text-gray-400">{`${currentUsage}/${totalLimit}`}</span> {/* Usage/Total */}
-                    </div>
-                    <div className="w-full bg-neutral-600 rounded-full h-1.5 dark:bg-gray-700"> {/* Progress bar container */}
-                      <div
-                        className="bg-white h-1.5 rounded-full" // Progress bar fill (pink)
-                        style={{ width: `${progressPercentage}%` }}
-                      ></div>
-                    </div>
-                    {remainingMessages !== null && (
-                      <p className="text-xs text-gray-400 mt-1">
-                        {`${remainingMessages} message${remainingMessages !== 1 ? 's' : ''} remaining`} {/* Remaining text */}
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-sm text-gray-400">Loading rate limit...</p> // Loading state
-                )}
-              </div>
+                        <div className="mt-5 w-full max-w-xs">
+                          {" "}
+                          {/* Added max-width for better control */}
+                          {currentUsage !== null && totalLimit !== null ? (
+                            <>
+                              <div className="flex justify-between items-center mb-1 text-sm">
+                                <span className="font-medium text-white">
+                                  Standard
+                                </span>{" "}
+                                {/* Label */}
+                                <span className="font-medium text-gray-400">{`${currentUsage}/${totalLimit}`}</span>{" "}
+                                {/* Usage/Total */}
+                              </div>
+                              <div className="w-full bg-neutral-600 rounded-full h-1.5 dark:bg-gray-700">
+                                {" "}
+                                {/* Progress bar container */}
+                                <div
+                                  className="bg-white h-1.5 rounded-full" // Progress bar fill (pink)
+                                  style={{ width: `${progressPercentage}%` }}
+                                ></div>
+                              </div>
+                              {remainingMessages !== null && (
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {`${remainingMessages} message${
+                                    remainingMessages !== 1 ? "s" : ""
+                                  } remaining`}{" "}
+                                  {/* Remaining text */}
+                                </p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm text-gray-400">
+                              Loading rate limit...
+                            </p> // Loading state
+                          )}
+                        </div>
                         <Button
                           className="mt-10 w-[100px] cursor-pointer outline-none"
                           onClick={() => handleLogout()}
                         >
-                          {
-                            logOutLading ?
-                              <svg
-                                fill="#000000"
-                                version="1.1"
-                                id="Capa_1"
-                                xmlns="http://www.w3.org/2000/svg"
-                                xmlnsXlink="http://www.w3.org/1999/xlink"
-                                width="900px"
-                                height="900px"
-                                viewBox="0 0 26.349 26.35"
-                                style={{ animation: 'spin 1s linear infinite' }}
-                              >
-                                <style>
-                                  {`
+                          {logOutLading ? (
+                            <svg
+                              fill="#000000"
+                              version="1.1"
+                              id="Capa_1"
+                              xmlns="http://www.w3.org/2000/svg"
+                              xmlnsXlink="http://www.w3.org/1999/xlink"
+                              width="900px"
+                              height="900px"
+                              viewBox="0 0 26.349 26.35"
+                              style={{ animation: "spin 1s linear infinite" }}
+                            >
+                              <style>
+                                {`
                                       @keyframes spin {
                                         from {
                                           transform: rotate(0deg);
@@ -352,28 +375,29 @@ export default function Header({
                                         }
                                       }
                                   `}
-                                </style>
+                              </style>
+                              <g>
                                 <g>
-                                  <g>
-                                    <circle cx="13.792" cy="3.082" r="3.082" />
-                                    <circle cx="13.792" cy="24.501" r="1.849" />
-                                    <circle cx="6.219" cy="6.218" r="2.774" />
-                                    <circle cx="21.365" cy="21.363" r="1.541" />
-                                    <circle cx="3.082" cy="13.792" r="2.465" />
-                                    <circle cx="24.501" cy="13.791" r="1.232" />
-                                    <path
-                                      d="M4.694,19.84c-0.843,0.843-0.843,2.207,0,3.05c0.842,0.843,2.208,0.843,3.05,0c0.843-0.843,0.843-2.207,0-3.05 C6.902,18.996,5.537,18.988,4.694,19.84z"
-                                    />
-                                    <circle cx="21.364" cy="6.218" r="0.924" />
-                                  </g>
+                                  <circle cx="13.792" cy="3.082" r="3.082" />
+                                  <circle cx="13.792" cy="24.501" r="1.849" />
+                                  <circle cx="6.219" cy="6.218" r="2.774" />
+                                  <circle cx="21.365" cy="21.363" r="1.541" />
+                                  <circle cx="3.082" cy="13.792" r="2.465" />
+                                  <circle cx="24.501" cy="13.791" r="1.232" />
+                                  <path d="M4.694,19.84c-0.843,0.843-0.843,2.207,0,3.05c0.842,0.843,2.208,0.843,3.05,0c0.843-0.843,0.843-2.207,0-3.05 C6.902,18.996,5.537,18.988,4.694,19.84z" />
+                                  <circle cx="21.364" cy="6.218" r="0.924" />
                                 </g>
-                              </svg>
-                              : <>
-                                <LogOutIcon strokeWidth={1.2} className="h-5 w-5 outline-none" />
-                                <p className="font-light">Logout</p>
-                              </>
-                          }
-
+                              </g>
+                            </svg>
+                          ) : (
+                            <>
+                              <LogOutIcon
+                                strokeWidth={1.2}
+                                className="h-5 w-5 outline-none"
+                              />
+                              <p className="font-light">Logout</p>
+                            </>
+                          )}
                         </Button>
                       </div>
                     </TabsContent>

@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Analytics } from "@vercel/analytics/react"
+import { Analytics } from "@vercel/analytics/react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,8 +29,18 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Add your favicon links here */}
-        <link rel="icon" href="/logo_dark.svg" sizes="any" media="(prefers-color-scheme: dark)" />
-        <link rel="icon" href="/logo_light.svg" sizes="any" media="(prefers-color-scheme: light)" />
+        <link
+          rel="icon"
+          href="/logo_dark.svg"
+          sizes="any"
+          media="(prefers-color-scheme: dark)"
+        />
+        <link
+          rel="icon"
+          href="/logo_light.svg"
+          sizes="any"
+          media="(prefers-color-scheme: light)"
+        />
         {/* <script
           crossOrigin="anonymous"
           src="//unpkg.com/react-scan/dist/auto.global.js"
@@ -39,7 +49,7 @@ export default function RootLayout({
         {/* rest of your scripts go under */}
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased dark:bg-[#1d1e20]`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased dark:bg-[#181317]`}
       >
         <ThemeProvider
           attribute="class"

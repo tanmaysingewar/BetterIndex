@@ -18,6 +18,10 @@ import { cn } from "@/lib/utils";
 import Logo_light from "@/assets/logo_light.svg";
 import Logo_Dark from "@/assets/logo_dark.svg";
 import Image from "next/image";
+// import ChatHistory from "@/components/ChatHistory";
+// import { Button } from "@/components/ui/button";
+// import { Menu } from "lucide-react";
+import ChatHistoryDesktop from "@/components/ChatHistoryDesktop";
 
 const pacifico = Pacifico({
   subsets: ["latin"],
@@ -112,6 +116,7 @@ export default function ChatPage({
   const processingInitialMessageRef = useRef<string | null>(null);
 
   const anonymousSignInAttempted = useRef(false); // <-- Add this ref
+  const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
 
   // const errorTost = () => toast.error('Here is your toast.');
 
@@ -628,6 +633,7 @@ export default function ChatPage({
       const messageToSend = initialMessage;
       setInitialMessage(null); // Clear immediately from store
       handleSendMessage(messageToSend); // Trigger send
+      console.log(isChatHistoryOpen);
     }
   }, [
     isGenerating,
@@ -649,110 +655,100 @@ export default function ChatPage({
     }
   }, [searchParams]);
 
-  // if (searchParams.get("new") || !searchParams.get("chatId")) {
-  //   return <MainPage sessionDetails={sessionDetails}
-  //     isNewUser={isNewUser}
-  //     isAnonymous={isAnonymous} />
-  // }
-
   return (
-    // 1. Main container: Full height, flex column
-    <div className="flex flex-col h-full w-full">
-      {" "}
-      {/* Use h-screen for fixed viewport height */}
-      {/* 2. Header: Takes its natural height */}
-      <Header
-        landingPage={true}
-        isNewUser={isNewUser}
-        isAnonymous={isAnonymous}
-      />
-      {/* <div className="md:hidden block bg-red-500/10">
-        <p className="text-center p-1 font-semibold text-sm">
-          Mobile optimization is still in progress!
-        </p>
-      </div> */}
-      {messages.length === 0 && searchParams.get("new") ? (
-        <div className="max-w-[750px] mx-auto px-4 text-center md:mt-[250px] mt-[170px]">
-          <Image
-            src={Logo_Dark}
-            alt="Logo"
-            className="mx-auto dark:block hidden"
-            height={36}
-          />
-          <Image
-            src={Logo_light}
-            alt="Logo"
-            className="mx-auto dark:hidden block"
-            height={36}
-          />
-          <p className="text-xl mt-7">Welcome to </p>{" "}
-          <span className={cn("text-3xl", pacifico.className)}>
-            {" "}
-            Better Index
-          </span>
-          {/* <video src={"https://t76ttg8lis.ufs.sh/f/pgTEF6LrMdDVZh7Pdys3ALxyiq5OdmkV4T06NKXCPBuRWhHp"}  loop autoPlay className="md:max-w-[450px] mt-5"/> */}
-          <div className="bg-neutral-600/35 px-2 py-2 rounded-md mt-8 backdrop-blur-md text-left max-w-[450px] text-sm">
-            <p className="text-center text-[16px] font-bold mb-2">
-              Special Symbols Use Cases
-            </p>
-            <p className="">
-              <span>
-                <span className="bg-blue-500/30 rounded px-1 py-1 text-sm font-semibold">
-                  #
-                </span>{" "}
-                - Use the # to to access the default prompts
-              </span>
-            </p>
-            <p className="mt-2 ">
-              <span>
-                <span className="bg-pink-500/30 rounded px-1 py-1 text-sm font-semibold">
-                  @
-                </span>{" "}
-                - Use the @ to to access the default indexes
-              </span>
-            </p>
-            <p className="mt-2">
-              <span>
-                <span className="bg-orange-500/30 rounded px-1 py-1 text-sm font-semibold">
-                  $
-                </span>{" "}
-                - Use the $ to to access the tools
-              </span>
-            </p>
+    <div className="flex w-full h-full">
+      {/* Chat History - Hidden on mobile by default */}
+      <div
+        className={cn(
+          "max-w-[300px] w-full h-full fixed md:relative z-50 transition-transform duration-200 ease-in-out scrollbar-hide bg-[#181317]"
+        )}
+      >
+        <ChatHistoryDesktop onClose={() => setIsChatHistoryOpen(false)} />
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex flex-col w-full rounded-2xl bg-[#1d1e20] mt-2">
+        <Header
+          landingPage={true}
+          isNewUser={isNewUser}
+          isAnonymous={isAnonymous}
+        />
+
+        {messages.length === 0 && searchParams.get("new") ? (
+          <div className="max-w-[750px] mx-auto px-4 text-center md:mt-[250px] mt-[170px]">
+            <Image
+              src={Logo_Dark}
+              alt="Logo"
+              className="mx-auto dark:block hidden"
+              height={36}
+            />
+            <Image
+              src={Logo_light}
+              alt="Logo"
+              className="mx-auto dark:hidden block"
+              height={36}
+            />
+            <p className="text-xl mt-7">Welcome to </p>{" "}
+            <span className={cn("text-3xl", pacifico.className)}>
+              {" "}
+              Better Index
+            </span>
+            <div className="bg-neutral-600/35 px-2 py-2 rounded-md mt-8 backdrop-blur-md text-left max-w-[450px] text-sm">
+              <p className="text-center text-[16px] font-bold mb-2">
+                Special Symbols Use Cases
+              </p>
+              <p className="">
+                <span>
+                  <span className="bg-blue-500/30 rounded px-1 py-1 text-sm font-semibold">
+                    #
+                  </span>{" "}
+                  - Use the # to to access the default prompts
+                </span>
+              </p>
+              <p className="mt-2 ">
+                <span>
+                  <span className="bg-pink-500/30 rounded px-1 py-1 text-sm font-semibold">
+                    @
+                  </span>{" "}
+                  - Use the @ to to access the default indexes
+                </span>
+              </p>
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="max-w-[750px] mx-auto px-4 pt-4 my-auto">
+            <Spinner />
+          </div>
+        ) : (
+          <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 mt-12 lg:mt-0">
+            <div className="max-w-[750px] mx-auto px-4 mt-5">
+              {messages.map((message, index) => (
+                <MemoizedRenderMessageOnScreen
+                  key={index}
+                  message={message}
+                  index={index}
+                  messages={messages}
+                  chatInitiated={chatInitiated}
+                  isGenerating={isGenerating}
+                />
+              ))}
+              <div ref={messagesEndRef} className="pb-[120px]" />
+            </div>
+          </div>
+        )}
+
+        <div className="w-full mx-auto">
+          <div className="max-w-[750px] mx-auto">
+            <InputBox
+              height={inputBoxHeight}
+              input={input}
+              setInput={setInput}
+              onSend={handleSendMessage}
+              disabled={isGenerating}
+            />
           </div>
         </div>
-      ) : messages.length === 0 ? (
-        <div className="max-w-[750px] mx-auto px-4 pt-4 my-auto">
-          <Spinner />
-        </div>
-      ) : (
-        // {/* 3. Messages container: Grows to fill space, allows scrolling */ }
-        <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 mt-12 lg:mt-0">
-          <div className="max-w-[750px] mx-auto px-4 pt-4">
-            {messages.map((message, index) => (
-              <MemoizedRenderMessageOnScreen
-                key={index}
-                message={message}
-                index={index}
-                messages={messages}
-                chatInitiated={chatInitiated}
-                isGenerating={isGenerating}
-              />
-            ))}
-            <div ref={messagesEndRef} className="pb-[120px]" />
-          </div>
-        </div>
-      )}
-      {/* 4. InputBox container: Takes its natural height */}
-      {/* No extra wrapper needed unless for specific styling/positioning that flex doesn't handle */}
-      {/* Removed the extra wrapper divs around InputBox as they weren't strictly needed for this layout */}
-      <InputBox
-        height={inputBoxHeight} // Pass the height if needed by InputBox itself
-        input={input}
-        setInput={setInput}
-        onSend={handleSendMessage}
-        disabled={isGenerating}
-      />
+      </div>
     </div>
   );
 }

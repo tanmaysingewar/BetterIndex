@@ -19,11 +19,10 @@ const TextInput = memo(function TextInput({
   onSend,
   filteredSuggestions = [],
   selectedIndex = 0,
-  setSelectedIndex = () => { },
-  handleSelection = () => { },
+  setSelectedIndex = () => {},
+  handleSelection = () => {},
   handleInputChange = setInput,
 }: TextInputProps) {
-
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const adjustHeight = useCallback(() => {
@@ -46,23 +45,27 @@ const TextInput = memo(function TextInput({
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const newValue = e.target.value;
       const words = input.split(" ");
-      const hasExistingTone = words.some(word => word.startsWith("!"));
-      
+      const hasExistingTone = words.some((word) => word.startsWith("!"));
+
       // If there's an existing tone and user is trying to add another !, prevent it
-      if (hasExistingTone && newValue.length > input.length && newValue.slice(-1) === "!") {
+      if (
+        hasExistingTone &&
+        newValue.length > input.length &&
+        newValue.slice(-1) === "!"
+      ) {
         return;
       }
-      
+
       handleInputChange(newValue);
     },
-    [handleInputChange, input],
+    [handleInputChange, input]
   );
 
   return (
     <div className="relative w-full">
       <textarea
         ref={textareaRef}
-        placeholder="Use @index and #prompt"
+        placeholder="How can I help you"
         value={input}
         className="w-full bg-transparent resize-none overflow-y-auto rounded-lg focus:outline-none caret-black dark:caret-white p-3 placeholder:text-neutral-400 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
         style={{
@@ -78,15 +81,22 @@ const TextInput = memo(function TextInput({
 
           if (e.key === "ArrowUp" && hasSuggestions) {
             e.preventDefault();
-            setSelectedIndex((prev: number) => (prev > 0 ? prev - 1 : filteredSuggestions.length - 1));
+            setSelectedIndex((prev: number) =>
+              prev > 0 ? prev - 1 : filteredSuggestions.length - 1
+            );
           } else if (e.key === "ArrowDown" && hasSuggestions) {
             e.preventDefault();
-            setSelectedIndex((prev: number) => (prev < filteredSuggestions.length - 1 ? prev + 1 : 0));
+            setSelectedIndex((prev: number) =>
+              prev < filteredSuggestions.length - 1 ? prev + 1 : 0
+            );
           } else if (e.key === "Enter") {
             if (!e.shiftKey && hasSuggestions) {
               e.preventDefault();
               handleSelection(filteredSuggestions[selectedIndex]);
-            } else if (!e.shiftKey && !input.split(" ").slice(-1)[0].includes("@")) {
+            } else if (
+              !e.shiftKey &&
+              !input.split(" ").slice(-1)[0].includes("@")
+            ) {
               e.preventDefault(); // Prevent new line
               if (input.trim()) {
                 // Only send if there's content
