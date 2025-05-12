@@ -5,7 +5,7 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "./ui/input";
 import { cn } from "@/lib/utils";
 import { Pacifico } from "next/font/google";
@@ -106,6 +106,7 @@ export default function ChatHistoryDesktop({
   const [openSettings, setOpenSettings] = useState(false);
   const { user } = useUserStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Reference for the chat list container
   const chatListRef = useRef<HTMLDivElement>(null);
@@ -181,9 +182,8 @@ export default function ChatHistoryDesktop({
 
   // Get current chat ID from URL for highlighting active chat
   const currentChatId = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    return new URLSearchParams(window.location.search).get("chatId");
-  }, []);
+    return searchParams.get("chatId");
+  }, [searchParams]);
 
   // Determine UI states
   const hasChats = cacheData?.chats && cacheData.chats.length > 0;
