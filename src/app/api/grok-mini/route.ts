@@ -6,7 +6,7 @@ import { nanoid } from "nanoid";
 import { chat, messages, user } from "@/database/schema/auth-schema";
 import { eq } from "drizzle-orm"; // Import eq for querying
 import OpenAI from "openai"; // Import OpenAI
-import getContext from "@/support/addContext";
+// import getContext from "@/support/addContext";
 import { generateSystemPrompt } from "@/support/addPrompt";
 // import { searchDuckDuckGo } from "@/utils/search";
 
@@ -266,20 +266,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // --- Check Word Count (early check) ---
-    const wordCount = message.trim().split(/\s+/).length;
-    if (wordCount > 1000) {
-      console.warn(
-        `API Warning: Message content exceeds 1000 words (${wordCount}).`
-      );
-      return new Response(
-        JSON.stringify({
-          error:
-            "Message content is more than 1000 words. It should be less than 1000.",
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
     // --------------------------------------
 
     // --- 3. Authentication ---
@@ -291,6 +277,27 @@ export async function POST(req: Request) {
       });
     }
     userId = sessionData.user.id; // Assign userId here
+
+    const userEmail = sessionData.user.email;
+
+    const isAloud = ["rahatevedant44@gmail.com", "singewartanmay@gmail.com"];
+
+    // --- Check Word Count (early check) ---
+    const wordCount = message.trim().split(/\s+/).length;
+    if (isAloud.includes(userEmail)) {
+      console.log("userEmail : ", userEmail);
+    } else if (wordCount > 1000) {
+      console.warn(
+        `API Warning: Message content exceeds 1000 words (${wordCount}).`
+      );
+      return new Response(
+        JSON.stringify({
+          error:
+            "Message content is more than 1000 words. It should be less than 1000.",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     // --- 4. Check Rate Limit ---
     const rateLimitCheck = await checkAndUpdateRateLimit(userId);
@@ -377,18 +384,18 @@ export async function POST(req: Request) {
 
     // ----------- Add the Context Here ----------
 
-    let docsString: string = "";
+    const docsString: string = "";
 
     // Assume getContext returns an array like [{ query: string, searchResult: string }]
     // Concatenate the searchResult strings into a single docsString
-    if (message.trim().includes("@")) {
-      const contextResults = await getContext(message.trim());
-      docsString = Array.isArray(contextResults)
-        ? contextResults.map((item) => item.searchResult).join("\n") // Join results with a newline
-        : ""; // Handle cases where getContext might not return an array
-    } else {
-      docsString = "";
-    }
+    // if (message.trim().includes("@")) {
+    //   const contextResults = await getContext(message.trim());
+    //   docsString = Array.isArray(contextResults)
+    //     ? contextResults.map((item) => item.searchResult).join("\n") // Join results with a newline
+    //     : ""; // Handle cases where getContext might not return an array
+    // } else {
+    //   docsString = "";
+    // }
 
     // let searchResultsString: string = "";
 
