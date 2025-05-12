@@ -174,7 +174,8 @@ export default function ChatHistoryDesktop({
         onClose(); // Already on the page, just close sidebar
         return;
       }
-      router.push(`/chat?chatId=${chatId}`);
+      currentSearchParams.set("chatId", chatId);
+      window.history.pushState({}, "", `${currentPath}?${currentSearchParams}`);
       onClose();
     },
     [router, onClose]
