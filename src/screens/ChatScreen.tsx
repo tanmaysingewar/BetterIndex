@@ -122,11 +122,7 @@ export default function ChatPage({
 
   useEffect(() => {
     if (searchParams.get("login") === "true") {
-      return router.replace("/chat?new=true");
-    } else if (searchParams.get("new")) {
-      return router.replace("/chat?new=true");
-    } else if (!searchParams.get("chatId")) {
-      return router.replace("/chat?new=true");
+      return router.push("/chat?new=true");
     }
   }, [searchParams, router]);
 

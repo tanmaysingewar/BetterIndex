@@ -19,7 +19,6 @@ import Cookies from "js-cookie";
 import { authClient } from "@/lib/auth-client";
 import Image from "next/image";
 import { Button } from "./ui/button";
-import { useRouter } from "next/navigation";
 import ChatHistory from "./ChatHistory";
 import { Switch } from "./ui/switch";
 import { useUserStore } from "@/store/userStore";
@@ -45,7 +44,6 @@ export default function Header({
   const [signLading, setSignLading] = useState(false);
   const [logOutLading, setLogOutLading] = useState(false);
 
-  const router = useRouter();
   const { user, fetchAndSetSession, setUser } = useUserStore();
 
   const handleLogout = async () => {
@@ -63,7 +61,12 @@ export default function Header({
             Cookies.set("user-status", "guest", { expires: 7 });
           }
           setLogOutLading(false);
-          router.push("/chat?new=true");
+          // router.push("/chat?new=true");
+          const currentSearchParams = new URLSearchParams(
+            window.location.search
+          );
+          currentSearchParams.delete("chatId");
+          window.history.pushState({}, "", `/chat?${currentSearchParams}`);
           // return location.reload();
         },
       },
@@ -207,7 +210,17 @@ export default function Header({
                 if (location.href.includes("/chat?new=true")) {
                   return;
                 }
-                router.push("/chat?new=true");
+                // router.push("/chat?new=true");
+                const currentSearchParams = new URLSearchParams(
+                  window.location.search
+                );
+                currentSearchParams.delete("chatId");
+                currentSearchParams.set("new", "true");
+                window.history.pushState(
+                  {},
+                  "",
+                  `/chat?${currentSearchParams}`
+                );
               }}
             >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
@@ -251,10 +264,16 @@ export default function Header({
             <div
               className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full"
               onClick={() => {
-                if (location.pathname === "/") {
-                  return;
-                }
-                router.push("/");
+                const currentSearchParams = new URLSearchParams(
+                  window.location.search
+                );
+                currentSearchParams.delete("chatId");
+                currentSearchParams.set("new", "true");
+                window.history.pushState(
+                  {},
+                  "",
+                  `/chat?${currentSearchParams}`
+                );
               }}
             >
               <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />

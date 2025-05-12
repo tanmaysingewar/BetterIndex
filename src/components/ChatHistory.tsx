@@ -1,5 +1,6 @@
+"use client";
+
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 
@@ -105,7 +106,6 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const router = useRouter();
   const limit = max_chats; // Use max_chats as the local page size
 
   // Function to reload cache data from localStorage
@@ -229,7 +229,11 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
       onClose(); // Already on the page, just close sidebar
       return;
     }
-    router.push(`/chat?chatId=${chatId}`);
+
+    currentSearchParams.set("chatId", chatId);
+    currentSearchParams.delete("new");
+    window.history.pushState({}, "", `/chat?${currentSearchParams}`);
+
     onClose();
   };
 

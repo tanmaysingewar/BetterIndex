@@ -175,7 +175,8 @@ export default function ChatHistoryDesktop({
         return;
       }
       currentSearchParams.set("chatId", chatId);
-      window.history.pushState({}, "", `${currentPath}?${currentSearchParams}`);
+      currentSearchParams.delete("new");
+      window.history.pushState({}, "", `/chat?${currentSearchParams}`);
       onClose();
     },
     [router, onClose]
@@ -202,7 +203,16 @@ export default function ChatHistoryDesktop({
       </span>
       <Button
         onClick={() => {
-          return router.push("/chat?new=true");
+          const currentSearchParams = new URLSearchParams(
+            window.location.search
+          );
+          currentSearchParams.delete("chatId");
+          currentSearchParams.set("new", "true");
+          return window.history.pushState(
+            {},
+            "",
+            `/chat?${currentSearchParams}`
+          );
         }}
         className="mx-5 mt-3 cursor-pointer bg-white opacity-90 text-black"
       >
