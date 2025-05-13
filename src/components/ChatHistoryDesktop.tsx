@@ -315,7 +315,7 @@ export default function ChatHistoryDesktop({
         <SignInComponent />
       ) : (
         <div
-          className="flex items-center gap-2 p-3 mx-3 mb-2 mt-2 bg-[#222325] rounded-md cursor-pointer"
+          className="flex items-center gap-2 p-3 mx-2 mb-2 mt-2 bg-[#222325] rounded-md cursor-pointer"
           onClick={() => {
             setOpenSettings(true);
           }}

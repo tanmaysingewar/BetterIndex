@@ -44,7 +44,7 @@ export default function Header({
   const [signLading, setSignLading] = useState(false);
   const [logOutLading, setLogOutLading] = useState(false);
 
-  const { user, fetchAndSetSession, setUser } = useUserStore();
+  const { user, setUser } = useUserStore();
 
   const handleLogout = async () => {
     setLogOutLading(true);
@@ -72,14 +72,6 @@ export default function Header({
       },
     });
   };
-
-  useEffect(() => {
-    const setUser = async () => {
-      await fetchAndSetSession();
-    };
-
-    setUser();
-  }, [fetchAndSetSession]);
 
   // Added state for current usage and total limit
   const [currentUsage, setCurrentUsage] = useState<number | null>(null);

@@ -71,6 +71,8 @@ const decrementRateLimit = () => {
   }
 };
 
+const MESSAGES_UPDATED_EVENT = "messagesUpdated";
+
 const getLocalStorageKey = (chatId: string): string => `chatMessages_${chatId}`;
 
 interface User {
@@ -122,9 +124,14 @@ export default function ChatPage({
   // const errorTost = () => toast.error('Here is your toast.');
 
   useEffect(() => {
+    if (searchParams.get("chatId")) return;
     if (searchParams.get("login") === "true") {
       return router.push("/chat?new=true");
     }
+    if (searchParams.get("new") === "true") {
+      return router.push("/chat?new=true");
+    }
+    return router.push("/chat?new=true");
   }, [searchParams, router]);
 
   useEffect(() => {
@@ -256,6 +263,10 @@ export default function ChatPage({
                   getLocalStorageKey(chatIdToFetch),
                   JSON.stringify(finalMessagesFromServer)
                 );
+                dispatchMessagesUpdatedEvent(
+                  getLocalStorageKey(chatIdToFetch),
+                  JSON.stringify(finalMessagesFromServer)
+                );
               } catch (lsError) {
                 console.error("Error updating Local Storage:", lsError);
               }
@@ -335,10 +346,13 @@ export default function ChatPage({
                       },
                     ]
                   : fetchedMessages;
-              setMessages(finalMessagesFromServer);
 
               try {
                 localStorage.setItem(
+                  getLocalStorageKey(chatIdToFetch),
+                  JSON.stringify(finalMessagesFromServer)
+                );
+                dispatchMessagesUpdatedEvent(
                   getLocalStorageKey(chatIdToFetch),
                   JSON.stringify(finalMessagesFromServer)
                 );
@@ -354,7 +368,6 @@ export default function ChatPage({
               processingInitialMessageRef.current = null;
             }
           };
-
           fetchMessagesFromServer(chatIdFromUrl);
         }
       } catch (error) {
@@ -377,21 +390,6 @@ export default function ChatPage({
     isGenerating,
   ]);
 
-  // Effect 2: Fetch messages from Server (if ID exists and not fetched yet)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    if (
-      currentChatId &&
-      !serverFetchInitiated.current[currentChatId] &&
-      !initialMessage
-    ) {
-    }
-    // Do not add initialMessage as dependency
-  }, [currentChatId]);
-  // Depend only on currentChatId
-  // !Do not add the and other dependencies here
-
   // Effect 3: Scroll to bottom
   useEffect(() => {
     // ... (existing scroll logic - likely okay) ...
@@ -411,6 +409,14 @@ export default function ChatPage({
   }, [messages, chatInitiated, isGenerating]);
 
   // --- Message Sending Logic ---
+  const dispatchMessagesUpdatedEvent = (key: string, value: string) => {
+    window.dispatchEvent(
+      new CustomEvent(MESSAGES_UPDATED_EVENT, {
+        detail: { key, newValue: value },
+      })
+    );
+  };
+
   const handleSendMessage = useCallback(
     async (messageContent: string) => {
       const trimmedMessage = messageContent.trim();
@@ -601,6 +607,10 @@ export default function ChatPage({
             getLocalStorageKey(chatIdForRequest),
             JSON.stringify(finalMessagesState) // Save the calculated final state
           );
+          dispatchMessagesUpdatedEvent(
+            getLocalStorageKey(chatIdForRequest),
+            JSON.stringify(finalMessagesState)
+          );
         } catch (lsError) {
           console.error(
             "Error saving final messages to Local Storage:",
@@ -685,18 +695,38 @@ export default function ChatPage({
   useEffect(() => {
     if (!currentChatId) return;
 
-    const handleStorageChange = (event: StorageEvent) => {
+    const handleStorageChange = (event: StorageEvent | CustomEvent) => {
       const chatStorageKey = getLocalStorageKey(currentChatId);
 
-      if (event.key === chatStorageKey && event.newValue) {
+      // Handle storage event (cross-tab)
+      if (event instanceof StorageEvent) {
+        if (event.key === chatStorageKey && event.newValue) {
+          try {
+            const updatedMessages = JSON.parse(event.newValue);
+            if (Array.isArray(updatedMessages)) {
+              setMessages(updatedMessages);
+            }
+          } catch (error) {
+            console.error(
+              "Error parsing updated messages from localStorage:",
+              error
+            );
+          }
+        }
+      }
+      // Handle custom event (same-tab)
+      else if (
+        event instanceof CustomEvent &&
+        event.detail?.key === chatStorageKey
+      ) {
         try {
-          const updatedMessages = JSON.parse(event.newValue);
+          const updatedMessages = JSON.parse(event.detail.newValue);
           if (Array.isArray(updatedMessages)) {
             setMessages(updatedMessages);
           }
         } catch (error) {
           console.error(
-            "Error parsing updated messages from localStorage:",
+            "Error parsing updated messages from custom event:",
             error
           );
         }
@@ -704,9 +734,17 @@ export default function ChatPage({
     };
 
     window.addEventListener("storage", handleStorageChange);
+    window.addEventListener(
+      MESSAGES_UPDATED_EVENT,
+      handleStorageChange as EventListener
+    );
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener(
+        MESSAGES_UPDATED_EVENT,
+        handleStorageChange as EventListener
+      );
     };
   }, [currentChatId]);
 
