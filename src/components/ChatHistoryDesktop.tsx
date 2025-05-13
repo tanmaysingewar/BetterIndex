@@ -252,13 +252,13 @@ export default function ChatHistoryDesktop({
         )}
 
         {showEmptySearchResults && (
-          <p className="text-center text-gray-500 text-sm">
+          <p className="text-center text-gray-500 text-sm mx-10 mt-8">
             {`No chats found matching "${debouncedSearchTerm}"`}
           </p>
         )}
 
-        {displayedChats.length === 0 && (
-          <p className="text-center text-gray-500 text-sm mt-8">
+        {displayedChats.length === 0 && !showEmptySearchResults && (
+          <p className="text-center text-gray-500 text-sm mt-8 ">
             {`No chats found`}
           </p>
         )}
