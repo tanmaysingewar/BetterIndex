@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { LogOutIcon, UserRound } from "lucide-react"; // Removed unused Database icon
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { authClient } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 import { Button } from "./ui/button";
 import Image from "next/image";
 import { Switch } from "./ui/switch";
@@ -13,8 +13,8 @@ import Cookies from "js-cookie";
 import Default from "@/assets/default.png";
 
 // 2. Use the SettingsProps interface and destructure 'user' from it
-export default function Settings({ onClose }: { onClose?: () => void }) {
-  const router = useRouter();
+export default function Settings() {
+  // const router = useRouter();
   const [selected, setSelected] = useState("Account");
   const { user, setUser } = useUserStore();
   const [logOutLading, setLogOutLading] = useState(false);
@@ -69,11 +69,8 @@ export default function Settings({ onClose }: { onClose?: () => void }) {
             Cookies.set("user-status", "guest", { expires: 7 });
           }
           setLogOutLading(false);
-          router.push("/chat?new=true");
+          window.location.replace("/chat?new=true");
           // Close the dialog if onClose is provided
-          if (onClose) {
-            window.location.reload();
-          }
           // return location.reload();
         },
       },

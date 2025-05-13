@@ -106,6 +106,7 @@ export default function ChatPage({
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const { user, setUser } = useUserStore();
+  const [isLoadingChats, setIsLoadingChats] = useState(false);
 
   const initialMessage = useMessageStore((state) => state.initialMessage);
   const setInitialMessage = useMessageStore((state) => state.setInitialMessage);
@@ -198,6 +199,7 @@ export default function ChatPage({
         if (navigationEntry.type === "reload") {
           try {
             async function updateChatCache() {
+              setIsLoadingChats(true);
               await getRateLimit();
               const success = await fetchAllChatsAndCache();
               if (success) {
@@ -205,10 +207,12 @@ export default function ChatPage({
               } else {
                 console.error("Failed to update chat cache.");
               }
+              setIsLoadingChats(false);
             }
             updateChatCache();
           } catch (error) {
             console.error("Error updating chat cache:", error);
+            setIsLoadingChats(false);
           }
         }
 
@@ -711,18 +715,19 @@ export default function ChatPage({
       {/* Chat History - Hidden on mobile by default */}
       <div
         className={cn(
-          "hidden lg:block max-w-[300px] w-full h-full fixed md:relative z-50 transition-transform duration-200 ease-in-out scrollbar-hide bg-[#080808]"
+          "hidden lg:block max-w-[300px] w-full h-full fixed md:relative z-50 transition-transform duration-200 ease-in-out scrollbar-hide"
         )}
       >
         <ChatHistoryDesktop
           onClose={() => setIsChatHistoryOpen(false)}
           isNewUser={isNewUser}
           isAnonymous={isAnonymous}
+          isLoading={isLoadingChats}
         />
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex flex-col w-full rounded-tl-2xl bg-[#1d1e20] lg:mt-2">
+      <div className="flex flex-col w-full bg-[#222325] lg:mt-0">
         <Header
           landingPage={true}
           isNewUser={isNewUser}
@@ -748,7 +753,7 @@ export default function ChatPage({
               {" "}
               Better Index
             </span>
-            <div className="bg-neutral-600/35 px-5 py-5 mt-8 backdrop-blur-md text-left max-w-[450px] text-sm rounded-lg">
+            {/* <div className="bg-neutral-600/35 px-5 py-5 mt-8 backdrop-blur-md text-left max-w-[450px] text-sm rounded-lg">
               <p className="text-center text-[16px] font-bold mb-2">
                 Special Symbols Use Cases
               </p>
@@ -768,7 +773,7 @@ export default function ChatPage({
                   - Use the @ to to access the default indexes
                 </span>
               </p>
-            </div>
+            </div> */}
           </div>
         ) : messages.length === 0 ? (
           <div className="max-w-[750px] mx-auto px-4 pt-4 my-auto">
@@ -776,7 +781,7 @@ export default function ChatPage({
           </div>
         ) : (
           <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 mt-12 lg:mt-0">
-            <div className="max-w-[750px] mx-auto px-4 mt-5">
+            <div className="max-w-[780px] mx-auto px-4 mt-5 pl-10">
               {messages.map((message, index) => (
                 <MemoizedRenderMessageOnScreen
                   key={index}

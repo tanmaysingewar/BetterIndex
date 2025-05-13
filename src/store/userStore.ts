@@ -1,5 +1,5 @@
 import { authClient } from "@/lib/auth-client";
-import { fetchAllChatsAndCache } from "@/lib/fetchChats";
+// import { fetchAllChatsAndCache } from "@/lib/fetchChats";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
@@ -36,13 +36,11 @@ export const useUserStore = create<UserState>()(
 
         const session = await authClient.getSession();
         get().setUser(session?.data?.user || undefined);
-        fetchAllChatsAndCache();
       },
       refreshSession: async () => {
         // Always fetch fresh session data
         const session = await authClient.getSession();
         get().setUser(session?.data?.user || undefined);
-        fetchAllChatsAndCache();
       },
     }),
     {

@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import Settings from "./Setting";
 import { authClient } from "@/lib/auth-client";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { Loader2 } from "lucide-react";
+import { CHAT_CACHE_UPDATED_EVENT } from "@/lib/fetchChats";
 
 const pacifico = Pacifico({
   subsets: ["latin"],
@@ -90,16 +92,18 @@ interface ChatHistoryProps {
   onClose: () => void;
   isNewUser?: boolean;
   isAnonymous?: boolean;
+  isLoading?: boolean;
 }
 
 export default function ChatHistoryDesktop({
   onClose,
   isNewUser = true,
   isAnonymous = true,
+  isLoading: isLoadingProp = false,
 }: ChatHistoryProps) {
   // Use a single source of truth for all chats data
   const [cacheData, setCacheData] = useState<RawCacheData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingCache, setIsLoadingCache] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -114,21 +118,22 @@ export default function ChatHistoryDesktop({
   // Load cache data only once on component mount or when localStorage changes
   useEffect(() => {
     const loadCacheData = () => {
-      setIsLoading(true);
+      setIsLoadingCache(true);
       try {
         const data = loadFromCache();
         setCacheData(data);
       } catch (err) {
         console.error("Error loading cache data:", err);
         setError("Failed to load chat history from cache.");
+        console.log(error);
       } finally {
-        setIsLoading(false);
+        setIsLoadingCache(false);
       }
     };
 
     loadCacheData();
 
-    // Listen for storage changes
+    // Listen for both storage changes (from other tabs) and our custom event (same tab)
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === CACHE_KEY) {
         console.log("Chat history cache updated in localStorage");
@@ -136,9 +141,17 @@ export default function ChatHistoryDesktop({
       }
     };
 
+    const handleCacheUpdate = () => {
+      console.log("Chat history cache updated in current tab");
+      loadCacheData();
+    };
+
     window.addEventListener("storage", handleStorageChange);
+    window.addEventListener(CHAT_CACHE_UPDATED_EVENT, handleCacheUpdate);
+
     return () => {
       window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener(CHAT_CACHE_UPDATED_EVENT, handleCacheUpdate);
     };
   }, []);
 
@@ -190,13 +203,14 @@ export default function ChatHistoryDesktop({
   // Determine UI states
   const hasChats = cacheData?.chats && cacheData.chats.length > 0;
   const showEmptySearchResults =
-    !isLoading &&
+    !isLoadingCache &&
+    !isLoadingProp &&
     hasChats &&
     displayedChats.length === 0 &&
     !!debouncedSearchTerm;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-[#161719]">
       <span className={cn("text-2xl text-center mt-5", pacifico.className)}>
         {" "}
         Better Index
@@ -227,12 +241,15 @@ export default function ChatHistoryDesktop({
           className="w-full border-0 ring-0 h-[40px] border-b rounded-none px-4 focus-visible:ring-0 focus-visible:ring-offset-0"
         />
       </div>
-
       <div
         ref={chatListRef}
-        className="flex-1 overflow-y-auto p-2 no-scrollbar h-screen"
+        className="flex-1 overflow-y-auto no-scrollbar h-screen relative"
       >
-        {isLoading && <p className="text-center text-gray-500">Loading...</p>}
+        {(isLoadingCache || isLoadingProp) && (
+          <div className="flex justify-center items-center py-2 bg-[#161719]/5 backdrop-blur-xs z-10 sticky top-0 shadow-[15px_15px_15px_-3px_rgba(22,23,25,0.4)]">
+            <Loader2 className="h-5 w-5 animate-spin text-neutral-400" />
+          </div>
+        )}
 
         {showEmptySearchResults && (
           <p className="text-center text-gray-500 text-sm">
@@ -240,54 +257,65 @@ export default function ChatHistoryDesktop({
           </p>
         )}
 
-        {!isLoading && !error && displayedChats.length > 0 && (
-          <div
-            style={{
-              height: `${rowVirtualizer.getTotalSize()}px`,
-              width: "100%",
-              position: "relative",
-            }}
-          >
-            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const chat = displayedChats[virtualRow.index];
-              return (
-                <div
-                  key={chat.id}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: `${virtualRow.size}px`,
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                  className={`hover:bg-neutral-200 dark:hover:bg-neutral-800 cursor-pointer rounded-sm p-2 px-3 transition-colors duration-150 ${
-                    currentChatId === chat.id
-                      ? "bg-neutral-100 dark:bg-[#2f2f2f]"
-                      : ""
-                  }`}
-                  onClick={() => handleChatClick(chat.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && handleChatClick(chat.id)
-                  }
-                >
-                  <p className="text-sm font-medium truncate">
-                    {chat.title || "Untitled Chat"}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+        {displayedChats.length === 0 && (
+          <p className="text-center text-gray-500 text-sm mt-8">
+            {`No chats found`}
+          </p>
         )}
+
+        <div className="p-2">
+          {displayedChats.length > 0 && (
+            <div
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                width: "100%",
+                position: "relative",
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const chat = displayedChats[virtualRow.index];
+                return (
+                  <div
+                    key={chat.id}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                    onClick={() => handleChatClick(chat.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && handleChatClick(chat.id)
+                    }
+                  >
+                    <div
+                      className={`hover:bg-neutral-200 dark:hover:bg-[#222325] cursor-pointer rounded-sm p-2 px-3 transition-colors duration-150 ${
+                        currentChatId === chat.id
+                          ? "bg-neutral-100 dark:bg-[#222325]"
+                          : ""
+                      }`}
+                    >
+                      <p className="text-sm font-medium truncate">
+                        {chat.title || "Untitled Chat"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {isNewUser || isAnonymous || user?.isAnonymous === false ? (
         <SignInComponent />
       ) : (
         <div
-          className="flex items-center gap-2 p-3 mx-3 mb-5 mt-3 bg-neutral-800 rounded-md cursor-pointer"
+          className="flex items-center gap-2 p-3 mx-3 mb-2 mt-2 bg-[#222325] rounded-md cursor-pointer"
           onClick={() => {
             setOpenSettings(true);
           }}
@@ -316,7 +344,7 @@ export default function ChatHistoryDesktop({
       <Dialog open={openSettings} onOpenChange={setOpenSettings}>
         <DialogContent className="bg-[#1d1e20] h-[60vh] w-[53vw]">
           <DialogTitle className="sr-only">Settings</DialogTitle>
-          <Settings onClose={() => setOpenSettings(false)} />
+          <Settings />
         </DialogContent>
       </Dialog>
     </div>

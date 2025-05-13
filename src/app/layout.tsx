@@ -49,7 +49,7 @@ export default function RootLayout({
         {/* rest of your scripts go under */}
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased dark:bg-[#080808]`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased dark:bg-[#161719]`}
       >
         <ThemeProvider
           attribute="class"

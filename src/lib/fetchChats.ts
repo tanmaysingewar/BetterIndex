@@ -21,6 +21,9 @@ interface AllChatsCacheData {
   timestamp: number; // Timestamp of when the cache was created
 }
 
+// Define a custom event name for cache updates
+export const CHAT_CACHE_UPDATED_EVENT = "chatCacheUpdated";
+
 /**
  * Fetches all chats from the API by paginating and stores them in localStorage.
  *
@@ -123,6 +126,12 @@ export const fetchAllChatsAndCache = async (
       console.log(
         `Successfully fetched and cached ${allChats.length} chats (API reported ${totalChatsFromApi}) under key "${ALL_CHATS_CACHE_KEY}".`
       );
+
+      // Dispatch a custom event when cache is updated
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event(CHAT_CACHE_UPDATED_EVENT));
+      }
+
       // Optional: Verify if fetched count matches reported count
       if (allChats.length !== totalChatsFromApi) {
         console.warn(
