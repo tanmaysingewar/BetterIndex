@@ -10,19 +10,16 @@ import { useUserStore } from "@/store/userStore";
 import { authClient } from "@/lib/auth-client";
 import Cookies from "js-cookie";
 import { fetchAllChatsAndCache } from "@/lib/fetchChats";
-// import MainPage from "./MainPage";
 import getRateLimit from "@/lib/fetchRateLimit";
-// import toast from 'react-hot-toast';
 import { Pacifico } from "next/font/google";
 import { cn } from "@/lib/utils";
 import Logo_light from "@/assets/logo_light.svg";
 import Logo_Dark from "@/assets/logo_dark.svg";
 import Image from "next/image";
-// import ChatHistory from "@/components/ChatHistory";
-// import { Button } from "@/components/ui/button";
-// import { Menu } from "lucide-react";
 import ChatHistoryDesktop from "@/components/ChatHistoryDesktop";
 import Head from "next/head";
+import { Check, CopyIcon } from "lucide-react";
+// import { Button } from "@/components/ui/button";
 
 const pacifico = Pacifico({
   subsets: ["latin"],
@@ -921,12 +918,22 @@ const highlightSpecialWords = (text: string) => {
  * Renders a single message bubble.
  * Memoized to prevent re-rendering if props haven't changed.
  */
+
 const RenderMessageOnScreen = ({
   message,
   index,
   messages,
   chatInitiated,
 }: RenderMessageProps) => {
+  const [CopyClicked, setCopyClicked] = useState(false);
+
+  const handleCopyClick = () => {
+    setCopyClicked(true);
+    navigator.clipboard.writeText(message.content);
+    setTimeout(() => {
+      setCopyClicked(false);
+    }, 2000);
+  };
   return (
     <>
       {/* Desktop Message Bubble */}
@@ -948,22 +955,52 @@ const RenderMessageOnScreen = ({
           }`,
         }}
       >
-        <div
-          className={`p-3 rounded-3xl w-fit max-w-full ${
-            message.role === "user"
-              ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto px-4"
-              : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto"
-          }`}
-        >
-          {message.content === "loading" ? (
-            <Spinner />
-          ) : message.role === "assistant" ? (
-            <div className="markdown-content">
-              <MessageRenderer content={message.content || " "} />
+        <div>
+          {/* User */}
+          {message.role === "user" && (
+            <div className="ml-auto max-w-full w-fit">
+              <div
+                className={`p-3 rounded-3xl bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg  px-4`}
+              >
+                {highlightSpecialWords(message.content)}
+              </div>
+              <div className="flex flex-col justify-end items-end">
+                {CopyClicked ? (
+                  <Check className="w-4 h-4 m-2" />
+                ) : (
+                  <CopyIcon
+                    className="w-4 h-4 cursor-pointer m-2"
+                    onClick={handleCopyClick}
+                  />
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="whitespace-pre-wrap break-words">
-              {highlightSpecialWords(message.content)}
+          )}
+
+          {/* Bot  */}
+          {message.role === "assistant" && (
+            <div>
+              <div
+                className={`p-3 rounded-3xl w-fit max-w-full bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto`}
+              >
+                {message.content === "loading" ? (
+                  <Spinner />
+                ) : (
+                  <div className="markdown-content">
+                    <MessageRenderer content={message.content || " "} />
+                    <div className="">
+                      {CopyClicked ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <CopyIcon
+                          className="w-4 h-4 cursor-pointer"
+                          onClick={handleCopyClick}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
