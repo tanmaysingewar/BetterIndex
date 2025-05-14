@@ -12,12 +12,14 @@ import { Pacifico } from "next/font/google";
 import { Button } from "./ui/button";
 import { useUserStore } from "@/store/userStore";
 import { User } from "lucide-react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import Settings from "./Setting";
 import { authClient } from "@/lib/auth-client";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Loader2 } from "lucide-react";
 import { CHAT_CACHE_UPDATED_EVENT } from "@/lib/fetchChats";
+import { ThemeToggle } from "./theme-provider";
+import { DialogTitle } from "@radix-ui/react-dialog";
 
 const pacifico = Pacifico({
   subsets: ["latin"],
@@ -212,11 +214,12 @@ export default function ChatHistoryDesktop({
     !!debouncedSearchTerm;
 
   return (
-    <div className="flex flex-col h-full bg-[#161719]">
+    <div className="flex flex-col h-full dark:bg-[#161719] bg-[#f9f9f9]">
       <span className={cn("text-2xl text-center mt-5", pacifico.className)}>
         {" "}
         Better Index
       </span>
+      <ThemeToggle />
       <Button
         onClick={() => {
           const currentSearchParams = new URLSearchParams(
@@ -230,7 +233,7 @@ export default function ChatHistoryDesktop({
             `/chat?${currentSearchParams}`
           );
         }}
-        className="mx-5 mt-3 cursor-pointer bg-white opacity-90 text-black"
+        className="mx-5 mt-3 cursor-pointer"
       >
         New Chat
       </Button>
@@ -248,7 +251,7 @@ export default function ChatHistoryDesktop({
         className="flex-1 overflow-y-auto no-scrollbar h-screen relative"
       >
         {(isLoadingCache || isLoadingProp) && (
-          <div className="flex justify-center items-center py-2 bg-[#161719]/5 backdrop-blur-xs z-10 sticky top-0 shadow-[15px_15px_15px_-3px_rgba(22,23,25,0.4)]">
+          <div className="flex justify-center items-center py-2 bg-[#161719]/5 backdrop-blur-xs z-10 sticky top-0">
             <Loader2 className="h-5 w-5 animate-spin text-neutral-400" />
           </div>
         )}
@@ -297,7 +300,7 @@ export default function ChatHistoryDesktop({
                     <div
                       className={`hover:bg-neutral-200 dark:hover:bg-[#222325] cursor-pointer rounded-sm p-2 px-3 transition-colors duration-150 ${
                         currentChatId === chat.id
-                          ? "bg-neutral-100 dark:bg-[#222325]"
+                          ? "bg-neutral-200 dark:bg-[#222325]"
                           : ""
                       }`}
                     >
@@ -317,7 +320,7 @@ export default function ChatHistoryDesktop({
         <SignInComponent />
       ) : (
         <div
-          className="flex items-center gap-2 p-3 mx-2 mb-2 mt-2 bg-[#222325] rounded-md cursor-pointer"
+          className="flex items-center gap-2 p-3 mx-2 mb-2 mt-2 dark:bg-[#222325] bg-neutral-200 rounded-md cursor-pointer"
           onClick={() => {
             setOpenSettings(true);
           }}
@@ -330,23 +333,25 @@ export default function ChatHistoryDesktop({
                 className="h-9 w-9 rounded-full"
               />
             ) : (
-              <User size={20} className="text-white" />
+              <User size={20} className="dark:text-white" />
             )}
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-medium text-white">
+            <span className="text-sm font-medium dark:text-white">
               {user?.name || "User"}
             </span>
-            <span className="text-xs text-neutral-400 truncate max-w-[200px]">
+            <span className="text-xs dark:text-neutral-400 text-neutral-600 truncate max-w-[200px]">
               {user?.email || ""}
             </span>
           </div>
         </div>
       )}
       <Dialog open={openSettings} onOpenChange={setOpenSettings}>
-        <DialogContent className="bg-[#1d1e20] h-[60vh] w-[53vw]">
-          <DialogTitle className="sr-only">Settings</DialogTitle>
-          <Settings />
+        <DialogContent className="dark:bg-[#1d1e20] h-[60vh] w-[53vw]">
+          <DialogHeader>
+            <DialogTitle className="hidden">Settings</DialogTitle>
+            <Settings />
+          </DialogHeader>
         </DialogContent>
       </Dialog>
     </div>

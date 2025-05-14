@@ -137,18 +137,20 @@ export default function InputBox({
       <div className="max-w-3xl text-base font-sans lg:px-0 w-screen md:rounded-t-3xl px-2 fixed bottom-0">
         {filteredSuggestions.length > 0 && (
           <div className="mx-5">
-            <div className="bg-[#303335]/20 backdrop-blur-xs rounded-t-md p-2">
+            <div className="dark:bg-[#303335]/20 bg-[#f9f9f9] backdrop-blur-xs rounded-t-md p-2">
               {filteredSuggestions.map((match, index) => (
                 <p
                   key={index}
                   className={`mb-1 cursor-pointer rounded-sm p-1 ${
-                    index === selectedIndex ? "bg-white/20" : ""
+                    index === selectedIndex
+                      ? "dark:bg-white/20 bg-[#ebebeb]"
+                      : ""
                   }`}
                   onClick={() => handleSelection(match)}
                   onKeyDown={(e) => handleKeyDown(e, match)}
                   tabIndex={0}
                 >
-                  <span className="text-white rounded-md px-2 py-1">
+                  <span className="dark:text-white rounded-md px-2 py-1">
                     {match}
                   </span>
                 </p>
@@ -156,7 +158,7 @@ export default function InputBox({
             </div>
           </div>
         )}
-        <div className="flex flex-col items-center rounded-t-3xl dark:bg-[#303335]/80 bg-neutral-100 p-2 w-full backdrop-blur-xs">
+        <div className="flex flex-col items-center rounded-t-3xl dark:bg-[#303335]/80 bg-neutral-100/70 p-2 w-full backdrop-blur-xs">
           <TextInput
             input={input}
             setInput={setInput}
@@ -169,11 +171,11 @@ export default function InputBox({
             handleInputChange={handleInputChange}
           />
           <div className="flex flex-row justify-between w-full mt-0">
-            <div className="flex flex-row mt-2 text-neutral-200">
+            <div className="flex flex-row mt-2 dark:text-neutral-200">
               <p className="text-sm mx-3">Grok 3 Mini</p>
             </div>
             <div className="flex flex-row justify-center items-center">
-              <p className="text-xs dark:text-neutral-400 mr-3 hidden sm:block">
+              <p className="text-xs dark:text-neutral-400 text-neutral-500 mr-3 hidden sm:block">
                 Use{" "}
                 <span className="dark:text-white text-black">
                   shift + return

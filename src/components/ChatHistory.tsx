@@ -267,7 +267,7 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
     !debouncedSearchTerm;
 
   return (
-    <div className="flex flex-col h-full border-r md:min-h-[652px]">
+    <div className="flex flex-col h-full border-r">
       <div className="flex-shrink-0">
         <Input
           placeholder="Search cached chats..." // Updated placeholder

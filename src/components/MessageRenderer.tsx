@@ -43,8 +43,9 @@ const CopyButton = ({ text }: { text: string }) => {
       onClick={handleCopy}
       disabled={isCopied}
       // Adjusted styling: remove absolute positioning, maybe add slight margin
-      className={`bg-transparent text-white border-none rounded-sm px-2 py-1 cursor-pointer text-sm transition-opacity duration-200 ${isCopied ? "opacity-60 cursor-default" : "hover:opacity-70" // Added active state
-        }`}
+      className={`bg-transparent text-white border-none rounded-sm px-2 py-1 cursor-pointer text-sm transition-opacity duration-200 ${
+        isCopied ? "opacity-60 cursor-default" : "hover:opacity-70" // Added active state
+      }`}
       aria-label={isCopied ? "Copied!" : "Copy code"}
     >
       {isCopied ? <Check size={16} /> : <CopyIcon size={16} />}

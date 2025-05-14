@@ -781,19 +781,15 @@ export default function ChatPage({
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex flex-col w-full bg-[#222325] lg:mt-0">
-        <Header
-          landingPage={true}
-          isNewUser={isNewUser}
-          isAnonymous={isAnonymous}
-        />
+      <div className="flex flex-col w-full dark:bg-[#222325] bg-white lg:mt-0">
+        <Header landingPage={true} isAnonymous={isAnonymous} />
 
         {messages.length === 0 && searchParams.get("new") ? (
           <div className="max-w-[750px] mx-auto px-4 text-center md:mt-[250px] mt-[170px]">
             <Image
               src={Logo_Dark}
               alt="Logo"
-              className="mx-auto dark:block hidden"
+              className="mx-auto dark:black hidden"
               height={36}
             />
             <Image
@@ -802,32 +798,18 @@ export default function ChatPage({
               className="mx-auto dark:hidden block"
               height={36}
             />
-            <p className="text-xl mt-7">Welcome to </p>{" "}
-            <span className={cn("text-3xl", pacifico.className)}>
+            <p className="text-xl mt-7 dark:text-white text-black">
+              Welcome to{" "}
+            </p>{" "}
+            <span
+              className={cn(
+                "text-3xl dark:text-white text-black",
+                pacifico.className
+              )}
+            >
               {" "}
               Better Index
             </span>
-            {/* <div className="bg-neutral-600/35 px-5 py-5 mt-8 backdrop-blur-md text-left max-w-[450px] text-sm rounded-lg">
-              <p className="text-center text-[16px] font-bold mb-2">
-                Special Symbols Use Cases
-              </p>
-              <p className="">
-                <span>
-                  <span className="bg-blue-500/30 rounded px-1 py-1 text-sm font-semibold">
-                    #
-                  </span>{" "}
-                  - Use the # to add the prompt
-                </span>
-              </p>
-              <p className="mt-2 ">
-                <span>
-                  <span className="bg-pink-500/30 rounded px-1 py-1 text-sm font-semibold">
-                    @
-                  </span>{" "}
-                  - Use the @ to to access the default indexes
-                </span>
-              </p>
-            </div> */}
           </div>
         ) : messages.length === 0 ? (
           <div className="max-w-[750px] mx-auto px-4 pt-4 my-auto">
@@ -835,7 +817,7 @@ export default function ChatPage({
           </div>
         ) : (
           <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 mt-12 lg:mt-0">
-            <div className="max-w-[780px] mx-auto px-4 mt-5 pl-10">
+            <div className="max-w-[780px] mx-auto px-4 mt-5 md:pl-10">
               {messages.map((message, index) => (
                 <MemoizedRenderMessageOnScreen
                   key={index}
@@ -960,7 +942,7 @@ const RenderMessageOnScreen = ({
           {message.role === "user" && (
             <div className="ml-auto max-w-full w-fit">
               <div
-                className={`p-3 rounded-3xl bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg  px-4`}
+                className={`p-3 rounded-3xl bg-gray-100 dark:bg-[#2d2e30] dark:text-white rounded-br-lg  px-4`}
               >
                 {highlightSpecialWords(message.content)}
               </div>
@@ -981,7 +963,7 @@ const RenderMessageOnScreen = ({
           {message.role === "assistant" && (
             <div>
               <div
-                className={`p-3 rounded-3xl w-fit max-w-full bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto`}
+                className={`p-3 rounded-3xl w-fit max-w-full  dark:bg-transparent dark:text-white rounded-bl-lg mr-auto`}
               >
                 {message.content === "loading" ? (
                   <Spinner />
@@ -1025,22 +1007,52 @@ const RenderMessageOnScreen = ({
           }`,
         }}
       >
-        <div
-          className={`p-3 rounded-3xl w-fit max-w-full ${
-            message.role === "user"
-              ? "bg-blue-500 dark:bg-[#2d2e30] text-white rounded-br-lg ml-auto"
-              : "bg-gray-200 dark:bg-transparent dark:text-white rounded-bl-lg mr-auto"
-          }`}
-        >
-          {message.content === "loading" ? (
-            <Spinner />
-          ) : message.role === "assistant" ? (
-            <div className="markdown-content">
-              <MessageRenderer content={message.content || " "} />
+        <div>
+          {/* User */}
+          {message.role === "user" && (
+            <div className="ml-auto max-w-full w-fit">
+              <div
+                className={`p-3 rounded-3xl bg-gray-100 dark:bg-[#2d2e30] dark:text-white rounded-br-lg px-4`}
+              >
+                {highlightSpecialWords(message.content)}
+              </div>
+              <div className="flex flex-col justify-end items-end">
+                {CopyClicked ? (
+                  <Check className="w-4 h-4 m-2" />
+                ) : (
+                  <CopyIcon
+                    className="w-4 h-4 cursor-pointer m-2"
+                    onClick={handleCopyClick}
+                  />
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="whitespace-pre-wrap break-words">
-              {highlightSpecialWords(message.content)}
+          )}
+
+          {/* Bot  */}
+          {message.role === "assistant" && (
+            <div>
+              <div
+                className={`p-3 rounded-3xl w-fit max-w-full  dark:bg-transparent dark:text-white rounded-bl-lg mr-auto`}
+              >
+                {message.content === "loading" ? (
+                  <Spinner />
+                ) : (
+                  <div className="markdown-content">
+                    <MessageRenderer content={message.content || " "} />
+                    <div className="">
+                      {CopyClicked ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <CopyIcon
+                          className="w-4 h-4 cursor-pointer"
+                          onClick={handleCopyClick}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

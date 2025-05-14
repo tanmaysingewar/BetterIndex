@@ -1,7 +1,7 @@
 // app/routes/settings.tsx
 "use client";
 import { useState, useEffect } from "react";
-import { LogOutIcon, UserRound } from "lucide-react"; // Removed unused Database icon
+import { LogOutIcon, Moon, Sun, UserRound } from "lucide-react"; // Removed unused Database icon
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { authClient } from "@/lib/auth-client";
 // import { useRouter } from "next/navigation";
@@ -11,6 +11,7 @@ import { Switch } from "./ui/switch";
 import { useUserStore } from "@/store/userStore";
 import Cookies from "js-cookie";
 import Default from "@/assets/default.png";
+import { useTheme } from "next-themes";
 
 // 2. Use the SettingsProps interface and destructure 'user' from it
 export default function Settings() {
@@ -18,6 +19,7 @@ export default function Settings() {
   const [selected, setSelected] = useState("Account");
   const { user, setUser } = useUserStore();
   const [logOutLading, setLogOutLading] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   // Added state for current usage and total limit
   const [currentUsage, setCurrentUsage] = useState<number | null>(null);
@@ -89,14 +91,14 @@ export default function Settings() {
 
   return (
     <div className=" flex flex-col">
-      <div className="p-3  bg-[#1d1e20] rounded-3xl">
+      <div className="p-3 dark:bg-[#1d1e20] rounded-3xl">
         <p className="text-xl font-normal ml-3 mt-3">Settings</p>
         <div className="flex flex-row">
           <div className="mt-5 min-w-44 gap-2 flex flex-col">
             <div
-              className={`flex gap-2 text-sm text-left font-light cursor-pointer rounded-xl px-4 py-3 text-neutral-400 ${
+              className={`flex gap-2 text-sm text-left font-light cursor-pointer rounded-xl px-4 py-3 dark:text-neutral-400 ${
                 selected === "Account"
-                  ? "bg-neutral-700 dark:bg-[#28292b] text-white"
+                  ? "bg-[#eeeeed] dark:bg-[#28292b] dark:text-white"
                   : "hover:bg-neutral-700 dark:hover:bg-[#28292b] hover:text-white"
               }`}
               onClick={() => setSelected("Account")}
@@ -134,7 +136,7 @@ export default function Settings() {
                 </Avatar>
 
                 <div className="ml-3 justify-center">
-                  <p className="text-left">{user?.name}</p>
+                  <p className="text-left font-semibold">{user?.name}</p>
                   <p className="text-xs mt-1">{user?.email}</p>
                 </div>
               </div>
@@ -145,21 +147,23 @@ export default function Settings() {
                 {currentUsage !== null && totalLimit !== null ? (
                   <>
                     <div className="flex justify-between items-center mb-1 text-sm">
-                      <span className="font-medium text-white">Free Tier</span>{" "}
+                      <span className="font-medium dark:text-white">
+                        Free Tier
+                      </span>{" "}
                       {/* Label */}
-                      <span className="font-medium text-gray-400">{`${currentUsage}/${totalLimit}`}</span>{" "}
+                      <span className="font-medium dark:text-gray-400 text-neutral-800">{`${currentUsage}/${totalLimit}`}</span>{" "}
                       {/* Usage/Total */}
                     </div>
-                    <div className="w-full bg-neutral-600 rounded-full h-1.5 dark:bg-gray-700">
+                    <div className="w-full bg-neutral-800 rounded-full h-1.5 dark:bg-gray-700">
                       {" "}
                       {/* Progress bar container */}
                       <div
-                        className="bg-white h-1.5 rounded-full" // Progress bar fill (pink)
+                        className="dark:bg-white h-1.5 rounded-full" // Progress bar fill (pink)
                         style={{ width: `${progressPercentage}%` }}
                       ></div>
                     </div>
                     {remainingMessages !== null && (
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-neutral-500 mt-1">
                         {`${remainingMessages} message${
                           remainingMessages !== 1 ? "s" : ""
                         } remaining`}{" "}
@@ -171,9 +175,30 @@ export default function Settings() {
                   <p className="text-sm text-gray-400">Loading rate limit...</p> // Loading state
                 )}
               </div>
+              <div className="flex flex-col space-y-2 mt-5">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium">Dark Mode</p>
+                    {/* <p className="text-sm text-muted-foreground">
+                      Switch between light and dark themes
+                    </p> */}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Sun className="h-5 w-5" />
+                    <Switch
+                      checked={theme === "dark"}
+                      onCheckedChange={(checked) => {
+                        setTheme(checked ? "dark" : "light");
+                      }}
+                    />
+                    <Moon className="h-5 w-5" />
+                  </div>
+                </div>
+              </div>
               <Button
                 className="mt-5 w-[100px] cursor-pointer"
                 onClick={() => handleLogout()}
+                variant={"destructive"}
               >
                 {logOutLading ? (
                   <svg
@@ -214,8 +239,11 @@ export default function Settings() {
                   </svg>
                 ) : (
                   <>
-                    <LogOutIcon strokeWidth={1.2} className="h-5 w-5" />
-                    <p className="font-light">Logout</p>
+                    <LogOutIcon
+                      strokeWidth={1.2}
+                      className="h-5 w-5 text-white"
+                    />
+                    <p className="font-light text-white">Logout</p>
                   </>
                 )}
               </Button>

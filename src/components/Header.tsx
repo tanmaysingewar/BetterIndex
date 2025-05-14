@@ -1,17 +1,18 @@
 "use client";
-import { LogOutIcon, SettingsIcon, SquarePen, TextSearch } from "lucide-react";
+import {
+  LogOutIcon,
+  Moon,
+  SettingsIcon,
+  SquarePen,
+  Sun,
+  TextSearch,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   Drawer,
-  // DrawerClose,
   DrawerContent,
+  DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,24 +23,18 @@ import { Button } from "./ui/button";
 import ChatHistory from "./ChatHistory";
 import { Switch } from "./ui/switch";
 import { useUserStore } from "@/store/userStore";
-import Settings from "./Setting";
 
 import Default from "@/assets/default.png";
+import { useTheme } from "next-themes";
 // import Spinner from "./Spinner";
 
 interface HeaderInterface {
   landingPage: boolean | undefined;
-  isNewUser: boolean;
   isAnonymous: boolean;
 }
 
-export default function Header({
-  landingPage,
-  isNewUser,
-  isAnonymous,
-}: HeaderInterface) {
-  const [openSettings, setOpenSettings] = useState(false);
-  const [openChatHistoryDialog, setOpenChatHistoryDialog] = useState(false);
+export default function Header({ landingPage, isAnonymous }: HeaderInterface) {
+  const { theme, setTheme } = useTheme();
   const [openChatHistoryDrawer, setOpenChatHistoryDrawer] = useState(false);
   const [signLading, setSignLading] = useState(false);
   const [logOutLading, setLogOutLading] = useState(false);
@@ -177,14 +172,13 @@ export default function Header({
   };
 
   const closeChatHistory = () => {
-    setOpenChatHistoryDialog(false);
     setOpenChatHistoryDrawer(false);
   };
 
   return (
-    <div className="w-full block lg:hidden">
+    <div className="w-full block">
       <div
-        className={`flex flex-row items-center justify-between w-full max-w-full bg-[#1d1e20] md:bg-transparent shadow-lg shadow-neutral-800 dark:shadow-[#1d1e20] md:shadow-none md:fixed top-0 ${
+        className={`flex flex-row items-center justify-between w-full max-w-full bg-transparent top-0 ${
           landingPage ? "fixed top-0" : ""
         }`}
       >
@@ -195,63 +189,9 @@ export default function Header({
           id={"desktop-menu"}
           className="flex flex-row px-4 justify-center items-center"
         >
-          <div className="flex-row px-4 pt-2 justify-center items-center hidden md:flex">
-            <div
-              className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full"
-              onClick={() => {
-                if (location.href.includes("/chat?new=true")) {
-                  return;
-                }
-                // router.push("/chat?new=true");
-                const currentSearchParams = new URLSearchParams(
-                  window.location.search
-                );
-                currentSearchParams.delete("chatId");
-                currentSearchParams.set("new", "true");
-                window.history.pushState(
-                  {},
-                  "",
-                  `/chat?${currentSearchParams}`
-                );
-              }}
-            >
-              <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
-            </div>
-            <Dialog
-              open={openChatHistoryDialog}
-              onOpenChange={setOpenChatHistoryDialog}
-            >
-              <DialogTrigger className="outline-none">
-                <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full outline-none">
-                  <TextSearch
-                    className="w-5 h-5 text-white"
-                    strokeWidth={2.5}
-                  />
-                </div>
-              </DialogTrigger>
-              <DialogContent className="bg-[#1d1e20] rounded-lg  w-[53vw]">
-                <DialogTitle className="sr-only"></DialogTitle>
-                <ChatHistory max_chats={10} onClose={closeChatHistory} />
-              </DialogContent>
-            </Dialog>
-            {!isAnonymous && !isNewUser && (
-              <button
-                className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full outline-none"
-                onClick={() => setOpenSettings(true)}
-              >
-                <SettingsIcon
-                  className="w-[17px] h-[17px] text-white outline-none"
-                  strokeWidth={2.5}
-                />
-              </button>
-            )}
-
-            {isAnonymous && SignInComponent()}
-            {isNewUser && SignInComponent()}
-          </div>
           <div
             id={"mobile-menu"}
-            className="flex-row pt-2 justify-center items-center flex md:hidden"
+            className="flex-row pt-2 justify-center items-center flex"
           >
             <div
               className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full"
@@ -268,7 +208,10 @@ export default function Header({
                 );
               }}
             >
-              <SquarePen className="w-4 h-4 text-white" strokeWidth={2.8} />
+              <SquarePen
+                className="w-4 h-4 dark:text-white"
+                strokeWidth={2.8}
+              />
             </div>
             <Drawer
               open={openChatHistoryDrawer}
@@ -277,12 +220,13 @@ export default function Header({
               <DrawerTrigger className="outline-none">
                 <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full outline-none">
                   <TextSearch
-                    className="w-5 h-5 text-white"
+                    className="w-5 h-5 dark:text-white"
                     strokeWidth={2.5}
                   />
                 </div>
               </DrawerTrigger>
-              <DrawerContent className="w-full bg-[#1d1e20] rounded-t-2xl max-w-2xl ">
+              <DrawerContent className="w-full dark:bg-[#1d1e20] rounded-t-2xl ">
+                <DrawerTitle></DrawerTitle>
                 <ChatHistory max_chats={7} onClose={closeChatHistory} />
               </DrawerContent>
             </Drawer>
@@ -293,12 +237,13 @@ export default function Header({
                 <DrawerTrigger className="outline-none">
                   <div className="p-3 hover:bg-neutral-200 dark:hover:bg-[#36383a] cursor-pointer rounded-full outline-none">
                     <SettingsIcon
-                      className="w-[17px] h-[17px] text-white outline-none"
+                      className="w-[17px] h-[17px] dark:text-white outline-none"
                       strokeWidth={2.5}
                     />
                   </div>
                 </DrawerTrigger>
-                <DrawerContent className="w-full bg-[#1d1e20] rounded-t-2xl max-w-2xl">
+                <DrawerContent className="w-full dark:bg-[#1d1e20] rounded-t-2xl">
+                  <DrawerTitle></DrawerTitle>
                   <Tabs defaultValue="account" className="mt-5 min-h-[560px]">
                     <TabsList className="w-[90%] mx-auto mb-3">
                       <TabsTrigger value="account">Account</TabsTrigger>
@@ -329,23 +274,23 @@ export default function Header({
                           {currentUsage !== null && totalLimit !== null ? (
                             <>
                               <div className="flex justify-between items-center mb-1 text-sm">
-                                <span className="font-medium text-white">
-                                  Standard
+                                <span className="font-medium dark:text-white">
+                                  Free Tier
                                 </span>{" "}
                                 {/* Label */}
-                                <span className="font-medium text-gray-400">{`${currentUsage}/${totalLimit}`}</span>{" "}
+                                <span className="font-medium dark:text-gray-400 text-neutral-800">{`${currentUsage}/${totalLimit}`}</span>{" "}
                                 {/* Usage/Total */}
                               </div>
-                              <div className="w-full bg-neutral-600 rounded-full h-1.5 dark:bg-gray-700">
+                              <div className="w-full bg-neutral-800 rounded-full h-1.5 dark:bg-gray-700">
                                 {" "}
                                 {/* Progress bar container */}
                                 <div
-                                  className="bg-white h-1.5 rounded-full" // Progress bar fill (pink)
+                                  className="dark:bg-white h-1.5 rounded-full" // Progress bar fill (pink)
                                   style={{ width: `${progressPercentage}%` }}
                                 ></div>
                               </div>
                               {remainingMessages !== null && (
-                                <p className="text-xs text-gray-400 mt-1">
+                                <p className="text-xs text-neutral-500 mt-1">
                                   {`${remainingMessages} message${
                                     remainingMessages !== 1 ? "s" : ""
                                   } remaining`}{" "}
@@ -358,6 +303,23 @@ export default function Header({
                               Loading rate limit...
                             </p> // Loading state
                           )}
+                        </div>
+                        <div className="flex flex-col space-y-2 mt-5 w-[320px]">
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                              <p className="text-sm font-medium">Dark Mode</p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Sun className="h-5 w-5" />
+                              <Switch
+                                checked={theme === "dark"}
+                                onCheckedChange={(checked) => {
+                                  setTheme(checked ? "dark" : "light");
+                                }}
+                              />
+                              <Moon className="h-5 w-5" />
+                            </div>
+                          </div>
                         </div>
                         <Button
                           className="mt-10 w-[100px] cursor-pointer outline-none"
@@ -495,25 +457,10 @@ export default function Header({
                       </div>
                     </TabsContent>
                   </Tabs>
-                  {/* <DrawerFooter>
-                    <Button>Submit</Button>
-                    <DrawerClose>
-                      <Button variant="outline">Cancel</Button>
-                    </DrawerClose>
-                  </DrawerFooter> */}
                 </DrawerContent>
               </Drawer>
             )}
           </div>
-
-          {!isAnonymous && (
-            <Dialog open={openSettings} onOpenChange={setOpenSettings}>
-              <DialogContent className="bg-[#1d1e20] h-[60vh] w-[53vw]">
-                <DialogTitle className="sr-only">Settings</DialogTitle>
-                <Settings />
-              </DialogContent>
-            </Dialog>
-          )}
         </div>
       </div>
     </div>
