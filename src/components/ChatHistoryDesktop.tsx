@@ -178,7 +178,7 @@ export default function ChatHistoryDesktop({
   });
 
   const handleChatClick = useCallback(
-    (chatId: string) => {
+    (chatId: string, chatTitle: string) => {
       const currentPath = window.location.pathname;
       const currentSearchParams = new URLSearchParams(window.location.search);
       const currentChatId = currentSearchParams.get("chatId");
@@ -187,6 +187,8 @@ export default function ChatHistoryDesktop({
         onClose(); // Already on the page, just close sidebar
         return;
       }
+
+      document.title = chatTitle + " - Better Index";
       currentSearchParams.set("chatId", chatId);
       currentSearchParams.delete("new");
       window.history.pushState({}, "", `/chat?${currentSearchParams}`);
@@ -285,11 +287,11 @@ export default function ChatHistoryDesktop({
                       height: `${virtualRow.size}px`,
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
-                    onClick={() => handleChatClick(chat.id)}
+                    onClick={() => handleChatClick(chat.id, chat.title)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) =>
-                      e.key === "Enter" && handleChatClick(chat.id)
+                      e.key === "Enter" && handleChatClick(chat.id, chat.title)
                     }
                   >
                     <div

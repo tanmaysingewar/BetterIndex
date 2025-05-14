@@ -22,6 +22,7 @@ import Image from "next/image";
 // import { Button } from "@/components/ui/button";
 // import { Menu } from "lucide-react";
 import ChatHistoryDesktop from "@/components/ChatHistoryDesktop";
+import Head from "next/head";
 
 const pacifico = Pacifico({
   subsets: ["latin"],
@@ -109,6 +110,7 @@ export default function ChatPage({
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const { user, setUser } = useUserStore();
   const [isLoadingChats, setIsLoadingChats] = useState(false);
+  const [chatTitle, setChatTitle] = useState<string>("Better Index");
 
   const initialMessage = useMessageStore((state) => state.initialMessage);
   const setInitialMessage = useMessageStore((state) => state.setInitialMessage);
@@ -309,7 +311,18 @@ export default function ChatPage({
           if (Array.isArray(parsedMessages)) {
             setMessages(parsedMessages); // Set state from LS
             foundInLs = true;
-            // if (parsedMessages.length > 0) setChatInitiated(true); // Set initiated later
+
+            // Get chat title from cache
+            const chatCache = localStorage.getItem("chatHistoryCache");
+            if (chatCache) {
+              const parsedCache = JSON.parse(chatCache);
+              const chat = parsedCache.chats.find(
+                (c: Chat) => c.id === chatIdFromUrl
+              );
+              if (chat) {
+                setChatTitle(chat.title);
+              }
+            }
           } else {
             console.warn(
               "Invalid data format in Local Storage for",
@@ -536,6 +549,7 @@ export default function ChatPage({
           };
 
           const added = addChatToCache(chat);
+          document.title = get_header;
 
           if (added) {
             console.log("Chat successfully added to the local cache.");
@@ -688,6 +702,7 @@ export default function ChatPage({
       setCurrentChatId(null);
       setChatInitiated(false);
       setMessages([]);
+      setChatTitle("Better Index"); // Reset title for new chat
     }
   }, [searchParams]);
 
@@ -751,6 +766,10 @@ export default function ChatPage({
   return (
     <div className="flex w-full h-full">
       {/* Chat History - Hidden on mobile by default */}
+      <Head>
+        <title>{chatTitle}</title>
+        <meta name="description" content="example description" />
+      </Head>
       <div
         className={cn(
           "hidden lg:block max-w-[300px] w-full h-full fixed md:relative z-50 transition-transform duration-200 ease-in-out scrollbar-hide"

@@ -15,10 +15,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Better Index",
-  description: "Your Indexing Company",
-};
+// export const metadata: Metadata = {
+//   title: "Better Index",
+//   description: "Your Indexing Company",
+// };
 
 export default function RootLayout({
   children,
