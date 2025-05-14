@@ -219,7 +219,6 @@ export default function ChatHistoryDesktop({
         {" "}
         Better Index
       </span>
-      <ThemeToggle />
       <Button
         onClick={() => {
           const currentSearchParams = new URLSearchParams(

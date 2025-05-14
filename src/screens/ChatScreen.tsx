@@ -928,11 +928,11 @@ const RenderMessageOnScreen = ({
             messages.length - 1 === index &&
             message.role === "user" &&
             chatInitiated
-              ? "calc(-174px + 100vh)"
+              ? "calc(-300px + 100vh)"
               : messages.length - 1 === index &&
                 message.role === "assistant" &&
                 chatInitiated
-              ? "calc(-212px + 100vh)"
+              ? "calc(-240px + 100vh)"
               : "auto"
           }`,
         }}
