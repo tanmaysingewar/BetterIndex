@@ -227,6 +227,7 @@ export default function ChatHistoryDesktop({
           );
           currentSearchParams.delete("chatId");
           currentSearchParams.set("new", "true");
+          document.title = "Better Index";
           return window.history.pushState(
             {},
             "",

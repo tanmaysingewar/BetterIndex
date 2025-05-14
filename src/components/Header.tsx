@@ -199,6 +199,7 @@ export default function Header({ landingPage, isAnonymous }: HeaderInterface) {
                 const currentSearchParams = new URLSearchParams(
                   window.location.search
                 );
+                document.title = "Better Index";
                 currentSearchParams.delete("chatId");
                 currentSearchParams.set("new", "true");
                 window.history.pushState(
