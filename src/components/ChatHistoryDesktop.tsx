@@ -18,7 +18,6 @@ import { authClient } from "@/lib/auth-client";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Loader2 } from "lucide-react";
 import { CHAT_CACHE_UPDATED_EVENT } from "@/lib/fetchChats";
-import { ThemeToggle } from "./theme-provider";
 import { DialogTitle } from "@radix-ui/react-dialog";
 
 const pacifico = Pacifico({
