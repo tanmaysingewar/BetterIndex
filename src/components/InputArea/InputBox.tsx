@@ -9,7 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import Link from "next/link";
+// import Link from "next/link";
 
 interface InputBoxProps {
   input: string;
@@ -239,12 +239,12 @@ export default function InputBox({
                         <p className="text-sm">{model.key}</p>
                       </div>
                     ))}
-                    <p className="text-xs dark:text-neutral-400 text-neutral-500">
+                    {/* <p className="text-xs dark:text-neutral-400 text-neutral-500">
                       Add Free Gemini API Key for more models{" "}
                       <Link href="/settings" className="text-blue-500">
                         here
                       </Link>
-                    </p>
+                    </p> */}
                   </div>
                 </PopoverContent>
               </Popover>
