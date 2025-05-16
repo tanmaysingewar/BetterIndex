@@ -281,7 +281,7 @@ export async function POST(req: Request) {
     }
     userId = sessionData.user.id; // Assign userId here
 
-    const userEmail = sessionData.user.email;
+    // const userEmail = sessionData.user.email;
 
     // --- Check Word Count (early check) ---
     const wordCount = message.trim().split(/\s+/).length;
