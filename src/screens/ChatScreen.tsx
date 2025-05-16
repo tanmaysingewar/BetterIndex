@@ -108,6 +108,16 @@ export default function ChatPage({
   const { user, setUser } = useUserStore();
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [chatTitle, setChatTitle] = useState<string>("Better Index");
+  const [selectedModel, setSelectedModel] = useState<string>(
+    "gemini-2.5-flash-preview-04-17"
+  );
+
+  // Add effect to track model changes
+  useEffect(() => {
+    console.log("selectedModel state changed to:", selectedModel);
+  }, [selectedModel]);
+
+  console.log("selectedModel at render:", selectedModel);
 
   const initialMessage = useMessageStore((state) => state.initialMessage);
   const setInitialMessage = useMessageStore((state) => state.setInitialMessage);
@@ -498,11 +508,14 @@ export default function ChatPage({
         // Send history *before* the optimistic user message
         // For new chats, history will be empty
         previous_conversations: isNewChat ? [] : messages,
+        model: selectedModel,
       };
+
+      console.log("selectedModel in handleSendMessage : ", selectedModel);
 
       try {
         // Make the LLM provider dynamic
-        const response = await fetch("/api/grok-mini", {
+        const response = await fetch("/api/gemini", {
           method: "POST",
           headers: requestHeaders,
           body: JSON.stringify(requestBody),
@@ -661,11 +674,12 @@ export default function ChatPage({
     },
     [
       isGenerating,
-      messages, // Remove direct dependency on messages, use functional updates
       currentChatId,
       router,
-      initialMessage, // Keep dependency to check if it's the initial one
-      // setInitialMessage // Keep if needed elsewhere, but not directly for sending logic state capture
+      initialMessage,
+      selectedModel,
+      messages,
+      setInitialMessage,
     ]
   );
 
@@ -841,6 +855,8 @@ export default function ChatPage({
               setInput={setInput}
               onSend={handleSendMessage}
               disabled={isGenerating}
+              selectedModel={selectedModel}
+              setSelectedModel={setSelectedModel}
             />
           </div>
         </div>

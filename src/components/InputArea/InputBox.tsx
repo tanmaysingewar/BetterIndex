@@ -1,8 +1,15 @@
 "use client";
 import React, { useState, useEffect, useCallback, KeyboardEvent } from "react";
-import { OctagonPause, Send } from "lucide-react";
+import { OctagonPause, Send, Search, ChevronDown } from "lucide-react";
 import { Button } from "../ui/button";
 import TextInput from "./TextInput";
+
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import Link from "next/link";
 
 interface InputBoxProps {
   input: string;
@@ -10,6 +17,8 @@ interface InputBoxProps {
   onSend: (message: string) => void;
   height: number;
   disabled?: boolean;
+  selectedModel?: string;
+  setSelectedModel?: (value: string) => void;
 }
 
 export default function InputBox({
@@ -18,6 +27,8 @@ export default function InputBox({
   onSend,
   height,
   disabled,
+  selectedModel,
+  setSelectedModel = () => {},
 }: InputBoxProps) {
   // Suggestion filtering and navigation state
   const lastWord = input.split(" ").slice(-1)[0];
@@ -25,23 +36,25 @@ export default function InputBox({
     .split(" ")
     .some((word) => word.startsWith("#") && word !== lastWord);
 
-  const filteredSuggestions = lastWord.startsWith("@")
-    ? popularToolsAndFrameworks
-        .filter((tool) =>
-          tool
-            .toLowerCase()
-            .includes(lastWord.trim().replace("@", "").toLowerCase())
-        )
-        .slice(0, 5)
-    : lastWord.startsWith("#") && !hasExistingTone
-    ? promptSuggestions
-        .filter((suggestion) =>
-          suggestion
-            .toLowerCase()
-            .includes(lastWord.trim().replace("#", "").toLowerCase())
-        )
-        .slice(0, 5)
-    : [];
+  const filteredSuggestions =
+    // lastWord.startsWith("@")
+    //   ? popularToolsAndFrameworks
+    //       .filter((tool) =>
+    //         tool
+    //           .toLowerCase()
+    //           .includes(lastWord.trim().replace("@", "").toLowerCase())
+    //       )
+    //       .slice(0, 5)
+    //   :
+    lastWord.startsWith("#") && !hasExistingTone
+      ? promptSuggestions
+          .filter((suggestion) =>
+            suggestion
+              .toLowerCase()
+              .includes(lastWord.trim().replace("#", "").toLowerCase())
+          )
+          .slice(0, 5)
+      : [];
   // lastWord.startsWith("$")
   // ? tools
   //     .filter((tool) =>
@@ -52,15 +65,16 @@ export default function InputBox({
   //     .slice(0, 5)
   // :
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [openPopover, setOpenPopover] = useState(false);
+  const [modelSearch, setModelSearch] = useState("");
+  const [selectedModelName, setSelectedModelName] =
+    useState("Gemini 2.5 Flash");
+
   const handleSelection = useCallback(
     (selection: string) => {
       const tokens = input.split(" ");
       const lastToken = tokens[tokens.length - 1];
-      const prefix = lastToken.startsWith("@")
-        ? "@"
-        : lastToken.startsWith("#")
-        ? "#"
-        : "$";
+      const prefix = lastToken.startsWith("#") ? "#" : "$";
 
       // If adding a !word, remove any existing !words
       if (prefix === "#") {
@@ -132,6 +146,20 @@ export default function InputBox({
     setSelectedIndex(0);
   }, [input.split(" ").slice(-1)[0]]);
 
+  const handleModelSelect = (model: { key: string; value: string }) => {
+    setSelectedModel(model.value);
+    setSelectedModelName(model.key);
+    setOpenPopover(false);
+    setModelSearch(""); // Reset search when a model is selected
+  };
+
+  // Filter models based on search
+  const filteredModels = modelSearch
+    ? openSourceModels.filter((model) =>
+        model.key.toLowerCase().includes(modelSearch.toLowerCase())
+      )
+    : openSourceModels;
+
   return (
     <div>
       <div className="max-w-3xl text-base font-sans lg:px-0 w-screen md:rounded-t-3xl px-2 fixed bottom-0">
@@ -172,7 +200,54 @@ export default function InputBox({
           />
           <div className="flex flex-row justify-between w-full mt-0">
             <div className="flex flex-row mt-2 dark:text-neutral-200">
-              <p className="text-sm mx-3">Grok 3 Mini</p>
+              <Popover open={openPopover} onOpenChange={setOpenPopover}>
+                <PopoverTrigger>
+                  <div className="flex items-center px-2 py-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 cursor-pointer space-x-2">
+                    <p className="text-sm">{selectedModelName}</p>
+                    <ChevronDown className="w-5 h-5" />
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  className="max-w-2xl p-2 w-[300px] bg-white dark:bg-[#161719]"
+                >
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium mb-2">Select Model</p>
+                    <div className="relative mb-2">
+                      <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
+                        <Search className="h-4 w-4 text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Search models..."
+                        value={modelSearch}
+                        onChange={(e) => setModelSearch(e.target.value)}
+                        aria-label="Search models"
+                        className="pl-8 w-full py-1.5 px-2 rounded bg-gray-100 dark:bg-neutral-800 text-sm focus:outline-none "
+                      />
+                    </div>
+                    {filteredModels.map((model) => (
+                      <div
+                        key={model.key}
+                        className={`px-2 py-1.5 rounded cursor-pointer ${
+                          selectedModel === model.value
+                            ? "bg-neutral-200 dark:bg-neutral-800"
+                            : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                        }`}
+                        onClick={() => handleModelSelect(model)}
+                      >
+                        <p className="text-sm">{model.key}</p>
+                      </div>
+                    ))}
+                    <p className="text-xs dark:text-neutral-400 text-neutral-500">
+                      Add Free Gemini API Key for more models{" "}
+                      <Link href="/settings" className="text-blue-500">
+                        here
+                      </Link>
+                    </p>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="flex flex-row justify-center items-center">
               <p className="text-xs dark:text-neutral-400 text-neutral-500 mr-3 hidden sm:block">
@@ -197,11 +272,11 @@ export default function InputBox({
   );
 }
 
-const popularToolsAndFrameworks: string[] = [
-  "Modal",
-  "Manim",
-  "IndianConstitution",
-];
+// const popularToolsAndFrameworks: string[] = [
+//   "Modal",
+//   "Manim",
+//   "IndianConstitution",
+// ];
 
 const promptSuggestions: string[] = [
   "TravelGuide",
@@ -230,3 +305,14 @@ const promptSuggestions: string[] = [
 // const tools = [
 //   "Search",
 // ];
+
+const openSourceModels = [
+  {
+    key: "Gemini 2.5 Flash",
+    value: "gemini-2.5-flash-preview-04-17",
+  },
+  {
+    key: "Gemini 2.0 Flash",
+    value: "gemini-2.0-flash",
+  },
+];
