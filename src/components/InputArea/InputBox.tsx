@@ -103,12 +103,12 @@ export default function InputBox({
           />
           <div className="flex flex-row justify-between w-full mt-0">
             <div className="flex flex-row mt-2 dark:text-neutral-200 mx-3">
-              <p className="text-sm dark:text-neutral-400 text-neutral-500 mr-3 hidden sm:block">
+              <p className="text-sm dark:text-neutral-400 text-neutral-500 mr-3">
                 {currentCharacterCount}/{maxCharacterCount}
               </p>
             </div>
             <div className="flex flex-row justify-center items-center">
-              <p className="text-xs dark:text-neutral-400 text-neutral-500 mr-3 hidden sm:block">
+              <p className="text-xs dark:text-neutral-400 text-neutral-500 mr-3 hidden md:block">
                 Use{" "}
                 <span className="dark:text-white text-black">
                   shift + return

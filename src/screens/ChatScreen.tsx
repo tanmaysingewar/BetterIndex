@@ -849,7 +849,7 @@ export default function ChatPage({
   }, [currentChatId]);
 
   return (
-    <div className={`flex w-full h-full `}>
+    <div className={`flex w-full h-full`}>
       {/* Chat History - Hidden on mobile by default */}
       <Head>
         <title>{chatTitle}</title>
