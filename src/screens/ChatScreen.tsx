@@ -5,13 +5,11 @@ import InputBox from "@/components/InputArea/InputBox";
 import Header from "@/components/Header";
 import Spinner from "@/components/Spinner";
 import MessageRenderer from "@/components/MessageRenderer";
-import { useMessageStore } from "@/store/messageStore";
 import { useUserStore } from "@/store/userStore";
 import { authClient } from "@/lib/auth-client";
 import Cookies from "js-cookie";
 import { fetchAllChatsAndCache } from "@/lib/fetchChats";
 import getRateLimit from "@/lib/fetchRateLimit";
-import { Pacifico } from "next/font/google";
 import { cn } from "@/lib/utils";
 import Logo_light from "@/assets/logo_light.svg";
 import Logo_Dark from "@/assets/logo_dark.svg";
@@ -19,13 +17,8 @@ import Image from "next/image";
 import ChatHistoryDesktop from "@/components/ChatHistoryDesktop";
 import Head from "next/head";
 import { Check, CopyIcon } from "lucide-react";
+import { Pacifico } from "next/font/google";
 // import { Button } from "@/components/ui/button";
-
-const pacifico = Pacifico({
-  subsets: ["latin"],
-  weight: ["400"],
-  variable: "--font-pacifico",
-});
 
 interface Message {
   role: "user" | "assistant";
@@ -85,6 +78,136 @@ interface User {
   rateLimit?: string | null | undefined;
 }
 
+interface Chat {
+  id: string;
+  title: string;
+  createdAt: string; // Keep this, might be useful for sorting later if needed
+}
+
+// Define a specific cache key for all chats
+const ALL_CHATS_CACHE_KEY = "chatHistoryCache";
+
+// Define the structure for the data we'll store
+interface AllChatsCacheData {
+  chats: Chat[];
+  totalChats: number; // Store the total count reported by the API
+  timestamp: number; // Timestamp of when the cache was created
+}
+
+const addChatToCache = (newChat: Chat): boolean => {
+  // Check if localStorage is available
+  if (typeof window === "undefined" || !window.localStorage) {
+    console.error("localStorage is not available. Cannot add chat to cache.");
+    return false;
+  }
+
+  console.log(`Attempting to add chat (ID: ${newChat.id}) to cache...`);
+
+  try {
+    // --- Step 1: Retrieve existing cache data ---
+    const existingCacheJson = localStorage.getItem("chatHistoryCache");
+    console.log("Existing cache data:", existingCacheJson);
+    let cacheData: AllChatsCacheData;
+
+    if (existingCacheJson) {
+      // --- Step 2a: Parse existing cache ---
+      try {
+        cacheData = JSON.parse(existingCacheJson);
+        // Basic validation of existing cache structure
+        if (!cacheData || !Array.isArray(cacheData.chats)) {
+          console.warn(
+            "Existing cache data is corrupted. Creating a new cache."
+          );
+          // Treat as if cache didn't exist
+          cacheData = {
+            chats: [],
+            totalChats: 0,
+            timestamp: Date.now(),
+          };
+        }
+      } catch (parseError) {
+        console.error("Failed to parse existing cache data:", parseError);
+        // Optionally clear the corrupted cache
+        // localStorage.removeItem(ALL_CHATS_CACHE_KEY);
+        // Proceed to create a new cache below
+        cacheData = {
+          chats: [],
+          totalChats: 0,
+          timestamp: Date.now(),
+        };
+      }
+
+      // --- Step 3a: Add new chat to existing list (prepend) ---
+      cacheData.chats.unshift(newChat); // Add to the beginning
+      cacheData.totalChats += 1; // Increment total count
+      cacheData.timestamp = Date.now(); // Update timestamp
+      console.log(
+        `Added chat to existing cache. New total: ${cacheData.totalChats}`
+      );
+    } else {
+      // --- Step 2b/3b: Create new cache if none exists ---
+      console.log("No existing cache found. Creating a new one.");
+      cacheData = {
+        chats: [newChat], // Start with the new chat
+        totalChats: 1, // Total is now 1
+        timestamp: Date.now(),
+      };
+    }
+
+    // --- Step 4: Store the updated data back in localStorage ---
+    try {
+      localStorage.setItem(ALL_CHATS_CACHE_KEY, JSON.stringify(cacheData));
+      console.log(
+        `Successfully updated cache with chat (ID: ${newChat.id}) under key "${ALL_CHATS_CACHE_KEY}".`
+      );
+
+      // Dispatch a storage event to notify other components of the change
+      // This will be picked up by the event listener in ChatHistoryDesktop
+      try {
+        // The storage event only fires in other tabs/windows by default
+        // To make it work in the same tab, we need to manually dispatch an event
+        window.dispatchEvent(
+          new StorageEvent("storage", {
+            key: ALL_CHATS_CACHE_KEY,
+            newValue: JSON.stringify(cacheData),
+            storageArea: localStorage,
+          })
+        );
+        console.log("Dispatched storage event for chat history update");
+      } catch (eventError) {
+        console.error("Failed to dispatch storage event:", eventError);
+        // Continue anyway since the localStorage was updated successfully
+      }
+
+      return true;
+    } catch (storageError) {
+      console.error(
+        "Failed to save updated cache to localStorage:",
+        storageError
+      );
+      if (
+        storageError instanceof Error &&
+        storageError.name === "QuotaExceededError"
+      ) {
+        console.error(
+          "LocalStorage quota exceeded. Unable to save updated cache."
+        );
+        // Optional: Implement cache eviction strategy here if needed
+      }
+      // Revert the in-memory changes if save fails? Depends on desired behavior.
+      // For simplicity, we don't revert here, but the function returns false.
+      return false;
+    }
+  } catch (error) {
+    // Catch any unexpected errors during the process
+    console.error(
+      "An unexpected error occurred while adding chat to cache:",
+      error
+    );
+    return false;
+  }
+};
+
 interface ChatPageProps {
   sessionDetails: {
     user: User | null; // Allow user to be null within sessionDetails
@@ -92,6 +215,12 @@ interface ChatPageProps {
   isNewUser: boolean;
   isAnonymous: boolean;
 }
+
+const pacifico = Pacifico({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-pacifico",
+});
 
 export default function ChatPage({
   sessionDetails,
@@ -108,19 +237,6 @@ export default function ChatPage({
   const { user, setUser } = useUserStore();
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [chatTitle, setChatTitle] = useState<string>("Better Index");
-  const [selectedModel, setSelectedModel] = useState<string>(
-    "gemini-2.5-flash-preview-04-17"
-  );
-
-  // Add effect to track model changes
-  useEffect(() => {
-    console.log("selectedModel state changed to:", selectedModel);
-  }, [selectedModel]);
-
-  console.log("selectedModel at render:", selectedModel);
-
-  const initialMessage = useMessageStore((state) => state.initialMessage);
-  const setInitialMessage = useMessageStore((state) => state.setInitialMessage);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const serverFetchInitiated = useRef<Record<string, boolean>>({});
@@ -232,11 +348,7 @@ export default function ChatPage({
           }
         }
 
-        if (
-          navigationEntry.type === "reload" &&
-          chatIdFromUrl &&
-          !initialMessage
-        ) {
+        if (navigationEntry.type === "reload" && chatIdFromUrl) {
           const fetchMessagesFromServer = async (chatIdToFetch: string) => {
             serverFetchInitiated.current[chatIdToFetch] = true;
             console.log(
@@ -337,7 +449,7 @@ export default function ChatPage({
             );
             localStorage.removeItem(getLocalStorageKey(chatIdFromUrl));
           }
-        } else if (!initialMessage) {
+        } else {
           const fetchMessagesFromServer = async (chatIdToFetch: string) => {
             serverFetchInitiated.current[chatIdToFetch] = true;
             console.log(
@@ -402,13 +514,7 @@ export default function ChatPage({
       console.warn("No chat ID found in URL parameters.");
       // Optional: Redirect or handle base route
     }
-  }, [
-    searchParams,
-    currentChatId,
-    initialMessage,
-    setInitialMessage,
-    isGenerating,
-  ]);
+  }, [searchParams, currentChatId, isGenerating]);
 
   // Effect 3: Scroll to bottom
   useEffect(() => {
@@ -441,12 +547,6 @@ export default function ChatPage({
     async (messageContent: string) => {
       const trimmedMessage = messageContent.trim();
       if (!trimmedMessage || isGenerating) return;
-
-      // Check if this is handling the initial message
-      const isProcessingInitial = initialMessage === trimmedMessage;
-      if (isProcessingInitial) {
-        processingInitialMessageRef.current = trimmedMessage; // Track it
-      }
 
       setIsGenerating(true);
       setInput("");
@@ -508,14 +608,11 @@ export default function ChatPage({
         // Send history *before* the optimistic user message
         // For new chats, history will be empty
         previous_conversations: isNewChat ? [] : messages,
-        model: selectedModel,
       };
-
-      console.log("selectedModel in handleSendMessage : ", selectedModel);
 
       try {
         // Make the LLM provider dynamic
-        const response = await fetch("/api/gemini", {
+        const response = await fetch("/api/groq", {
           method: "POST",
           headers: requestHeaders,
           body: JSON.stringify(requestBody),
@@ -672,39 +769,16 @@ export default function ChatPage({
         processingInitialMessageRef.current = null; // Clear ref after processing attempt
       }
     },
-    [
-      isGenerating,
-      currentChatId,
-      router,
-      initialMessage,
-      selectedModel,
-      messages,
-      setInitialMessage,
-    ]
+    [isGenerating, currentChatId, router, messages]
   );
 
   // Effect 4: Handle Initial Message from Store
   useEffect(() => {
-    if (
-      initialMessage &&
-      !isGenerating &&
-      currentChatId !== null &&
-      !processingInitialMessageRef.current // Ensure we don't re-process if already started
-    ) {
-      const messageToSend = initialMessage;
-      setInitialMessage(null); // Clear immediately from store
-      handleSendMessage(messageToSend); // Trigger send
+    if (!isGenerating && currentChatId !== null) {
+      handleSendMessage(""); // Trigger send
       console.log(isChatHistoryOpen);
     }
-  }, [
-    isGenerating,
-    messages, // Remove direct dependency on messages, use functional updates
-    currentChatId,
-    router,
-    initialMessage, // Keep dependency to check if it's the initial one
-    setInitialMessage, // Keep if needed elsewhere, but not directly for sending logic state capture
-    handleSendMessage,
-  ]);
+  }, [isGenerating, messages, currentChatId, router, handleSendMessage]);
 
   const inputBoxHeight = 58; // From your InputBox prop
 
@@ -775,7 +849,7 @@ export default function ChatPage({
   }, [currentChatId]);
 
   return (
-    <div className="flex w-full h-full">
+    <div className={`flex w-full h-full `}>
       {/* Chat History - Hidden on mobile by default */}
       <Head>
         <title>{chatTitle}</title>
@@ -795,7 +869,9 @@ export default function ChatPage({
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex flex-col w-full dark:bg-[#222325] bg-white lg:mt-0">
+      <div
+        className={`flex flex-col w-full dark:bg-[#222325] bg-white lg:mt-0 `}
+      >
         <Header landingPage={true} isAnonymous={isAnonymous} />
 
         {messages.length === 0 && searchParams.get("new") ? (
@@ -817,7 +893,7 @@ export default function ChatPage({
             </p>{" "}
             <span
               className={cn(
-                "text-3xl dark:text-white text-black",
+                "text-3xl dark:text-white text-black font-lora",
                 pacifico.className
               )}
             >
@@ -855,8 +931,6 @@ export default function ChatPage({
               setInput={setInput}
               onSend={handleSendMessage}
               disabled={isGenerating}
-              selectedModel={selectedModel}
-              setSelectedModel={setSelectedModel}
             />
           </div>
         </div>
@@ -884,7 +958,7 @@ const highlightSpecialWords = (text: string) => {
       return (
         <span
           key={index}
-          className="bg-blue-500/30 rounded px-1 py-1 text-sm font-semibold"
+          className="bg-blue-500/30 rounded px-1 py-1 text-sm font-semibold font-lora"
         >
           {word}
         </span>
@@ -893,7 +967,7 @@ const highlightSpecialWords = (text: string) => {
       return (
         <span
           key={index}
-          className="bg-pink-500/30 rounded px-1 py-1 text-sm font-semibold"
+          className="bg-pink-500/30 rounded px-1 py-1 text-sm font-semibold font-lora"
         >
           {word}
         </span>
@@ -902,7 +976,7 @@ const highlightSpecialWords = (text: string) => {
       return (
         <span
           key={index}
-          className="bg-orange-500/30 rounded px-1 py-1 text-sm font-semibold"
+          className="bg-orange-500/30 rounded px-1 py-1 text-sm font-semibold font-lora"
         >
           {word}
         </span>
@@ -936,7 +1010,7 @@ const RenderMessageOnScreen = ({
     <>
       {/* Desktop Message Bubble */}
       <div
-        className={`mb-2 hidden md:block ${
+        className={`mb-2 hidden md:block font-lora ${
           message.role === "user" ? "ml-auto" : "mr-auto"
         }`}
         style={{
@@ -958,9 +1032,11 @@ const RenderMessageOnScreen = ({
           {message.role === "user" && (
             <div className="ml-auto max-w-full w-fit">
               <div
-                className={`p-3 rounded-3xl bg-gray-100 dark:bg-[#2d2e30] dark:text-white rounded-br-lg  px-4`}
+                className={`p-3 rounded-3xl bg-gray-100 dark:bg-[#2d2e30] dark:text-white rounded-br-lg  px-4 font-lora`}
               >
-                {highlightSpecialWords(message.content)}
+                <p className="font-lora">
+                  {highlightSpecialWords(message.content)}
+                </p>
               </div>
               <div className="flex flex-col justify-end items-end">
                 {CopyClicked ? (
@@ -1006,7 +1082,7 @@ const RenderMessageOnScreen = ({
 
       {/* Mobile Message Bubble */}
       <div
-        className={`mb-2 block md:hidden ${
+        className={`mb-2 block md:hidden font-lora ${
           message.role === "user" ? "ml-auto" : "mr-auto"
         }`}
         style={{
@@ -1079,135 +1155,3 @@ const RenderMessageOnScreen = ({
 
 // Create the memoized version of the component
 const MemoizedRenderMessageOnScreen = memo(RenderMessageOnScreen);
-
-// --- Helper Functions for localStorage ---
-
-interface Chat {
-  id: string;
-  title: string;
-  createdAt: string; // Keep this, might be useful for sorting later if needed
-}
-
-// Define a specific cache key for all chats
-const ALL_CHATS_CACHE_KEY = "chatHistoryCache";
-
-// Define the structure for the data we'll store
-interface AllChatsCacheData {
-  chats: Chat[];
-  totalChats: number; // Store the total count reported by the API
-  timestamp: number; // Timestamp of when the cache was created
-}
-
-const addChatToCache = (newChat: Chat): boolean => {
-  // Check if localStorage is available
-  if (typeof window === "undefined" || !window.localStorage) {
-    console.error("localStorage is not available. Cannot add chat to cache.");
-    return false;
-  }
-
-  console.log(`Attempting to add chat (ID: ${newChat.id}) to cache...`);
-
-  try {
-    // --- Step 1: Retrieve existing cache data ---
-    const existingCacheJson = localStorage.getItem("chatHistoryCache");
-    console.log("Existing cache data:", existingCacheJson);
-    let cacheData: AllChatsCacheData;
-
-    if (existingCacheJson) {
-      // --- Step 2a: Parse existing cache ---
-      try {
-        cacheData = JSON.parse(existingCacheJson);
-        // Basic validation of existing cache structure
-        if (!cacheData || !Array.isArray(cacheData.chats)) {
-          console.warn(
-            "Existing cache data is corrupted. Creating a new cache."
-          );
-          // Treat as if cache didn't exist
-          cacheData = {
-            chats: [],
-            totalChats: 0,
-            timestamp: Date.now(),
-          };
-        }
-      } catch (parseError) {
-        console.error("Failed to parse existing cache data:", parseError);
-        // Optionally clear the corrupted cache
-        // localStorage.removeItem(ALL_CHATS_CACHE_KEY);
-        // Proceed to create a new cache below
-        cacheData = {
-          chats: [],
-          totalChats: 0,
-          timestamp: Date.now(),
-        };
-      }
-
-      // --- Step 3a: Add new chat to existing list (prepend) ---
-      cacheData.chats.unshift(newChat); // Add to the beginning
-      cacheData.totalChats += 1; // Increment total count
-      cacheData.timestamp = Date.now(); // Update timestamp
-      console.log(
-        `Added chat to existing cache. New total: ${cacheData.totalChats}`
-      );
-    } else {
-      // --- Step 2b/3b: Create new cache if none exists ---
-      console.log("No existing cache found. Creating a new one.");
-      cacheData = {
-        chats: [newChat], // Start with the new chat
-        totalChats: 1, // Total is now 1
-        timestamp: Date.now(),
-      };
-    }
-
-    // --- Step 4: Store the updated data back in localStorage ---
-    try {
-      localStorage.setItem(ALL_CHATS_CACHE_KEY, JSON.stringify(cacheData));
-      console.log(
-        `Successfully updated cache with chat (ID: ${newChat.id}) under key "${ALL_CHATS_CACHE_KEY}".`
-      );
-
-      // Dispatch a storage event to notify other components of the change
-      // This will be picked up by the event listener in ChatHistoryDesktop
-      try {
-        // The storage event only fires in other tabs/windows by default
-        // To make it work in the same tab, we need to manually dispatch an event
-        window.dispatchEvent(
-          new StorageEvent("storage", {
-            key: ALL_CHATS_CACHE_KEY,
-            newValue: JSON.stringify(cacheData),
-            storageArea: localStorage,
-          })
-        );
-        console.log("Dispatched storage event for chat history update");
-      } catch (eventError) {
-        console.error("Failed to dispatch storage event:", eventError);
-        // Continue anyway since the localStorage was updated successfully
-      }
-
-      return true;
-    } catch (storageError) {
-      console.error(
-        "Failed to save updated cache to localStorage:",
-        storageError
-      );
-      if (
-        storageError instanceof Error &&
-        storageError.name === "QuotaExceededError"
-      ) {
-        console.error(
-          "LocalStorage quota exceeded. Unable to save updated cache."
-        );
-        // Optional: Implement cache eviction strategy here if needed
-      }
-      // Revert the in-memory changes if save fails? Depends on desired behavior.
-      // For simplicity, we don't revert here, but the function returns false.
-      return false;
-    }
-  } catch (error) {
-    // Catch any unexpected errors during the process
-    console.error(
-      "An unexpected error occurred while adding chat to cache:",
-      error
-    );
-    return false;
-  }
-};

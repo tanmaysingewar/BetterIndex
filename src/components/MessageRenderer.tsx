@@ -58,7 +58,7 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
   // const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="md:max-w-[710px] max-w-svw">
+    <div className={`md:max-w-[710px] max-w-svw`}>
       <section>
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
@@ -157,7 +157,7 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
                 // Inline code styling
                 <code
                   {...rest}
-                  className={`${className} bg-gray-200 dark:bg-gray-700 rounded px-1 py-0.5 text-sm font-mono`}
+                  className={`${className} bg-gray-200 dark:bg-gray-700 rounded px-1 py-0.5 text-sm font-firaCode`}
                 >
                   {children}
                 </code>

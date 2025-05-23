@@ -214,7 +214,7 @@ export default function ChatHistoryDesktop({
 
   return (
     <div className="flex flex-col h-full dark:bg-[#161719] bg-[#f9f9f9]">
-      <span className={cn("text-2xl text-center mt-5", pacifico.className)}>
+      <span className={cn("text-xl text-center mt-5", pacifico.className)}>
         {" "}
         Better Index
       </span>

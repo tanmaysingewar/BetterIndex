@@ -8,6 +8,9 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        firaCode: ["var(--font-fira-code)", "monospace"],
+      },
       keyframes: {
         "rotate-one": {
           "0%": {
