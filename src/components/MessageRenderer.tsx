@@ -1,9 +1,15 @@
 import { Check, CopyIcon } from "lucide-react";
+import { Alike } from "next/font/google";
 import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
+
+const alike = Alike({
+  subsets: ["latin"],
+  weight: ["400"],
+});
 
 interface MessageRendererProps {
   content: string;
@@ -58,40 +64,24 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
   // const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className={`md:max-w-[710px] max-w-svw`}>
+    <div className={`md:max-w-[710px] max-w-svw ${alike.className}`}>
       <section>
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
+            h2(props) {
+              return (
+                <p {...props} className={`mb-4 mt-6 text-left font- text-3xl`}>
+                  {props.children}
+                </p>
+              );
+            },
             code(props) {
               const { children, className, ...rest } = props;
               const match = /language-(\w+)/.exec(className || "");
               const codeText = String(children).replace(/\n$/, "");
               const language = match ? match[1] : null;
-
-              // if (language === "think") {
-
-              //   return (
-              //     <div className="rounded-md overflow-hidden">
-              //       <div
-              //         className="flex justify-between items-center p-2 cursor-pointer transition-colors"
-              //         onClick={() => setIsExpanded(!isExpanded)}
-              //       >
-
-              //         <span className="text-white font-medium text-xs flex flex-row">AI Thinking {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</span>
-              //       </div>
-              //       {isExpanded && (
-              //         <div className="text-wrap font-mono text-sm p-3 bg-neutral-900 rounded-sm">
-              //           {codeText}
-              //         </div>
-              //       )}
-              //     </div>
-              //   )
-              // }
-
               return match ? (
-                // Container retains relative positioning if needed elsewhere,
-                // but CopyButton is no longer absolutely positioned within it.
                 <div
                   style={{
                     position: "relative",
@@ -154,7 +144,6 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
                   </div>
                 </div>
               ) : (
-                // Inline code styling
                 <code
                   {...rest}
                   className={`${className} bg-gray-200 dark:bg-gray-700 rounded px-1 py-0.5 text-sm font-firaCode`}
