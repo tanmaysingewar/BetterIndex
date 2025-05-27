@@ -40,3 +40,5 @@ Better Index: Beyond Generic AI, Expertise in Every Response
 
 Description:
 Better Index: Fine-tune AI outputs with instruction precision, expertly curating and delivering domain-specific guidance exactly when needed for transformative results
+
+fictivmind.com

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { OctagonPause, Send } from "lucide-react";
 import { Button } from "../ui/button";
 import TextInput from "./TextInput";
+import { Switch } from "../ui/switch";
 // import Link from "next/link";
 
 interface InputBoxProps {
@@ -11,6 +12,8 @@ interface InputBoxProps {
   onSend: (message: string) => void;
   height: number;
   disabled?: boolean;
+  searchEnabled: boolean;
+  onSearchToggle: (enabled: boolean) => void;
 }
 
 export default function InputBox({
@@ -19,6 +22,8 @@ export default function InputBox({
   onSend,
   height,
   disabled,
+  searchEnabled,
+  onSearchToggle,
 }: InputBoxProps) {
   // Character counting function
   const getCharacterCount = (text: string): number => {
@@ -106,6 +111,16 @@ export default function InputBox({
               <p className="text-sm dark:text-neutral-400 text-neutral-500 mr-3">
                 {currentCharacterCount}/{maxCharacterCount}
               </p>
+              <div className="mt-0 flex flex-row ">
+                <Switch
+                  className="data-[state=unchecked]:bg-neutral-500"
+                  checked={searchEnabled}
+                  onCheckedChange={onSearchToggle}
+                />
+                <p className="text-sm dark:text-neutral-400 text-neutral-500 ml-2 mt-[-1]">
+                  Search
+                </p>
+              </div>
             </div>
             <div className="flex flex-row justify-center items-center">
               <p className="text-xs dark:text-neutral-400 text-neutral-500 mr-3 hidden md:block">

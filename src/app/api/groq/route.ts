@@ -5,6 +5,7 @@ import { db } from "@/database/db";
 import { nanoid } from "nanoid";
 import { chat, messages, user } from "@/database/schema/auth-schema";
 import { eq } from "drizzle-orm"; // Import eq for querying
+import { tavily } from "@tavily/core";
 
 // --- API Keys ---x
 const groqApiKey = process.env.GROQ_API_KEY;
@@ -22,66 +23,13 @@ if (!qdrantApiKey) {
   );
   // Potentially throw an error or handle this case depending on requirements
 }
-// No need to check for QDRANT_COLLECTION_NAME here
+
+const tavilyClient = tavily({ apiKey: process.env.TAVILY_API_KEY! });
 
 const groqClient = new Groq({
   apiKey:
     groqApiKey || "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", // Replace with your actual key or env var
 });
-
-// Instantiate Qdrant Client
-// const qdrantClient = new QdrantClient({
-//   url: qdrantUrl,
-//   apiKey: qdrantApiKey,
-// });
-
-// Function to generate embeddings using OpenAI text-embedding-3-large
-// async function generateEmbedding(text: string): Promise<number[]> {
-//   // Normalize the input text to replace newlines, which can affect performance.
-//   const input = text.replace(/\n/g, " ");
-
-//   if (!openaiApiKey) {
-//     console.error("OpenAI API Key not configured. Cannot generate embeddings.");
-//     throw new Error("OpenAI API Key not configured."); // Throw error to prevent proceeding
-//   }
-
-//   try {
-//     const embeddingResponse = await openai.embeddings.create({
-//       model: "text-embedding-3-large", // Specify the model
-//       input: input,
-//       // Optionally specify dimensions if your Qdrant collection uses a smaller size
-//       // dimensions: 1536, // Or 256, 512 etc. if needed and supported by your Qdrant setup
-//     });
-
-//     // Check if the response structure is as expected
-//     if (
-//       !embeddingResponse ||
-//       !embeddingResponse.data ||
-//       !embeddingResponse.data[0] ||
-//       !embeddingResponse.data[0].embedding
-//     ) {
-//       console.error(
-//         "Invalid response structure from OpenAI API:",
-//         embeddingResponse
-//       );
-//       throw new Error(
-//         "Failed to get embedding from OpenAI: Invalid response structure."
-//       );
-//     }
-
-//     const vector = embeddingResponse.data[0].embedding;
-//     // console.log(`Generated embedding of dimension: ${vector.length}`); // Optional: Log dimension
-//     return vector;
-//   } catch (error) {
-//     console.error("Error generating embedding from OpenAI:", error);
-//     // Re-throw the error or handle it appropriately (e.g., return a default/empty vector or throw specific error)
-//     throw new Error(
-//       `Failed to generate embedding: ${
-//         error instanceof Error ? error.message : String(error)
-//       }`
-//     );
-//   }
-// }
 
 export async function POST(req: Request) {
   // --- Standard Response Headers for Streaming ---
@@ -94,7 +42,8 @@ export async function POST(req: Request) {
     // --- 1. Get Headers and Body ---
     const requestHeaders = await nextHeaders();
     currentChatId = requestHeaders.get("X-Chat-ID");
-    const { message, previous_conversations } = await req.json();
+    const { message, previous_conversations, search_enabled } =
+      await req.json();
 
     // --- 2. Validate Input ---
     if (!currentChatId) {
@@ -265,7 +214,7 @@ export async function POST(req: Request) {
             },
           ],
           model: "llama-3.3-70b-versatile",
-          temperature: 0.7,
+          temperature: 0.1,
         });
 
         // Overright the title of the current chat
@@ -291,6 +240,27 @@ export async function POST(req: Request) {
         JSON.stringify({ error: "Database error during chat handling" }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
+    }
+
+    async function searchWeb(message: string): Promise<string> {
+      try {
+        const res = await tavilyClient.search(message, {
+          includeAnswer: true,
+          includeImages: true as boolean,
+        });
+        console.log("Search Results in Client:", res);
+        return JSON.stringify(res);
+      } catch (error) {
+        console.error("Error in searchWeb:", error);
+        return "";
+      }
+    }
+    let searchResults: string = "";
+
+    // Search Web
+    if (search_enabled) {
+      searchResults = await searchWeb(message);
+      console.log("Search Results:", searchResults);
     }
 
     // --- 6. Prepare messages for Groq API ---
@@ -356,6 +326,8 @@ Prohibited Opening Patterns:
 **Important:**
 - First line should be the title of the response if user ask to write something else if it is casual conversation then skip the title and start with the first line.
 - for title use ## to make it bold
+- If the get images in from the search results then use the image in the response in between the first paragraph and last paragraph, just don't use in the first and last paragraph.
+
 Your responses should be a model of well-crafted language that is both powerful and easy to read, providing a truly valuable and impressive interaction for the user.
       `,
       },
@@ -373,65 +345,14 @@ Your responses should be a model of well-crafted language that is both powerful 
       messages_format.push(...validPreviousConversations);
     }
 
-    // ----------- Add the Context Here ----------
-
-    // function extractAndCleanWordWithAt(sentence: string): string | undefined {
-    //   const words = sentence.split(/\s+/);
-    //   const wordWithAt = words.find((word) => word.startsWith("@"));
-
-    //   if (wordWithAt) {
-    //     return wordWithAt.slice(1).toLowerCase();
-    //   }
-
-    //   return undefined;
-    // }
-
-    // const searchNameSpace = extractAndCleanWordWithAt(message); // This is now the collection name
-    // let docs: string[] = []; // Initialize docs as an empty array
-
-    // // Check if we have a namespace (collection name) and the Qdrant/OpenAI API keys are set
-    // if (searchNameSpace && qdrantApiKey && openaiApiKey) {
-    //   console.log(`Searching Qdrant in collection '${searchNameSpace}'...`);
-    //   try {
-    //     // 1. Generate embedding for the user's message
-    //     const queryVector = await generateEmbedding(message); // Now uses OpenAI
-
-    //     // 2. Search Qdrant using searchNameSpace as the collection name
-    //     const searchResult = await qdrantClient.search(searchNameSpace, {
-    //       vector: queryVector,
-    //       limit: 5,
-    //       with_payload: true,
-    //     });
-
-    //     // 3. Extract content from results
-    //     docs = searchResult
-    //       .map((point) => point.payload?.content as string)
-    //       .filter(
-    //         (content) => typeof content === "string" && content.trim() !== ""
-    //       );
-
-    //     console.log("Retrieved context documents from Qdrant:", docs.length);
-    //   } catch (error) {
-    //     // Log errors from embedding generation or other Qdrant issues
-    //     console.error(
-    //       `Error during Qdrant search/embedding process for collection '${searchNameSpace}':`,
-    //       error
-    //     );
-    //     docs = []; // Ensure docs is empty on error
-    //   }
-    //   console.log(docs);
-    // } else if (searchNameSpace && !qdrantApiKey) {
-    //   console.warn("Qdrant API Key not configured. Skipping context search.");
-    // } else if (searchNameSpace && !openaiApiKey) {
-    //   console.warn("OpenAI API Key not configured. Skipping context search.");
-    // }
-
-    // -------------------------------------------------
-
     // Add the current user message
     messages_format.push({
       role: "user",
-      content: `${message.trim()}`,
+      content: `
+      --------- Search Results ---------
+      ${searchResults}
+      ----------------------------------
+      ${message.trim()}`,
     });
 
     // --- 7. Stream Groq Response and Save Message ---

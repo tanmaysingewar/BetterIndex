@@ -76,6 +76,20 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
                 </p>
               );
             },
+            img(props) {
+              const { src, alt, ...rest } = props;
+              return (
+                <img
+                  {...rest}
+                  src={src}
+                  alt={alt || ""}
+                  className="float-left mr-4 mb-2 max-w-[300px] max-h-[200px] md:max-w-[400px] md:max-h-[300px] object-cover rounded-sm shadow-lg"
+                  style={{
+                    shapeOutside: "margin-box",
+                  }}
+                />
+              );
+            },
             code(props) {
               const { children, className, ...rest } = props;
               const match = /language-(\w+)/.exec(className || "");
@@ -86,6 +100,7 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
                   style={{
                     position: "relative",
                     marginBottom: "1em", // Add space below code blocks
+                    clear: "both", // Clear any floating images before code blocks
                   }}
                 >
                   {/* Wrapper div for header + code block */}
@@ -152,10 +167,31 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
                 </code>
               );
             },
+            p(props) {
+              return (
+                <p {...props} className="mb-4 leading-relaxed text-justify">
+                  {props.children}
+                </p>
+              );
+            },
+            // Add a clearfix div after certain elements to ensure proper layout
+            hr(props) {
+              return (
+                <>
+                  <div style={{ clear: "both" }} />
+                  <hr
+                    {...props}
+                    className="my-6 border-gray-300 dark:border-gray-600"
+                  />
+                </>
+              );
+            },
           }}
         >
           {content}
         </ReactMarkdown>
+        {/* Clear any floating elements at the end */}
+        <div style={{ clear: "both" }} />
       </section>
     </div>
   );

@@ -234,8 +234,9 @@ export default function ChatPage({
   const [isGenerating, setIsGenerating] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  const { user, setUser } = useUserStore();
+  const [searchEnabled, setSearchEnabled] = useState<boolean>(false);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
+  const { user, setUser } = useUserStore();
   const [chatTitle, setChatTitle] = useState<string>("Better Index");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -608,6 +609,7 @@ export default function ChatPage({
         // Send history *before* the optimistic user message
         // For new chats, history will be empty
         previous_conversations: isNewChat ? [] : messages,
+        search_enabled: searchEnabled,
       };
 
       try {
@@ -769,7 +771,7 @@ export default function ChatPage({
         processingInitialMessageRef.current = null; // Clear ref after processing attempt
       }
     },
-    [isGenerating, currentChatId, router, messages]
+    [isGenerating, currentChatId, router, messages, searchEnabled]
   );
 
   // Effect 4: Handle Initial Message from Store
@@ -931,6 +933,8 @@ export default function ChatPage({
               setInput={setInput}
               onSend={handleSendMessage}
               disabled={isGenerating}
+              searchEnabled={searchEnabled}
+              onSearchToggle={setSearchEnabled}
             />
           </div>
         </div>
