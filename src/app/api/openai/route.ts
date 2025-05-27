@@ -329,7 +329,7 @@ Prohibited Opening Patterns:
 **Important:**
 - First line should be the title of the response if user ask to write something else if it is casual conversation then skip the title and start with the first line.
 - for title use ## to make it bold
-- Always respond in 4 paragraphs.
+- Always respond in 5 to 6 paragraphs.
 
 **Important Image Rules:**
 - Always use image if you get image in search results.

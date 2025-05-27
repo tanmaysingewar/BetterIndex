@@ -83,7 +83,7 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
                   {...rest}
                   src={src}
                   alt={alt || ""}
-                  className="float-left mr-4 mb-2 max-w-[300px] max-h-[200px] md:max-w-[400px] md:max-h-[300px] object-cover rounded-sm shadow-lg"
+                  className="w-full mx-auto mb-4 rounded-sm shadow-lg md:float-left md:mr-4 md:mb-2 md:max-w-[400px] md:max-h-[300px] object-cover"
                   style={{
                     shapeOutside: "margin-box",
                   }}

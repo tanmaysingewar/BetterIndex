@@ -232,6 +232,9 @@ export default function ChatPage({
   const [chatInitiated, setChatInitiated] = useState<boolean>(false);
   const [input, setInput] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [loadingPhase, setLoadingPhase] = useState<
+    "searching" | "generating" | null
+  >(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [searchEnabled, setSearchEnabled] = useState<boolean>(false);
@@ -550,7 +553,13 @@ export default function ChatPage({
       if (!trimmedMessage || isGenerating) return;
 
       setIsGenerating(true);
+      setLoadingPhase("searching");
       setInput("");
+
+      // Add a timeout to switch to generating phase after 2 seconds
+      setTimeout(() => {
+        setLoadingPhase("generating");
+      }, 3000);
 
       let chatIdForRequest = currentChatId;
       let isNewChat = false;
@@ -768,6 +777,7 @@ export default function ChatPage({
         });
       } finally {
         setIsGenerating(false);
+        setLoadingPhase(null);
         processingInitialMessageRef.current = null; // Clear ref after processing attempt
       }
     },
@@ -917,7 +927,8 @@ export default function ChatPage({
                   index={index}
                   messages={messages}
                   chatInitiated={chatInitiated}
-                  isGenerating={isGenerating}
+                  loadingPhase={loadingPhase}
+                  searchEnabled={searchEnabled}
                 />
               ))}
               <div ref={messagesEndRef} className="pb-[120px]" />
@@ -949,7 +960,8 @@ interface RenderMessageProps {
   index: number;
   messages: Message[];
   chatInitiated: boolean;
-  isGenerating: boolean;
+  loadingPhase: "searching" | "generating" | null;
+  searchEnabled: boolean;
 }
 
 /**
@@ -1000,6 +1012,8 @@ const RenderMessageOnScreen = ({
   index,
   messages,
   chatInitiated,
+  loadingPhase,
+  searchEnabled,
 }: RenderMessageProps) => {
   const [CopyClicked, setCopyClicked] = useState(false);
 
@@ -1010,6 +1024,39 @@ const RenderMessageOnScreen = ({
       setCopyClicked(false);
     }, 2000);
   };
+  const shineStyle = {
+    backgroundImage:
+      "linear-gradient(70deg, #ffffff 45%, #888888 50%, #ffffff 55%)",
+    backgroundSize: "500% 100%",
+    backgroundClip: "text",
+    WebkitBackgroundClip: "text",
+    color: "transparent",
+    animation: "shine 2s infinite",
+  };
+
+  const LoadingIndicator = () => {
+    return (
+      <div className="flex items-center space-x-2">
+        <style jsx>{`
+          @keyframes shine {
+            0% {
+              background-position: 100% 50%;
+            }
+            100% {
+              background-position: 0% 50%;
+            }
+          }
+        `}</style>
+        <Spinner className="w-5 h-5" />
+        <span className=" text-gray-600 dark:text-gray-300" style={shineStyle}>
+          {searchEnabled && loadingPhase === "searching"
+            ? "Searching..."
+            : "Generating response..."}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <>
       {/* Desktop Message Bubble */}
@@ -1062,7 +1109,7 @@ const RenderMessageOnScreen = ({
                 className={`p-3 rounded-3xl w-fit max-w-full  dark:bg-transparent dark:text-white rounded-bl-lg mr-auto`}
               >
                 {message.content === "loading" ? (
-                  <Spinner />
+                  <LoadingIndicator />
                 ) : (
                   <div className="markdown-content">
                     <MessageRenderer content={message.content || " "} />
@@ -1132,7 +1179,7 @@ const RenderMessageOnScreen = ({
                 className={`p-3 rounded-3xl w-fit max-w-full  dark:bg-transparent dark:text-white rounded-bl-lg mr-auto`}
               >
                 {message.content === "loading" ? (
-                  <Spinner />
+                  <LoadingIndicator />
                 ) : (
                   <div className="markdown-content">
                     <MessageRenderer content={message.content || " "} />
