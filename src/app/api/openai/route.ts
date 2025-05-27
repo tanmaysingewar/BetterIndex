@@ -1,4 +1,4 @@
-import Groq from "groq-sdk";
+// import Groq from "groq-sdk";
 import { auth } from "@/lib/auth";
 import { headers as nextHeaders } from "next/headers";
 import { db } from "@/database/db";
@@ -27,10 +27,10 @@ if (!qdrantApiKey) {
 
 const tavilyClient = tavily({ apiKey: process.env.TAVILY_API_KEY! });
 
-const groqClient = new Groq({
-  apiKey:
-    groqApiKey || "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", // Replace with your actual key or env var
-});
+// const groqClient = new Groq({
+//   apiKey:
+//     groqApiKey || "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", // Replace with your actual key or env var
+// });
 
 const openaiClient = new OpenAI({});
 
