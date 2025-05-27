@@ -211,10 +211,10 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
   // Initial processing on mount
   useEffect(() => {
     // Check if cache loading itself resulted in an error state initially
-    if (!initialCacheDataRef.current && allCachedChats.current.length === 0) {
-      // Attempted to load cache, but it was null/invalid
-      setError("Failed to load chat history from cache or cache is empty.");
-    }
+    // if (!initialCacheDataRef.current && allCachedChats.current.length === 0) {
+    //   // Attempted to load cache, but it was null/invalid
+    //   setError("Failed to load chat history from cache or cache is empty.");
+    // }
     // Process whatever was loaded (even if empty)
     processLocalChats(1, "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -283,9 +283,9 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
       <div className="flex-grow p-4 overflow-y-auto">
         {isLoading && <p className="text-center text-gray-500">Loading...</p>}
         {/* Show error first if it exists */}
-        {error && !isLoading && (
+        {/* {error && !isLoading && (
           <p className="text-center text-red-500">Error: {error}</p>
-        )}
+        )} */}
         {/* Specific message for empty search results */}
         {showEmptySearchResults && (
           <p className="text-center text-gray-500">
