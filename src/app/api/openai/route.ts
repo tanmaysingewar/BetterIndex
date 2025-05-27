@@ -6,6 +6,7 @@ import { nanoid } from "nanoid";
 import { chat, messages, user } from "@/database/schema/auth-schema";
 import { eq } from "drizzle-orm"; // Import eq for querying
 import { tavily } from "@tavily/core";
+import OpenAI from "openai";
 
 // --- API Keys ---x
 const groqApiKey = process.env.GROQ_API_KEY;
@@ -30,6 +31,8 @@ const groqClient = new Groq({
   apiKey:
     groqApiKey || "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", // Replace with your actual key or env var
 });
+
+const openaiClient = new OpenAI({});
 
 export async function POST(req: Request) {
   // --- Standard Response Headers for Streaming ---
@@ -201,7 +204,7 @@ export async function POST(req: Request) {
         // Chat does NOT exist - Create it using the ID from the frontend
 
         // Generate the title
-        const completion = await groqClient.chat.completions.create({
+        const completion = await openaiClient.chat.completions.create({
           messages: [
             {
               role: "system",
@@ -213,7 +216,7 @@ export async function POST(req: Request) {
               content: message.trim().substring(0, 100),
             },
           ],
-          model: "llama-3.3-70b-versatile",
+          model: "gpt-4.1-mini",
           temperature: 0.1,
         });
 
@@ -326,7 +329,12 @@ Prohibited Opening Patterns:
 **Important:**
 - First line should be the title of the response if user ask to write something else if it is casual conversation then skip the title and start with the first line.
 - for title use ## to make it bold
-- If the get images in from the search results then use the image in the response in between the first paragraph and last paragraph, just don't use in the first and last paragraph.
+- Always respond in 4 paragraphs.
+
+**Important Image Rules:**
+- Always use image if you get image in search results.
+- Most important is use image in second paragraphs.
+- Add only one image in the response.
 
 Your responses should be a model of well-crafted language that is both powerful and easy to read, providing a truly valuable and impressive interaction for the user.
       `,
@@ -380,9 +388,10 @@ Your responses should be a model of well-crafted language that is both powerful 
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const completion = await groqClient.chat.completions.create({
+          const completion = await openaiClient.chat.completions.create({
             messages: messages_format,
-            model: "meta-llama/llama-4-maverick-17b-128e-instruct",
+            // model: "meta-llama/llama-4-maverick-17b-128e-instruct",
+            model: "gpt-4.1-mini",
             temperature: 0.2,
             stream: true as const,
           });

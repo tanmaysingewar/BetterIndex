@@ -614,7 +614,7 @@ export default function ChatPage({
 
       try {
         // Make the LLM provider dynamic
-        const response = await fetch("/api/groq", {
+        const response = await fetch("/api/openai", {
           method: "POST",
           headers: requestHeaders,
           body: JSON.stringify(requestBody),
