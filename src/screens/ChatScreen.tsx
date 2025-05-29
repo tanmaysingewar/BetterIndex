@@ -238,6 +238,7 @@ export default function ChatPage({
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [searchEnabled, setSearchEnabled] = useState<boolean>(false);
+  const [selectedModel, setSelectedModel] = useState<string>("gpt-4.1");
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const { user, setUser } = useUserStore();
   const [chatTitle, setChatTitle] = useState<string>("Better Index");
@@ -619,6 +620,7 @@ export default function ChatPage({
         // For new chats, history will be empty
         previous_conversations: isNewChat ? [] : messages,
         search_enabled: searchEnabled,
+        model: selectedModel,
       };
 
       try {
@@ -781,7 +783,14 @@ export default function ChatPage({
         processingInitialMessageRef.current = null; // Clear ref after processing attempt
       }
     },
-    [isGenerating, currentChatId, router, messages, searchEnabled]
+    [
+      isGenerating,
+      currentChatId,
+      router,
+      messages,
+      searchEnabled,
+      selectedModel,
+    ]
   );
 
   // Effect 4: Handle Initial Message from Store
@@ -946,6 +955,8 @@ export default function ChatPage({
               disabled={isGenerating}
               searchEnabled={searchEnabled}
               onSearchToggle={setSearchEnabled}
+              selectedModel={selectedModel}
+              onModelChange={setSelectedModel}
             />
           </div>
         </div>

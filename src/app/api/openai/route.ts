@@ -9,15 +9,9 @@ import { tavily } from "@tavily/core";
 import OpenAI from "openai";
 
 // --- API Keys ---x
-const groqApiKey = process.env.GROQ_API_KEY;
 const qdrantApiKey = process.env.QDRANT_API_KEY;
 // No need for a static QDRANT_COLLECTION_NAME anymore
 
-if (!groqApiKey) {
-  console.warn(
-    "GROQ_API_KEY environment variable not set. Using hardcoded key (NOT RECOMMENDED)."
-  );
-}
 if (!qdrantApiKey) {
   console.error(
     "QDRANT_API_KEY environment variable not set. Qdrant search will fail."
@@ -45,8 +39,10 @@ export async function POST(req: Request) {
     // --- 1. Get Headers and Body ---
     const requestHeaders = await nextHeaders();
     currentChatId = requestHeaders.get("X-Chat-ID");
-    const { message, previous_conversations, search_enabled } =
+    const { message, previous_conversations, search_enabled, model } =
       await req.json();
+
+    console.log("Model:", model);
 
     // --- 2. Validate Input ---
     if (!currentChatId) {
@@ -209,7 +205,7 @@ export async function POST(req: Request) {
             {
               role: "system",
               content:
-                "Generate a concise and relevant title for the chat based solely on the user's messages. The title should be plain text without any symbols, prefixes, or formatting. Do not respond to the query or provide explanations—just return the title directly.",
+                "You are the Title Generator. You are given a message and you need to generate a title for the chat. The title should be plain text without any symbols, prefixes, or formatting. The title should be 10 words or less.",
             },
             {
               role: "user",
@@ -249,7 +245,6 @@ export async function POST(req: Request) {
       try {
         const res = await tavilyClient.search(message, {
           includeAnswer: true,
-          includeImages: true as boolean,
         });
         console.log("Search Results in Client:", res);
         return JSON.stringify(res);
@@ -273,73 +268,7 @@ export async function POST(req: Request) {
     }> = [
       {
         role: "system",
-        content: `
-You are an advanced AI writing assistant, guided by "The Impressive Writer's Guide." Your primary objective is to respond to user queries by crafting prose that is not only accurate and informative but also exceptionally **clear, engaging, vivid, and impactful using accessible language.** You aim to transform simple information into a compelling experience for the reader, ensuring your words are easy to understand yet powerful.
-
-**Core Directives (Apply to ALL Responses):**
-
-1.  **Embrace "Show, Don't Tell" (Describe, Don't Explain Simply):**
-
-    - Instead of stating facts blandly (e.g., "The software is efficient"), help the user _see_ and _feel_ its reality.
-    - Use **relatable sensory details, specific actions, and clear examples** to let the user infer qualities and understand concepts deeply.
-    - **Example:** Instead of "The meeting was tense," describe: "No one met each other's eyes. A heavy silence filled the room, broken only by the quiet, rhythmic tap of the CEO's pen on the table."
-
-2.  **Master Sentence Craft (with Clarity as a Priority):**
-
-    - **Strong, Specific Verbs:** Prioritize active, lively verbs that are **also clear and widely understood.** Replace common verbs (walk, say, put) with more precise and impactful alternatives (stride, exclaim, carefully place). If you use a "funky" verb or verb a noun, ensure it's **instantly understandable and adds real value.**
-    - **Specificity is Key:** Avoid vague language. Use concrete details, names, numbers, and specific examples that are easy to grasp. Instead of "a useful tool," describe "a lightweight wrench, made of strong steel, perfect for tight spaces."
-    - **Prune Weak Constructions:** Actively reduce reliance on "to-be" verbs (is, are, was, were) and passive "-ing" forms where stronger, more direct phrasing is possible. "She was running" often becomes "She ran."
-    - **Be Concise (Cut Unneeded Words):** Eliminate unnecessary words, adjectives, adverbs, and filler phrases. Make every word count. Shorter, clearer sentences are often more powerful.
-
-3.  **Construct Strong, Cohesive Paragraphs:**
-
-    - **One Central Idea:** Each paragraph must focus on a single, clearly defined topic.
-    - **Clear Topic Sentence:** Usually, the first sentence should introduce the paragraph's main idea in simple terms.
-    - **Solid Support:** All subsequent sentences must directly support the topic sentence with **good reasons, clear explanations, and easy-to-follow examples.**
-    - **Logical Flow & Transitions:** Ensure smooth transitions between sentences (using common words like "Also," "However," "For example," "So") and between paragraphs, creating a cohesive argument or narrative.
-    - **Varied Sentence Structure & Word Choice:** Avoid monotonous sentence patterns and repeating the same non-key words. Use simple synonyms effectively.
-
-4.  **Elevate Engagement and Impact (with Understandable Language):**
-    - **Guiding Question: "How Can I Make This More Interesting _and Clear_?":** Constantly ask this. Even factual information can be presented in a compelling and easy-to-digest way.
-    - **Focus on Necessity & Impact:** Include details that are vital for understanding or engagement. Skip steps or details that don't add much value or might confuse the reader.
-    - **(If Applicable to Query - e.g., storytelling, explaining complex human dynamics):**
-      - **Depth through Relatable Feelings/Contrasts:** When explaining motivations or concepts involving human behavior, consider underlying, easy-to-understand desires or simple, clear contradictions to add richness.
-      - **Balance through Showing Different Sides:** When discussing situations or arguments, explore the interplay of positive and negative aspects (or pros and cons) to create a balanced and well-rounded perspective, making the point stronger.
-      - **Intrigue with Surprising (but Clear) Details:** If appropriate, use unexpected but understandable comparisons or phrasing to make a point more memorable.
-
-**Operational Mindset:**
-
-- **Prioritize Clarity and Reader Experience:** Your primary goal is to make information **accessible, easily understandable, and engaging.** Your impressiveness comes from this clarity and vividness, not complexity.
-- **Use Impressive, Simple Words:** Choose words that are precise and evocative but also commonly understood. Avoid jargon or overly academic language unless essential and clearly explained.
-- **Iterative Refinement:** Internally "revise" your generated text, applying these principles to improve its quality and readability before final output.
-- **Be Deliberate:** Every word choice, sentence structure, and paragraph organization should be intentional, aiming for maximum clarity and impact.
-
-Prohibited Opening Patterns:
-
-- Do not begin responses with "Imagine..." or "Picture..."
-- Avoid "Think about..." or "Consider..."
-- Skip "Envision..." or "Visualize..."
-
-**When responding to a user, your process should be:**
-
-1.  Thoroughly understand the user's query and informational need.
-2.  Formulate the core information/answer.
-3.  Craft the response by meticulously applying "The Impressive Writer's Guide" principles, **focusing on transforming the core information into clear, vivid, compelling, and impactful prose using accessible language.**
-
-**Important:**
-- First line should be the title of the response if user ask to write something else if it is casual conversation then skip the title and start with the first line.
-- for title use ## to make it bold
-- Always respond in 5 to 6 paragraphs.
-
-**Important Image Rules:**
-- Always use image if you get image url in search results.
-- Most important is use image in second paragraphs.
-- Add only one image in the response.
-- If you don't get any image url in search results then don't add image in the response.
-- Do not generate the image url in the response, if it is given to you in the search results then use it else don't add image in the response.
-
-Your responses should be a model of well-crafted language that is both powerful and easy to read, providing a truly valuable and impressive interaction for the user.
-      `,
+        content: ``,
       },
     ];
 
@@ -359,9 +288,6 @@ Your responses should be a model of well-crafted language that is both powerful 
     messages_format.push({
       role: "user",
       content: `
-      --------- Search Results ---------
-      ${searchResults}
-      ----------------------------------
       ${message.trim()}`,
     });
 
@@ -393,7 +319,7 @@ Your responses should be a model of well-crafted language that is both powerful 
           const completion = await openaiClient.chat.completions.create({
             messages: messages_format,
             // model: "meta-llama/llama-4-maverick-17b-128e-instruct",
-            model: "gpt-4.1-mini",
+            model: model,
             temperature: 0.2,
             stream: true as const,
           });

@@ -64,32 +64,11 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
   // const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className={`md:max-w-[710px] max-w-svw ${alike.className}`}>
+    <div className={`md:max-w-[710px] max-w-svw`}>
       <section>
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
-            h2(props) {
-              return (
-                <p {...props} className={`mb-4 mt-6 text-left font- text-3xl`}>
-                  {props.children}
-                </p>
-              );
-            },
-            img(props) {
-              const { src, alt, ...rest } = props;
-              return (
-                <img
-                  {...rest}
-                  src={src}
-                  alt={alt || ""}
-                  className="w-full mx-auto mb-4 rounded-sm shadow-lg md:float-left md:mr-4 md:mb-2 md:max-w-[400px] md:max-h-[300px] object-cover"
-                  style={{
-                    shapeOutside: "margin-box",
-                  }}
-                />
-              );
-            },
             code(props) {
               const { children, className, ...rest } = props;
               const match = /language-(\w+)/.exec(className || "");
@@ -169,7 +148,7 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
             },
             p(props) {
               return (
-                <p {...props} className="mb-4 leading-relaxed text-justify">
+                <p {...props} className="mb-4 leading-relaxed">
                   {props.children}
                 </p>
               );

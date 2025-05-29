@@ -213,7 +213,7 @@ export default function ChatHistoryDesktop({
     !!debouncedSearchTerm;
 
   return (
-    <div className="flex flex-col h-full dark:bg-[#161719] bg-[#f9f9f9]">
+    <div className="flex flex-col h-full dark:bg-[#161719] bg-[#f9f9f9] select-none">
       <span className={cn("text-xl text-center mt-5", pacifico.className)}>
         {" "}
         Better Index
@@ -232,9 +232,9 @@ export default function ChatHistoryDesktop({
             `/chat?${currentSearchParams}`
           );
         }}
-        className="mx-5 mt-3 cursor-pointer"
+        className="mx-5 mt-3 cursor-pointer dark:bg-neutral-700 dark:hover:bg-neutral-600 bg-neutral-800 hover:bg-neutral-700 text-white"
       >
-        New Chat
+        <p className="text-[14px]">New Chat</p>
       </Button>
       <div className="flex-shrink-0 text-center mt-5">
         <Input
