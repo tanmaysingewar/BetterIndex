@@ -178,7 +178,7 @@ export default function InputBox({
                         Unlock all models + higher limits
                       </h3>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-1">
+                        {/* <div className="flex items-center space-x-1">
                           <span className="text-sm dark:text-neutral-400 text-neutral-500">
                             Add to wishlist
                           </span>
@@ -188,7 +188,10 @@ export default function InputBox({
                           className="dark:bg-neutral-700 dark:hover:bg-neutral-600 bg-neutral-800 hover:bg-neutral-700 text-white"
                         >
                           Wishlist
-                        </Button>
+                        </Button> */}
+                        <span className="text-sm dark:text-neutral-400 text-neutral-500">
+                          Coming soon
+                        </span>
                       </div>
                     </div>
 
