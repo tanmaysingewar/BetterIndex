@@ -1,15 +1,9 @@
 import { Check, CopyIcon } from "lucide-react";
-import { Alike } from "next/font/google";
 import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
-
-const alike = Alike({
-  subsets: ["latin"],
-  weight: ["400"],
-});
 
 interface MessageRendererProps {
   content: string;
@@ -61,8 +55,6 @@ const CopyButton = ({ text }: { text: string }) => {
 };
 
 const MessageRenderer = ({ content }: MessageRendererProps) => {
-  // const [isExpanded, setIsExpanded] = useState(false);
-
   return (
     <div className={`md:max-w-[710px] max-w-svw`}>
       <section>

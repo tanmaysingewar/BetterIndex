@@ -7,7 +7,6 @@ import {
   Sparkles,
   Zap,
   Crown,
-  ChevronDown,
   ChevronUp,
 } from "lucide-react";
 import { Button } from "../ui/button";
@@ -38,11 +37,6 @@ export default function InputBox({
   selectedModel,
   onModelChange,
 }: InputBoxProps) {
-  // Character counting function
-  const getCharacterCount = (text: string): number => {
-    return text.length;
-  };
-
   // Model definitions
   const models = [
     {
@@ -84,9 +78,6 @@ export default function InputBox({
 
   const selectedModelData =
     models.find((m) => m.id === selectedModel) || models[0];
-
-  const currentCharacterCount = getCharacterCount(input);
-  const maxCharacterCount = 3000;
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
