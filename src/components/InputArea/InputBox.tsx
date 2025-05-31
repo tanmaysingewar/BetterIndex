@@ -243,7 +243,7 @@ export default function InputBox({
                     </div>
 
                     {/* Show All Button */}
-                    <div className="mt-4 pt-2 border-t dark:border-neutral-700 border-neutral-200">
+                    {/* <div className="mt-4 pt-2 border-t dark:border-neutral-700 border-neutral-200">
                       <button className="w-full text-left p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-between">
                         <span className="text-sm dark:text-neutral-300 text-neutral-600">
                           Show all
@@ -262,7 +262,7 @@ export default function InputBox({
                           />
                         </svg>
                       </button>
-                    </div>
+                    </div> */}
                   </div>
                 </PopoverContent>
               </Popover>
