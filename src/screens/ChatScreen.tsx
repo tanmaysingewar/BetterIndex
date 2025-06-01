@@ -373,6 +373,14 @@ export default function ChatPage({
                   : fetchedMessages;
               setMessages(finalMessagesFromServer);
 
+              // Immediately scroll to bottom when messages are loaded from server
+              setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({
+                  behavior: "instant",
+                  block: "end",
+                });
+              }, 0);
+
               try {
                 localStorage.setItem(
                   getLocalStorageKey(chatIdToFetch),
@@ -425,6 +433,14 @@ export default function ChatPage({
             setMessages(parsedMessages); // Set state from LS
             foundInLs = true;
 
+            // Immediately scroll to bottom when messages are loaded from localStorage
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({
+                behavior: "instant",
+                block: "end",
+              });
+            }, 0);
+
             // Get chat title from cache
             const chatCache = localStorage.getItem("chatHistoryCache");
             if (chatCache) {
@@ -473,6 +489,15 @@ export default function ChatPage({
                     ]
                   : fetchedMessages;
 
+              // Set messages and immediately scroll to bottom
+              setMessages(finalMessagesFromServer);
+              setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({
+                  behavior: "instant",
+                  block: "end",
+                });
+              }, 0);
+
               try {
                 localStorage.setItem(
                   getLocalStorageKey(chatIdToFetch),
@@ -512,19 +537,26 @@ export default function ChatPage({
 
   // Effect 3: Scroll to bottom
   useEffect(() => {
-    // ... (existing scroll logic - likely okay) ...
-    if (!chatInitiated && messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: "auto",
-        block: "end",
-      });
+    // Only scroll during active chat interactions, not initial loads
+    if (chatInitiated && isGenerating) {
+      if (
+        messages[messages.length - 1]?.role === "assistant" &&
+        messages[messages.length - 1]?.content === "loading"
+      ) {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
     }
-    if (
-      messages[messages.length - 1]?.role === "assistant" &&
-      messages[messages.length - 1]?.content === "loading" &&
-      chatInitiated
-    ) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+
+    // Scroll during message streaming
+    if (chatInitiated && !isGenerating && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (
+        lastMessage?.role === "assistant" &&
+        lastMessage?.content &&
+        lastMessage.content !== "loading"
+      ) {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
     }
   }, [messages, chatInitiated, isGenerating]);
 
