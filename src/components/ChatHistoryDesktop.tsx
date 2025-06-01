@@ -232,9 +232,9 @@ export default function ChatHistoryDesktop({
             `/chat?${currentSearchParams}`
           );
         }}
-        className="mx-5 mt-3 cursor-pointer dark:bg-neutral-700 dark:hover:bg-neutral-600 bg-neutral-800 hover:bg-neutral-700 text-white"
+        className="mx-5 mt-3 cursor-pointer bg-gradient-to-r from-[#2a3f47] via-[#3d5b6b] to-[#2a3f47] hover:from-[#354a52] hover:via-[#4a6b7a] hover:to-[#5a7b8a] text-white border border-[#3d5b6b] hover:border-[#4a6b7a] shadow-lg"
       >
-        <p className="text-[14px]">New Chat</p>
+        <p className="text-[14px] font-semibold">New Chat</p>
       </Button>
       <div className="flex-shrink-0 text-center mt-5">
         <Input

@@ -173,9 +173,9 @@ export default function InputBox({
                 >
                   <div className="p-4">
                     {/* Upgrade Section */}
-                    <div className="mb-4 p-3 rounded-lg dark:bg-neutral-800 bg-neutral-100 border dark:border-neutral-700 border-neutral-300">
+                    <div className="mb-4 p-3 rounded-lg bg-neutral-100 dark:bg-gradient-to-r dark:from-[#131e20] dark:via-[#1c2a31] dark:to-[#1e2c33] border dark:border-[#3d5b6b]">
                       <h3 className="text-sm font-medium dark:text-white text-gray-900 mb-1">
-                        Unlock all models + higher limits
+                        All models with higher limits
                       </h3>
                       <div className="flex items-center justify-between">
                         {/* <div className="flex items-center space-x-1">
@@ -203,12 +203,12 @@ export default function InputBox({
                         return (
                           <div
                             key={model.id}
-                            className={`flex items-center justify-between p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer ${
+                            className={`flex items-center justify-between p-2 rounded-lg  cursor-pointer ${
                               !model.available ? "opacity-60" : ""
                             } ${
                               isSelected
-                                ? "bg-neutral-100 dark:bg-neutral-800"
-                                : ""
+                                ? "bg-neutral-100 dark:bg-[#1d2b30]/80"
+                                : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
                             }`}
                             onClick={() =>
                               model.available && handleModelSelect(model.id)

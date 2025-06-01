@@ -41,6 +41,8 @@ export default function Header({ landingPage, isAnonymous }: HeaderInterface) {
 
   const { user, setUser } = useUserStore();
 
+  console.log(user);
+
   const handleLogout = async () => {
     setLogOutLading(true);
     await authClient.signOut({
@@ -53,7 +55,7 @@ export default function Header({ landingPage, isAnonymous }: HeaderInterface) {
           if (user) {
             setUser(user?.data?.user);
             // SetCookie user-status=guest
-            Cookies.set("user-status", "guest", { expires: 7 });
+            Cookies.set("user-status", "guest");
           }
           setLogOutLading(false);
           // router.push("/chat?new=true");
@@ -61,7 +63,7 @@ export default function Header({ landingPage, isAnonymous }: HeaderInterface) {
             window.location.search
           );
           currentSearchParams.delete("chatId");
-          window.history.pushState({}, "", `/chat?${currentSearchParams}`);
+          window.history.pushState({}, "", `/`);
           // return location.reload();
         },
       },
@@ -119,10 +121,9 @@ export default function Header({ landingPage, isAnonymous }: HeaderInterface) {
         className="cursor-pointer w-[70px]"
         onClick={async () => {
           setSignLading(true);
-          Cookies.remove("user-status");
           await authClient.signIn.social({
             provider: "google",
-            callbackURL: "/chat?new=true",
+            callbackURL: "/chat?login=true",
           });
         }}
         disabled={signLading}
