@@ -254,17 +254,6 @@ export default function ChatPage({
   // const errorTost = () => toast.error('Here is your toast.');
 
   useEffect(() => {
-    if (searchParams.get("chatId")) return;
-    if (searchParams.get("login") === "true") {
-      return router.push("/chat?new=true");
-    }
-    if (searchParams.get("new") === "true") {
-      return router.push("/chat?new=true");
-    }
-    return router.push("/chat?new=true");
-  }, [searchParams, router]);
-
-  useEffect(() => {
     async function fetchData() {
       const userAlreadySet = Cookies.get("user-status");
       // Condition for anonymous sign-in

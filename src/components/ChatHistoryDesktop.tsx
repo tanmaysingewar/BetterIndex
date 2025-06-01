@@ -198,6 +198,14 @@ export default function ChatHistoryDesktop({
     [router, onClose]
   );
 
+  const handleNewChatClick = useCallback(() => {
+    const currentSearchParams = new URLSearchParams(window.location.search);
+    currentSearchParams.set("new", "true");
+    currentSearchParams.delete("chatId");
+    document.title = "Better Index";
+    window.history.pushState({}, "", `/chat?${currentSearchParams}`);
+  }, []);
+
   // Get current chat ID from URL for highlighting active chat
   const currentChatId = useMemo(() => {
     return searchParams.get("chatId");
@@ -219,19 +227,7 @@ export default function ChatHistoryDesktop({
         Better Index
       </span>
       <Button
-        onClick={() => {
-          const currentSearchParams = new URLSearchParams(
-            window.location.search
-          );
-          currentSearchParams.delete("chatId");
-          currentSearchParams.set("new", "true");
-          document.title = "Better Index";
-          return window.history.pushState(
-            {},
-            "",
-            `/chat?${currentSearchParams}`
-          );
-        }}
+        onClick={handleNewChatClick}
         className="mx-5 mt-3 cursor-pointer bg-gradient-to-r from-[#2a3f47] via-[#3d5b6b] to-[#2a3f47] hover:from-[#354a52] hover:via-[#4a6b7a] hover:to-[#5a7b8a] text-white border border-[#3d5b6b] hover:border-[#4a6b7a] shadow-lg"
       >
         <p className="text-[14px] font-semibold">New Chat</p>

@@ -35,6 +35,19 @@ export default function ChatPage() {
   const { refreshSession } = useUserStore();
 
   useEffect(() => {
+    if (searchParams.get("chatId")) return;
+    if (searchParams.get("login") === "true") {
+      // return router.push("/chat?new=true");
+      return window.history.pushState({}, "", `/chat?new=true`);
+    }
+    if (searchParams.get("new") === "true") {
+      // return router.push("/chat?new=true");
+      return window.history.pushState({}, "", `/chat?new=true`);
+    }
+    return window.history.pushState({}, "", `/chat?new=true`);
+  }, [searchParams]);
+
+  useEffect(() => {
     async function checkUserStatus() {
       const userStatus = Cookies.get("user-status");
       const isLoginRedirect = searchParams.get("login") === "true";
