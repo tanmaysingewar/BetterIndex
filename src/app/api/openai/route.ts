@@ -3,28 +3,14 @@ import { auth } from "@/lib/auth";
 import { headers as nextHeaders } from "next/headers";
 import { db } from "@/database/db";
 import { nanoid } from "nanoid";
-import { chat, messages, user } from "@/database/schema/auth-schema";
+import { chat, messages } from "@/database/schema/auth-schema";
 import { eq } from "drizzle-orm"; // Import eq for querying
 import { tavily } from "@tavily/core";
 import OpenAI from "openai";
-
-// --- API Keys ---x
-const qdrantApiKey = process.env.QDRANT_API_KEY;
-// No need for a static QDRANT_COLLECTION_NAME anymore
-
-if (!qdrantApiKey) {
-  console.error(
-    "QDRANT_API_KEY environment variable not set. Qdrant search will fail."
-  );
-  // Potentially throw an error or handle this case depending on requirements
-}
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
 const tavilyClient = tavily({ apiKey: process.env.TAVILY_API_KEY! });
-
-// const groqClient = new Groq({
-//   apiKey:
-//     groqApiKey || "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", // Replace with your actual key or env var
-// });
 
 const openaiClient = new OpenAI({});
 
@@ -42,8 +28,6 @@ export async function POST(req: Request) {
     const { message, previous_conversations, search_enabled, model } =
       await req.json();
 
-    console.log("Model:", model);
-
     // --- 2. Validate Input ---
     if (!currentChatId) {
       console.error("API Error: Missing X-Chat-ID header");
@@ -60,8 +44,22 @@ export async function POST(req: Request) {
       );
     }
 
+    if (message.trim().length > 3000) {
+      console.error("API Error: Message too long");
+      return new Response(
+        JSON.stringify({
+          error: "Message too long. Please shorten your message.",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
     // --- 3. Authentication ---
-    const sessionData = await auth.api.getSession({ headers: requestHeaders });
+    const sessionData = await auth.api.getSession({
+      headers: requestHeaders,
+    });
     if (!sessionData?.session || !sessionData?.user?.id) {
       console.error("API Error: Unauthorized access attempt");
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -70,105 +68,53 @@ export async function POST(req: Request) {
       });
     }
     const userId = sessionData.user.id;
+    const userEmail = sessionData.user.email;
 
-    // ------- Rate Limit ----------
+    // ------- 4. Rate Limit ----------
+    let ratelimit;
 
-    // Check the rate limit
-    const userData = await db
-      .select({
-        id: user.id,
-        rateLimit: user.rateLimit,
-        updatedAt: user.updatedAt,
-        isAnonymous: user.isAnonymous,
-      })
-      .from(user)
-      .where(eq(user.id, userId))
-      .limit(1);
-
-    if (!userData || userData.length === 0) {
-      console.error(`API Error: User data not found for ID ${userId}`);
-      return new Response(JSON.stringify({ error: "User not found" }), {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
+    if (
+      userEmail.includes("@https://www.betterindex.io") ||
+      userEmail.includes("@http://localhost:3000")
+    ) {
+      // Create a new ratelimiter, that allows 1 requests per 24 hours
+      ratelimit = new Ratelimit({
+        redis: Redis.fromEnv(),
+        limiter: Ratelimit.slidingWindow(1, "24 h"),
       });
-    }
 
-    let { rateLimit } = userData[0];
-    const { updatedAt, isAnonymous } = userData[0];
-    const now = new Date();
-    const twelveHoursInMillis = 12 * 60 * 60 * 1000;
-    let limitWasReset = false;
+      // Use user email as the identifier for rate limiting
+      const { success } = await ratelimit.limit(userEmail);
 
-    // check if quoteRemain is zero and updatedAt and current has difference of the 12 hr then reset the limit
-    if (rateLimit === "0") {
-      const timeDifference = now.getTime() - updatedAt.getTime();
-      if (timeDifference >= twelveHoursInMillis) {
-        // if user is isAnonymous true then reset limit to 1
-        // if user in isAnonymous false the reset limit to 10
-        const newLimit = isAnonymous ? "1" : "10";
-        try {
-          await db
-            .update(user)
-            .set({ rateLimit: newLimit, updatedAt: now })
-            .where(eq(user.id, userId));
-          rateLimit = newLimit; // Update local variable
-          limitWasReset = true;
-          console.log(`Rate limit reset for user ${userId} to ${newLimit}.`);
-        } catch (dbError) {
-          console.error(
-            `Database error resetting rate limit for user ${userId}:`,
-            dbError
-          );
-          // Decide if you want to block the request or proceed cautiously
-          // For now, we'll return an error
-          return new Response(
-            JSON.stringify({ error: "Database error during rate limit reset" }),
-            { status: 500, headers: { "Content-Type": "application/json" } }
-          );
-        }
+      if (!success) {
+        console.warn(`API Warning: Rate limit exceeded for user ${userEmail}.`);
+        return new Response(
+          JSON.stringify({
+            error:
+              "You have reached the maximum of requests per 24 hours. Please sign in for a free account to continue.",
+          }),
+          { status: 429, headers: { "Content-Type": "application/json" } }
+        );
       }
-    }
+    } else {
+      ratelimit = new Ratelimit({
+        redis: Redis.fromEnv(),
+        limiter: Ratelimit.slidingWindow(10, "24 h"),
+      });
 
-    // Check if the limit is still zero after potential reset attempt
-    if (rateLimit === "0") {
-      let remainingTimeMessage = "Please try again later.";
-      // Calculate remaining time ONLY if the limit wasn't just reset in this request
-      if (!limitWasReset) {
-        const resetTime = new Date(updatedAt.getTime() + twelveHoursInMillis);
-        const remainingMillis = resetTime.getTime() - now.getTime();
+      // Use user email as the identifier for rate limiting
+      const { success } = await ratelimit.limit(userEmail);
 
-        if (remainingMillis > 0) {
-          const totalSeconds = Math.max(0, Math.floor(remainingMillis / 1000)); // Ensure non-negative
-          const hours = Math.floor(totalSeconds / 3600);
-          const minutes = Math.floor((totalSeconds % 3600) / 60);
-          const seconds = totalSeconds % 60;
-
-          const parts = [];
-          if (hours > 0) parts.push(`${hours} hour${hours > 1 ? "s" : ""}`);
-          if (minutes > 0)
-            parts.push(`${minutes} minute${minutes > 1 ? "s" : ""}`);
-          // Only show seconds if the remaining time is less than a minute
-          if (hours === 0 && minutes === 0 && seconds > 0)
-            parts.push(`${seconds} second${seconds > 1 ? "s" : ""}`);
-          // Handle case where time is very short or slightly negative due to timing
-          else if (hours === 0 && minutes === 0 && seconds <= 0)
-            parts.push("a few moments");
-
-          if (parts.length > 0) {
-            remainingTimeMessage = `Please try again in approximately ${parts.join(
-              ", "
-            )}.`;
-          }
-        }
+      if (!success) {
+        console.warn(`API Warning: Rate limit exceeded for user ${userEmail}.`);
+        return new Response(
+          JSON.stringify({
+            error:
+              "Rate limit exceeded. You have reached the maximum of 10 requests per 24 hours. Please try again later.",
+          }),
+          { status: 429, headers: { "Content-Type": "application/json" } }
+        );
       }
-
-      console.warn(`API Warning: Rate limit exceeded for user ${userId}.`);
-      return new Response(
-        JSON.stringify({
-          error: `Rate limit exceeded. ${remainingTimeMessage}`,
-        }),
-        { status: 429, headers: { "Content-Type": "application/json" } }
-      );
     }
 
     // --- 5. Check Chat Existence, Ownership, or Create New ---
@@ -241,6 +187,8 @@ export async function POST(req: Request) {
       );
     }
 
+    // --- 6. Search Web ---
+
     async function searchWeb(message: string): Promise<string> {
       try {
         const res = await tavilyClient.search(message, {
@@ -253,15 +201,15 @@ export async function POST(req: Request) {
         return "";
       }
     }
+
     let searchResults: string = "";
 
-    // Search Web
     if (search_enabled) {
       searchResults = await searchWeb(message);
       console.log("Search Results:", searchResults);
     }
 
-    // --- 6. Prepare messages for Groq API ---
+    // --- Prepare messages for OpenAI API ---
     const messages_format: Array<{
       role: "system" | "user" | "assistant";
       content: string;
@@ -291,26 +239,10 @@ export async function POST(req: Request) {
       ${message.trim()}`,
     });
 
-    // --- 7. Stream Groq Response and Save Message ---
+    // --- 7. Stream OpenAI Response and Save Message ---
     const encoder = new TextEncoder();
     let fullBotResponse = "";
     const finalChatId = currentChatId; // Use the validated/created chat ID
-
-    // --- 4. Decrement Rate Limit (if quota allows) ---
-    try {
-      await db
-        .update(user)
-        .set({ rateLimit: String(Number(rateLimit) - 1) }) // Decrement the limit
-        .where(eq(user.id, userId));
-
-      console.log("Quote decrease", String(Number(rateLimit) - 1));
-    } catch (dbError) {
-      console.error(
-        `Database error decrementing rate limit for user ${userId}:`,
-        dbError
-      );
-      // Log error but proceed with the request as the check passed initially
-    }
 
     // Streaming the Response
     const stream = new ReadableStream({
@@ -318,7 +250,6 @@ export async function POST(req: Request) {
         try {
           const completion = await openaiClient.chat.completions.create({
             messages: messages_format,
-            // model: "meta-llama/llama-4-maverick-17b-128e-instruct",
             model: model,
             temperature: 0.2,
             stream: true as const,
