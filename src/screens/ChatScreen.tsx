@@ -592,7 +592,7 @@ export default function ChatPage({
         chatIdForRequest = generateChatId();
         setCurrentChatId(chatIdForRequest);
         const newUrl = `/chat?chatId=${chatIdForRequest}`;
-        router.push(newUrl, { scroll: false });
+        window.history.pushState({}, "", newUrl);
         setMessages([]); // Start clean for new chat UI
         setChatInitiated(true);
         serverFetchInitiated.current = { [chatIdForRequest]: true };
