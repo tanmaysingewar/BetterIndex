@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   GlobeIcon,
   OctagonPause,
@@ -76,31 +76,64 @@ export default function InputBox({
     },
   ];
 
+  const lastWord = input.split(" ").slice(-1)[0];
+  const hasExistingTone = input
+    .split(" ")
+    .some((word) => word.startsWith("#") && word !== lastWord);
+
+  const filteredSuggestions =
+    lastWord.startsWith("#") && !hasExistingTone
+      ? promptSuggestions.filter((suggestion) =>
+          suggestion
+            .toLowerCase()
+            .includes(lastWord.trim().replace("#", "").toLowerCase())
+        )
+      : // .slice(0, 5)
+        [];
+
   const selectedModelData =
     models.find((m) => m.id === selectedModel) || models[0];
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const suggestionsContainerRef = useRef<HTMLDivElement>(null);
+  const suggestionItemRefs = useRef<(HTMLParagraphElement | null)[]>([]);
+
+  // Auto-scroll selected item into view
+  useEffect(() => {
+    if (
+      filteredSuggestions.length > 0 &&
+      suggestionItemRefs.current[selectedIndex]
+    ) {
+      suggestionItemRefs.current[selectedIndex]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [selectedIndex, filteredSuggestions.length]);
+
+  // Reset suggestion refs when suggestions change
+  useEffect(() => {
+    suggestionItemRefs.current = suggestionItemRefs.current.slice(
+      0,
+      filteredSuggestions.length
+    );
+  }, [filteredSuggestions]);
 
   const handleSelection = useCallback(
     (selection: string) => {
       const tokens = input.split(" ");
       const lastToken = tokens[tokens.length - 1];
-      const prefix = lastToken.startsWith("#") ? "#" : "$";
 
-      // If adding a !word, remove any existing !words
-      if (prefix === "#") {
+      if (lastToken.startsWith("#")) {
         const newTokens = tokens.filter((token, index) => {
           // Keep the current token if it's the last one
           if (index === tokens.length - 1) return true;
-          // Remove any previous !words
+          // Remove any previous #words
           return !token.startsWith("#");
         });
-        newTokens[newTokens.length - 1] = prefix + selection + " ";
+        newTokens[newTokens.length - 1] = "#" + selection + " ";
         setInput(newTokens.join(" "));
-      } else {
-        tokens[tokens.length - 1] = prefix + selection + " ";
-        setInput(tokens.join(" "));
       }
     },
     [input, setInput]
@@ -146,13 +179,38 @@ export default function InputBox({
   return (
     <div>
       <div className="max-w-3xl text-base font-sans lg:px-0 w-screen md:rounded-t-3xl px-2 fixed bottom-0  select-none">
+        {filteredSuggestions.length > 0 && (
+          <div className="mx-5">
+            <div
+              ref={suggestionsContainerRef}
+              className="bg-[#303335]/20 backdrop-blur-xs rounded-t-md p-2 pb-3 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent no-scrollbar"
+            >
+              {filteredSuggestions.map((match, index) => (
+                <p
+                  key={index}
+                  ref={(el) => {
+                    suggestionItemRefs.current[index] = el;
+                  }}
+                  className={`mb-1 cursor-pointer rounded-sm p-1 ${
+                    index === selectedIndex ? "bg-white/20" : ""
+                  }`}
+                  onClick={() => handleSelection(match)}
+                >
+                  <span className="text-white rounded-md px-2 py-1">
+                    {match}
+                  </span>
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex flex-col items-center rounded-t-3xl dark:bg-[#303335]/80 bg-neutral-100/70 p-2 w-full backdrop-blur-xs">
           <TextInput
             input={input}
             setInput={setInput}
             height={height}
             onSend={onSend}
-            filteredSuggestions={[]}
+            filteredSuggestions={filteredSuggestions}
             selectedIndex={selectedIndex}
             setSelectedIndex={setSelectedIndex}
             handleSelection={handleSelection}
@@ -241,28 +299,6 @@ export default function InputBox({
                         );
                       })}
                     </div>
-
-                    {/* Show All Button */}
-                    {/* <div className="mt-4 pt-2 border-t dark:border-neutral-700 border-neutral-200">
-                      <button className="w-full text-left p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-between">
-                        <span className="text-sm dark:text-neutral-300 text-neutral-600">
-                          Show all
-                        </span>
-                        <svg
-                          className="w-4 h-4 dark:text-neutral-400 text-neutral-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-                    </div> */}
                   </div>
                 </PopoverContent>
               </Popover>
@@ -309,3 +345,5 @@ export default function InputBox({
     </div>
   );
 }
+
+const promptSuggestions: string[] = [];
