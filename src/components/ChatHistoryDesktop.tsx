@@ -92,14 +92,12 @@ function useDebounce<T>(value: T, delay: number): T {
 interface ChatHistoryProps {
   onClose: () => void;
   isNewUser?: boolean;
-  isAnonymous?: boolean;
   isLoading?: boolean;
 }
 
 export default function ChatHistoryDesktop({
   onClose,
   isNewUser = true,
-  isAnonymous = true,
   isLoading: isLoadingProp = false,
 }: ChatHistoryProps) {
   // Use a single source of truth for all chats data
@@ -547,7 +545,7 @@ export default function ChatHistoryDesktop({
         </div>
       </div>
 
-      {isNewUser || isAnonymous || user?.isAnonymous === false ? (
+      {user?.emailVerified === false || !user || isNewUser ? (
         <SignInComponent />
       ) : (
         <div

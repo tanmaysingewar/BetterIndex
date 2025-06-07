@@ -905,7 +905,6 @@ export default function ChatPage({
         <ChatHistoryDesktop
           onClose={() => setIsChatHistoryOpen(false)}
           isNewUser={isNewUser}
-          isAnonymous={isAnonymous}
           isLoading={isLoadingChats}
         />
       </div>
