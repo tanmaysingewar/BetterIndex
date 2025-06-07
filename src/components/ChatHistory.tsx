@@ -114,6 +114,9 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(
     null
   );
+  const [selectionTimer, setSelectionTimer] = useState<NodeJS.Timeout | null>(
+    null
+  );
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const limit = max_chats; // Use max_chats as the local page size
@@ -338,14 +341,22 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
   );
 
   // Handle canceling chat title edit
-  const handleCancelEditTitle = useCallback((event?: React.MouseEvent) => {
-    if (event) {
-      event.stopPropagation(); // Prevent chat click when canceling
-    }
-    setEditingChatId(null);
-    setEditingTitle("");
-    setSelectedChatId(null); // Also clear selection
-  }, []);
+  const handleCancelEditTitle = useCallback(
+    (event?: React.MouseEvent) => {
+      if (event) {
+        event.stopPropagation(); // Prevent chat click when canceling
+      }
+      setEditingChatId(null);
+      setEditingTitle("");
+      setSelectedChatId(null); // Also clear selection
+      // Clear selection timer
+      if (selectionTimer) {
+        clearTimeout(selectionTimer);
+        setSelectionTimer(null);
+      }
+    },
+    [selectionTimer]
+  );
 
   // Handle keyboard events in edit mode
   const handleEditKeyDown = useCallback(
@@ -362,9 +373,20 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
   );
 
   // Handle long press for mobile
+  const [isLongPress, setIsLongPress] = useState(false);
+
   const handleTouchStart = useCallback((chatId: string) => {
+    setIsLongPress(false);
     const timer = setTimeout(() => {
+      setIsLongPress(true);
       setSelectedChatId(chatId);
+
+      // Set up auto-clear timer (5 seconds)
+      const clearTimer = setTimeout(() => {
+        setSelectedChatId(null);
+      }, 5000);
+      setSelectionTimer(clearTimer);
+
       // Add haptic feedback if available
       if (navigator.vibrate) {
         navigator.vibrate(50);
@@ -424,8 +446,11 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
       if (longPressTimer) {
         clearTimeout(longPressTimer);
       }
+      if (selectionTimer) {
+        clearTimeout(selectionTimer);
+      }
     };
-  }, [longPressTimer]);
+  }, [longPressTimer, selectionTimer]);
 
   const handleChatClick = (chatId: string) => {
     const currentPath = window.location.pathname;
@@ -446,16 +471,10 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
 
   const handleChatSelect = useCallback(
     (chatId: string) => {
-      if (selectedChatId === chatId) {
-        // Already selected, now navigate to chat
-        handleChatClick(chatId);
-        setSelectedChatId(null);
-      } else {
-        // First tap - just select
-        setSelectedChatId(chatId);
-      }
+      // Single click opens the chat directly
+      handleChatClick(chatId);
     },
-    [selectedChatId, handleChatClick]
+    [handleChatClick]
   );
 
   const handlePreviousPage = () => {
@@ -526,7 +545,7 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
         {!isLoading && !error && displayedChats.length > 0 && (
           <>
             <div className="text-xs text-gray-500 mb-2 px-1 text-center">
-              Long press to see options.
+              Tap to open • Long press for options
             </div>
             <div className="gap-1 flex flex-col">
               {displayedChats.map((chat) => {
@@ -541,7 +560,7 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
                 return (
                   <div
                     key={chat.id}
-                    className={`active:bg-neutral-200 dark:active:bg-neutral-800 cursor-pointer rounded-lg p-3 transition-colors duration-150 relative ${
+                    className={`active:bg-neutral-200 dark:active:bg-neutral-800 cursor-pointer rounded-lg p-3 transition-colors duration-150 relative select-none ${
                       isActive ? "bg-neutral-100 dark:bg-neutral-700/80" : ""
                     } ${
                       isSelected && !isEditing
@@ -553,7 +572,28 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
                         : ""
                     } ${isEditing ? "cursor-default" : ""}`}
                     onClick={
-                      isEditing ? undefined : () => handleChatSelect(chat.id)
+                      isEditing
+                        ? undefined
+                        : (e) => {
+                            // If this chat is selected and we're clicking on it (but not on buttons)
+                            if (isSelected && !isLongPress) {
+                              // Check if we clicked on the chat content (not buttons)
+                              const target = e.target as HTMLElement;
+                              if (!target.closest("button")) {
+                                handleChatSelect(chat.id);
+                              }
+                            } else if (!isLongPress) {
+                              // Clear any existing selection and navigate
+                              if (selectionTimer) {
+                                clearTimeout(selectionTimer);
+                                setSelectionTimer(null);
+                              }
+                              setSelectedChatId(null);
+                              handleChatSelect(chat.id);
+                            }
+                            // Reset long press state
+                            setIsLongPress(false);
+                          }
                     }
                     onTouchStart={() => !isEditing && handleTouchStart(chat.id)}
                     onTouchEnd={handleTouchEnd}
@@ -602,12 +642,12 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between relative">
                         <p className="text-[15px] font-medium truncate flex-1">
                           {chat.title || "Untitled Chat"}
                         </p>
                         {isSelected && (
-                          <div className="flex items-center gap-1 ml-2">
+                          <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center gap-1 bg-white dark:bg-neutral-800 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-600 px-1">
                             <button
                               onClick={(e) =>
                                 handleStartEditTitle(chat.id, chat.title, e)
