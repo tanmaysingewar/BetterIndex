@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
+import { Trash2, Edit3, Check, X, Loader2 } from "lucide-react";
+import { CHAT_CACHE_UPDATED_EVENT } from "@/lib/fetchChats";
 
 // Interface for individual chat items (remains the same)
 interface Chat {
@@ -104,6 +106,14 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
   const [isLoading, setIsLoading] = useState(false); // Loading is minimal now
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [updatingChatId, setUpdatingChatId] = useState<string | null>(null);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(
+    null
+  );
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const limit = max_chats; // Use max_chats as the local page size
@@ -189,6 +199,187 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
     setCurrentPage(1);
   }, [debouncedSearchTerm]);
 
+  // Handle chat deletion
+  const handleDeleteChat = useCallback(
+    async (chatId: string, event: React.MouseEvent) => {
+      event.stopPropagation(); // Prevent chat click when deleting
+
+      if (deletingChatId) return; // Prevent multiple deletions
+
+      setDeletingChatId(chatId);
+
+      try {
+        const response = await fetch(`/api/chat/${chatId}`, {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to delete chat");
+        }
+
+        // Update local cache immediately for better UX
+        const currentCacheData = loadFromCache();
+        if (currentCacheData) {
+          const updatedChats = currentCacheData.chats.filter(
+            (chat) => chat.id !== chatId
+          );
+          const updatedData = {
+            ...currentCacheData,
+            chats: updatedChats,
+            totalChats: updatedChats.length,
+            timestamp: Date.now(),
+          };
+
+          // Update localStorage
+          localStorage.setItem(CACHE_KEY, JSON.stringify(updatedData));
+
+          // Dispatch event to notify other components
+          window.dispatchEvent(new CustomEvent(CHAT_CACHE_UPDATED_EVENT));
+
+          // Reload cache data to update UI
+          reloadCacheData();
+        }
+
+        // If we deleted the currently active chat, redirect to new chat
+        const currentChatId = new URLSearchParams(window.location.search).get(
+          "chatId"
+        );
+        if (currentChatId === chatId) {
+          const currentSearchParams = new URLSearchParams(
+            window.location.search
+          );
+          currentSearchParams.set("new", "true");
+          currentSearchParams.delete("chatId");
+          window.history.pushState({}, "", `/chat?${currentSearchParams}`);
+          onClose();
+        }
+      } catch (error) {
+        console.error("Error deleting chat:", error);
+        setError("Failed to delete chat. Please try again.");
+      } finally {
+        setDeletingChatId(null);
+      }
+    },
+    [deletingChatId, reloadCacheData, onClose]
+  );
+
+  // Handle starting chat title edit
+  const handleStartEditTitle = useCallback(
+    (chatId: string, currentTitle: string, event: React.MouseEvent) => {
+      event.stopPropagation(); // Prevent chat click when editing
+      setEditingChatId(chatId);
+      setEditingTitle(currentTitle || "Untitled Chat");
+    },
+    []
+  );
+
+  // Handle saving chat title edit
+  const handleSaveEditTitle = useCallback(
+    async (chatId: string, event?: React.MouseEvent) => {
+      if (event) {
+        event.stopPropagation(); // Prevent chat click when saving
+      }
+
+      if (updatingChatId || !editingTitle.trim()) return;
+
+      setUpdatingChatId(chatId);
+
+      try {
+        const response = await fetch(`/api/chat/${chatId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ title: editingTitle.trim() }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to update chat title");
+        }
+
+        // Update local cache immediately for better UX
+        const currentCacheData = loadFromCache();
+        if (currentCacheData) {
+          const updatedChats = currentCacheData.chats.map((chat) =>
+            chat.id === chatId ? { ...chat, title: editingTitle.trim() } : chat
+          );
+          const updatedData = {
+            ...currentCacheData,
+            chats: updatedChats,
+            timestamp: Date.now(),
+          };
+
+          // Update localStorage
+          localStorage.setItem(CACHE_KEY, JSON.stringify(updatedData));
+
+          // Dispatch event to notify other components
+          window.dispatchEvent(new CustomEvent(CHAT_CACHE_UPDATED_EVENT));
+
+          // Reload cache data to update UI
+          reloadCacheData();
+        }
+
+        // Clear editing state
+        setEditingChatId(null);
+        setEditingTitle("");
+      } catch (error) {
+        console.error("Error updating chat title:", error);
+        setError("Failed to update chat title. Please try again.");
+      } finally {
+        setUpdatingChatId(null);
+      }
+    },
+    [editingTitle, updatingChatId, reloadCacheData]
+  );
+
+  // Handle canceling chat title edit
+  const handleCancelEditTitle = useCallback((event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation(); // Prevent chat click when canceling
+    }
+    setEditingChatId(null);
+    setEditingTitle("");
+    setSelectedChatId(null); // Also clear selection
+  }, []);
+
+  // Handle keyboard events in edit mode
+  const handleEditKeyDown = useCallback(
+    (event: React.KeyboardEvent, chatId: string) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleSaveEditTitle(chatId);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        handleCancelEditTitle();
+      }
+    },
+    [handleSaveEditTitle, handleCancelEditTitle]
+  );
+
+  // Handle long press for mobile
+  const handleTouchStart = useCallback((chatId: string) => {
+    const timer = setTimeout(() => {
+      setSelectedChatId(chatId);
+      // Add haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 500); // 500ms long press
+    setLongPressTimer(timer);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  }, [longPressTimer]);
+
   // Add storage event listener to detect changes to localStorage
   useEffect(() => {
     // This function will be called when localStorage changes in any tab/window
@@ -199,12 +390,19 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
       }
     };
 
+    const handleCacheUpdate = () => {
+      console.log("Chat history cache updated in current tab");
+      reloadCacheData();
+    };
+
     // Add the event listener
     window.addEventListener("storage", handleStorageChange);
+    window.addEventListener(CHAT_CACHE_UPDATED_EVENT, handleCacheUpdate);
 
     // Clean up
     return () => {
       window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener(CHAT_CACHE_UPDATED_EVENT, handleCacheUpdate);
     };
   }, [reloadCacheData]);
 
@@ -219,6 +417,15 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
     processLocalChats(1, "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
+
+  // Cleanup effect for touch timers
+  useEffect(() => {
+    return () => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+      }
+    };
+  }, [longPressTimer]);
 
   const handleChatClick = (chatId: string) => {
     const currentPath = window.location.pathname;
@@ -236,6 +443,20 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
 
     onClose();
   };
+
+  const handleChatSelect = useCallback(
+    (chatId: string) => {
+      if (selectedChatId === chatId) {
+        // Already selected, now navigate to chat
+        handleChatClick(chatId);
+        setSelectedChatId(null);
+      } else {
+        // First tap - just select
+        setSelectedChatId(chatId);
+      }
+    },
+    [selectedChatId, handleChatClick]
+  );
 
   const handlePreviousPage = () => {
     if (pagination && pagination.currentPage > 1) {
@@ -303,28 +524,123 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
 
         {/* Display chat list if not loading, no error, and there are chats to display */}
         {!isLoading && !error && displayedChats.length > 0 && (
-          <div className="gap-1 flex flex-col">
-            {displayedChats.map((chat) => (
-              <div
-                key={chat.id}
-                className={`hover:bg-neutral-200 dark:hover:bg-neutral-800 cursor-pointer rounded-lg p-3 transition-colors duration-150 ${
-                  new URLSearchParams(location.search).get("chatId") === chat.id
-                    ? "bg-neutral-100 dark:bg-neutral-700/80"
-                    : ""
-                }`}
-                onClick={() => handleChatClick(chat.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === "Enter" && handleChatClick(chat.id)}
-              >
-                <p className="text-[15px] font-medium truncate">
-                  {chat.title || "Untitled Chat"}
-                </p>
-                {/* Optional: Display createdAt if needed */}
-                {/* <p className="text-xs text-gray-500">{new Date(chat.createdAt).toLocaleString()}</p> */}
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="text-xs text-gray-500 mb-2 px-1 text-center">
+              Long press to see options.
+            </div>
+            <div className="gap-1 flex flex-col">
+              {displayedChats.map((chat) => {
+                const isDeleting = deletingChatId === chat.id;
+                const isEditing = editingChatId === chat.id;
+                const isUpdating = updatingChatId === chat.id;
+                const isSelected = selectedChatId === chat.id;
+                const isActive =
+                  new URLSearchParams(location.search).get("chatId") ===
+                  chat.id;
+
+                return (
+                  <div
+                    key={chat.id}
+                    className={`active:bg-neutral-200 dark:active:bg-neutral-800 cursor-pointer rounded-lg p-3 transition-colors duration-150 relative ${
+                      isActive ? "bg-neutral-100 dark:bg-neutral-700/80" : ""
+                    } ${
+                      isSelected && !isEditing
+                        ? "bg-neutral-200 dark:bg-neutral-700 ring-2 ring-blue-300 dark:ring-blue-600"
+                        : ""
+                    } ${
+                      isDeleting || isUpdating
+                        ? "opacity-50 pointer-events-none"
+                        : ""
+                    } ${isEditing ? "cursor-default" : ""}`}
+                    onClick={
+                      isEditing ? undefined : () => handleChatSelect(chat.id)
+                    }
+                    onTouchStart={() => !isEditing && handleTouchStart(chat.id)}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={handleTouchEnd}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (!isEditing && e.key === "Enter") {
+                        handleChatSelect(chat.id);
+                      }
+                    }}
+                  >
+                    {isEditing ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onKeyDown={(e) => handleEditKeyDown(e, chat.id)}
+                          onBlur={() => handleSaveEditTitle(chat.id)}
+                          className="text-[15px] font-medium bg-transparent border-b border-neutral-400 dark:border-neutral-500 focus:border-neutral-600 dark:focus:border-neutral-300 outline-none flex-1 px-1"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={(e) => handleSaveEditTitle(chat.id, e)}
+                            disabled={isUpdating || !editingTitle.trim()}
+                            className="p-1 hover:bg-green-100 dark:hover:bg-green-900/30 rounded text-green-600 hover:text-green-500 dark:hover:text-green-400 flex-shrink-0 disabled:opacity-50"
+                            title="Save"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Check className="h-5 w-5" />
+                            )}
+                          </button>
+                          <button
+                            onClick={handleCancelEditTitle}
+                            disabled={isUpdating}
+                            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-400 hover:text-red-300 dark:hover:text-red-400 flex-shrink-0 disabled:opacity-50"
+                            title="Cancel"
+                          >
+                            <X className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <p className="text-[15px] font-medium truncate flex-1">
+                          {chat.title || "Untitled Chat"}
+                        </p>
+                        {isSelected && (
+                          <div className="flex items-center gap-1 ml-2">
+                            <button
+                              onClick={(e) =>
+                                handleStartEditTitle(chat.id, chat.title, e)
+                              }
+                              disabled={isDeleting}
+                              className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400 flex-shrink-0 cursor-pointer active:bg-blue-200 dark:active:bg-blue-900/50"
+                              title="Edit title"
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={(e) => handleDeleteChat(chat.id, e)}
+                              disabled={isDeleting}
+                              className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 flex-shrink-0 cursor-pointer active:bg-red-200 dark:active:bg-red-900/50"
+                              title="Delete chat"
+                            >
+                              {isDeleting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Optional: Display createdAt if needed */}
+                    {/* <p className="text-xs text-gray-500">{new Date(chat.createdAt).toLocaleString()}</p> */}
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 

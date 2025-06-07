@@ -40,18 +40,18 @@ export default function InputBox({
   // Model definitions
   const models = [
     {
-      id: "gpt-4.1",
-      name: "GPT 4.1",
-      description: "Latest model",
-      icon: Sparkles,
-      available: true,
-    },
-    {
       id: "gpt-4.1-mini",
       name: "GPT 4.1 Mini",
       description: "Mini model",
       icon: Sparkles,
       available: true,
+    },
+    {
+      id: "gpt-4.1",
+      name: "GPT 4.1",
+      description: "Latest model",
+      icon: Sparkles,
+      available: false,
     },
     {
       id: "gemini-2.0-flash",
@@ -233,7 +233,7 @@ export default function InputBox({
                     {/* Upgrade Section */}
                     <div className="mb-4 p-3 rounded-lg bg-neutral-100 dark:bg-gradient-to-r dark:from-[#131e20] dark:via-[#1c2a31] dark:to-[#1e2c33] border dark:border-[#3d5b6b]">
                       <h3 className="text-sm font-medium dark:text-white text-gray-900 mb-1">
-                        All models with higher limits
+                        Self-hosted it on Vercel
                       </h3>
                       <div className="flex items-center justify-between">
                         {/* <div className="flex items-center space-x-1">

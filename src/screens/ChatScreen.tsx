@@ -238,7 +238,7 @@ export default function ChatPage({
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [searchEnabled, setSearchEnabled] = useState<boolean>(false);
-  const [selectedModel, setSelectedModel] = useState<string>("gpt-4.1");
+  const [selectedModel, setSelectedModel] = useState<string>("gpt-4.1-mini");
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const { user, setUser } = useUserStore();
   const [chatTitle, setChatTitle] = useState<string>("Better Index");
