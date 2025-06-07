@@ -9,10 +9,12 @@ import {
   chat,
 } from "@/database/schema/auth-schema";
 import { anonymous } from "better-auth/plugins";
+import { nextCookies } from "better-auth/next-js";
 import { eq } from "drizzle-orm";
 
 export const auth = betterAuth({
   plugins: [
+    nextCookies(),
     anonymous({
       onLinkAccount: async ({ anonymousUser, newUser }) => {
         // Ensure both user objects and their IDs are present

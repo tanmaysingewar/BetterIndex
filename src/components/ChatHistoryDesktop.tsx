@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Pacifico } from "next/font/google";
 import { Button } from "./ui/button";
 import { useUserStore } from "@/store/userStore";
-import { User } from "lucide-react";
+import { User, Trash2, Edit3, Check, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import Settings from "./Setting";
 import { authClient } from "@/lib/auth-client";
@@ -107,6 +107,10 @@ export default function ChatHistoryDesktop({
   const [isLoadingCache, setIsLoadingCache] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [updatingChatId, setUpdatingChatId] = useState<string | null>(null);
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [openSettings, setOpenSettings] = useState(false);
   const { user } = useUserStore();
@@ -211,6 +215,159 @@ export default function ChatHistoryDesktop({
     return searchParams.get("chatId");
   }, [searchParams]);
 
+  // Handle chat deletion
+  const handleDeleteChat = useCallback(
+    async (chatId: string, event: React.MouseEvent) => {
+      event.stopPropagation(); // Prevent chat click when deleting
+
+      if (deletingChatId) return; // Prevent multiple deletions
+
+      setDeletingChatId(chatId);
+
+      try {
+        const response = await fetch(`/api/chat/${chatId}`, {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to delete chat");
+        }
+
+        // Update local cache immediately for better UX
+        setCacheData((prevData) => {
+          if (!prevData) return prevData;
+
+          const updatedChats = prevData.chats.filter(
+            (chat) => chat.id !== chatId
+          );
+          const updatedData = {
+            ...prevData,
+            chats: updatedChats,
+            totalChats: updatedChats.length,
+            timestamp: Date.now(),
+          };
+
+          // Update localStorage
+          localStorage.setItem(CACHE_KEY, JSON.stringify(updatedData));
+
+          // Dispatch event to notify other components
+          window.dispatchEvent(new CustomEvent(CHAT_CACHE_UPDATED_EVENT));
+
+          return updatedData;
+        });
+
+        // If we deleted the currently active chat, redirect to new chat
+        const currentChatId = searchParams.get("chatId");
+        if (currentChatId === chatId) {
+          handleNewChatClick();
+        }
+      } catch (error) {
+        console.error("Error deleting chat:", error);
+        setError("Failed to delete chat. Please try again.");
+      } finally {
+        setDeletingChatId(null);
+      }
+    },
+    [deletingChatId, searchParams, handleNewChatClick]
+  );
+
+  // Handle starting chat title edit
+  const handleStartEditTitle = useCallback(
+    (chatId: string, currentTitle: string, event: React.MouseEvent) => {
+      event.stopPropagation(); // Prevent chat click when editing
+      setEditingChatId(chatId);
+      setEditingTitle(currentTitle || "Untitled Chat");
+    },
+    []
+  );
+
+  // Handle saving chat title edit
+  const handleSaveEditTitle = useCallback(
+    async (chatId: string, event?: React.MouseEvent) => {
+      if (event) {
+        event.stopPropagation(); // Prevent chat click when saving
+      }
+
+      if (updatingChatId || !editingTitle.trim()) return;
+
+      setUpdatingChatId(chatId);
+
+      try {
+        const response = await fetch(`/api/chat/${chatId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ title: editingTitle.trim() }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to update chat title");
+        }
+
+        // Update local cache immediately for better UX
+        setCacheData((prevData) => {
+          if (!prevData) return prevData;
+
+          const updatedChats = prevData.chats.map((chat) =>
+            chat.id === chatId ? { ...chat, title: editingTitle.trim() } : chat
+          );
+          const updatedData = {
+            ...prevData,
+            chats: updatedChats,
+            timestamp: Date.now(),
+          };
+
+          // Update localStorage
+          localStorage.setItem(CACHE_KEY, JSON.stringify(updatedData));
+
+          // Dispatch event to notify other components
+          window.dispatchEvent(new CustomEvent(CHAT_CACHE_UPDATED_EVENT));
+
+          return updatedData;
+        });
+
+        // Clear editing state
+        setEditingChatId(null);
+        setEditingTitle("");
+      } catch (error) {
+        console.error("Error updating chat title:", error);
+        setError("Failed to update chat title. Please try again.");
+      } finally {
+        setUpdatingChatId(null);
+      }
+    },
+    [editingTitle, updatingChatId]
+  );
+
+  // Handle canceling chat title edit
+  const handleCancelEditTitle = useCallback((event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation(); // Prevent chat click when canceling
+    }
+    setEditingChatId(null);
+    setEditingTitle("");
+  }, []);
+
+  // Handle keyboard events in edit mode
+  const handleEditKeyDown = useCallback(
+    (event: React.KeyboardEvent, chatId: string) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleSaveEditTitle(chatId);
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        handleCancelEditTitle();
+      }
+    },
+    [handleSaveEditTitle, handleCancelEditTitle]
+  );
+
   // Determine UI states
   const hasChats = cacheData?.chats && cacheData.chats.length > 0;
   const showEmptySearchResults =
@@ -274,6 +431,10 @@ export default function ChatHistoryDesktop({
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const chat = displayedChats[virtualRow.index];
+                const isDeleting = deletingChatId === chat.id;
+                const isEditing = editingChatId === chat.id;
+                const isUpdating = updatingChatId === chat.id;
+
                 return (
                   <div
                     key={chat.id}
@@ -285,23 +446,98 @@ export default function ChatHistoryDesktop({
                       height: `${virtualRow.size}px`,
                       transform: `translateY(${virtualRow.start}px)`,
                     }}
-                    onClick={() => handleChatClick(chat.id, chat.title)}
+                    onClick={
+                      isEditing
+                        ? undefined
+                        : () => handleChatClick(chat.id, chat.title)
+                    }
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) =>
-                      e.key === "Enter" && handleChatClick(chat.id, chat.title)
+                      !isEditing &&
+                      e.key === "Enter" &&
+                      handleChatClick(chat.id, chat.title)
                     }
                   >
                     <div
-                      className={`hover:bg-neutral-200 dark:hover:bg-[#222325] cursor-pointer rounded-sm p-2 px-3 transition-colors duration-150 ${
+                      className={`hover:bg-neutral-200 dark:hover:bg-[#222325] cursor-pointer rounded-sm p-2 px-3 transition-colors duration-150 group relative ${
                         currentChatId === chat.id
                           ? "bg-neutral-200 dark:bg-[#222325]"
                           : ""
-                      }`}
+                      } ${
+                        isDeleting || isUpdating
+                          ? "opacity-50 pointer-events-none"
+                          : ""
+                      } ${isEditing ? "cursor-default" : ""}`}
                     >
-                      <p className="text-sm font-medium truncate">
-                        {chat.title || "Untitled Chat"}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        {isEditing ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <input
+                              type="text"
+                              value={editingTitle}
+                              onChange={(e) => setEditingTitle(e.target.value)}
+                              onKeyDown={(e) => handleEditKeyDown(e, chat.id)}
+                              onBlur={() => handleSaveEditTitle(chat.id)}
+                              className="text-sm font-medium bg-transparent border-b border-neutral-400 dark:border-neutral-500 focus:border-neutral-600 dark:focus:border-neutral-300 outline-none flex-1 px-1"
+                              autoFocus
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={(e) => handleSaveEditTitle(chat.id, e)}
+                                disabled={isUpdating || !editingTitle.trim()}
+                                className="p-1 hover:bg-green-100 dark:hover:bg-green-900/30 rounded text-green-600 hover:text-green-500 dark:hover:text-green-400 flex-shrink-0 disabled:opacity-50"
+                                title="Save"
+                              >
+                                {isUpdating ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Check className="h-3 w-3" />
+                                )}
+                              </button>
+                              <button
+                                onClick={handleCancelEditTitle}
+                                disabled={isUpdating}
+                                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-400 hover:text-red-300 dark:hover:text-red-400 flex-shrink-0 disabled:opacity-50"
+                                title="Cancel"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm font-medium truncate flex-1">
+                              {chat.title || "Untitled Chat"}
+                            </p>
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 hidden group-hover:flex items-center gap-1 bg-white dark:bg-[#222325] px-1 rounded">
+                              <button
+                                onClick={(e) =>
+                                  handleStartEditTitle(chat.id, chat.title, e)
+                                }
+                                disabled={isDeleting}
+                                className="p-1 hover:bg-blue-100 dark:hover:bg-neutral-700 rounded text-white hover:text-white dark:text-white dark:hover:text-white flex-shrink-0 cursor-pointer"
+                                title="Edit title"
+                              >
+                                <Edit3 className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={(e) => handleDeleteChat(chat.id, e)}
+                                disabled={isDeleting}
+                                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-white hover:text-white dark:text-white dark:hover:text-white flex-shrink-0 cursor-pointer"
+                                title="Delete chat"
+                              >
+                                {isDeleting ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3 w-3" />
+                                )}
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
