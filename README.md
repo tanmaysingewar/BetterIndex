@@ -69,9 +69,35 @@ bun install
 cp .env.example .env.local
 ```
 
-Edit `.env.local` with your API keys and configuration.
+Edit `.env.local` with the following required environment variables:
 
-4. Run the development server:
+```env
+GOOGLE_CLIENT_ID=                    # Google OAuth client ID for authentication
+GOOGLE_CLIENT_SECRET=               # Google OAuth client secret
+BETTER_AUTH_SECRET=lAEdlwojkSvbKMitmaEAqTEAP7WOKZSf  # Secret key for BetterAuth
+DATABASE_URL=                       # Database connection URL
+BETTER_AUTH_URL=http://localhost:3000  # Base URL for authentication (update for production)
+TAVILY_API_KEY=                     # Tavily API key for web search functionality
+UPSTASH_REDIS_REST_URL=             # Upstash Redis REST URL for caching
+UPSTASH_REDIS_REST_TOKEN=           # Upstash Redis REST token
+```
+
+#### Getting Google OAuth Credentials
+
+To obtain your Google OAuth credentials:
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Navigate to **APIs & Services** > **Credentials**
+4. Click **Create Credentials** > **OAuth client ID**
+5. Configure the OAuth consent screen if prompted
+6. Choose **Web application** as the application type
+7. Add authorized redirect URIs:
+   - For development: `http://localhost:3000/api/auth/callback/google`
+   - For production: `https://your-domain.com/api/auth/callback/google`
+8. Copy the **Client ID** and **Client Secret** to your `.env.local` file
+
+9. Run the development server:
 
 ```bash
 npm run dev
