@@ -262,7 +262,9 @@ export async function POST(req: Request) {
 
           for await (const chunk of completion) {
             const content = chunk.choices[0]?.delta?.content || "";
-            const reasoning = (chunk.choices[0]?.delta as any)?.reasoning || "";
+            const reasoning =
+              (chunk.choices[0]?.delta as { reasoning?: string })?.reasoning ||
+              "";
 
             if (reasoning) {
               // Start reasoning block if this is the first reasoning chunk
