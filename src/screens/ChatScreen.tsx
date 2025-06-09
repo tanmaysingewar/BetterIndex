@@ -1055,31 +1055,11 @@ const RenderMessageOnScreen = ({
       setCopyClicked(false);
     }, 2000);
   };
-  const shineStyle = {
-    backgroundImage:
-      "linear-gradient(70deg, #ffffff 45%, #888888 50%, #ffffff 55%)",
-    backgroundSize: "500% 100%",
-    backgroundClip: "text",
-    WebkitBackgroundClip: "text",
-    color: "transparent",
-    animation: "shine 2s infinite",
-  };
-
   const LoadingIndicator = () => {
     return (
       <div className="flex items-center space-x-2">
-        <style jsx>{`
-          @keyframes shine {
-            0% {
-              background-position: 100% 50%;
-            }
-            100% {
-              background-position: 0% 50%;
-            }
-          }
-        `}</style>
         <Spinner className="w-5 h-5" />
-        <span className=" text-gray-600 dark:text-gray-300" style={shineStyle}>
+        <span className="loading-text-shine">
           {searchEnabled && loadingPhase === "searching"
             ? "Searching..."
             : "Generating response..."}

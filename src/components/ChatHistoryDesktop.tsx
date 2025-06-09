@@ -509,13 +509,13 @@ export default function ChatHistoryDesktop({
                             <p className="text-sm font-medium truncate flex-1">
                               {chat.title || "Untitled Chat"}
                             </p>
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 hidden group-hover:flex items-center gap-1 bg-white dark:bg-[#222325] px-1 rounded">
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 hidden group-hover:flex items-center gap-1 bg-neutral-200 dark:bg-[#222325] px-1 rounded">
                               <button
                                 onClick={(e) =>
                                   handleStartEditTitle(chat.id, chat.title, e)
                                 }
                                 disabled={isDeleting}
-                                className="p-1 hover:bg-blue-100 dark:hover:bg-neutral-700 rounded text-white hover:text-white dark:text-white dark:hover:text-white flex-shrink-0 cursor-pointer"
+                                className="p-1 hover:bg-blue-100 dark:hover:bg-neutral-700 rounded text-neutral-600 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300 flex-shrink-0 cursor-pointer"
                                 title="Edit title"
                               >
                                 <Edit3 className="h-3 w-3" />
@@ -523,7 +523,7 @@ export default function ChatHistoryDesktop({
                               <button
                                 onClick={(e) => handleDeleteChat(chat.id, e)}
                                 disabled={isDeleting}
-                                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-white hover:text-white dark:text-white dark:hover:text-white flex-shrink-0 cursor-pointer"
+                                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-neutral-600 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-400 flex-shrink-0 cursor-pointer"
                                 title="Delete chat"
                               >
                                 {isDeleting ? (

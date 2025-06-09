@@ -12,7 +12,10 @@ import { Redis } from "@upstash/redis";
 
 const tavilyClient = tavily({ apiKey: process.env.TAVILY_API_KEY! });
 
-const openaiClient = new OpenAI({});
+const openaiClient = new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
 
 export async function POST(req: Request) {
   // --- Standard Response Headers for Streaming ---
@@ -158,7 +161,7 @@ export async function POST(req: Request) {
               content: message.trim().substring(0, 100),
             },
           ],
-          model: "gpt-4.1-mini",
+          model: "google/gemini-2.0-flash-001",
           temperature: 0.1,
         });
 
