@@ -5,7 +5,11 @@ import { headers as nextHeaders } from "next/headers";
 import { db } from "@/database/db";
 import { auth } from "@/lib/auth";
 import { eq, and } from "drizzle-orm";
-import { messages, chat } from "@/database/schema/auth-schema";
+import {
+  messages,
+  chat,
+  sharedChatMessages,
+} from "@/database/schema/auth-schema";
 
 export async function GET(req: Request) {
   try {
@@ -22,35 +26,54 @@ export async function GET(req: Request) {
     // --- Get chat_id from URL query parameters ---
     const { searchParams } = new URL(req.url);
     const chatId = searchParams.get("chatId");
+    const shared = searchParams.get("shared") || false;
+
+    console.log("chatId", chatId);
+    console.log("shared", shared);
 
     if (!chatId) {
       return NextResponse.json(
         { error: "chatId query parameter is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     // --- Fetch messages JOINED with chat to verify ownership ---
     // This query ensures we only get messages from chats owned by the logged-in user.
-    const fetchedMessages = await db
-      .select({
-        id: messages.id,
-        userMessage: messages.userMessage,
-        botResponse: messages.botResponse,
-        // Add createdAt if you need to sort by it, otherwise ID might suffice
-        createdAt: messages.createdAt,
-      })
-      .from(messages)
-      .innerJoin(chat, eq(messages.chatId, chat.id)) // Join messages with chat
-      .where(
-        and(
-          eq(messages.chatId, chatId), // Filter by the requested chatId
-          eq(chat.userId, userId), // Filter by the authenticated user's ID
-        ),
-      )
-      // Add ordering if needed, e.g., by message ID or timestamp
-      // .orderBy(messages.createdAt); // or .orderBy(messages.id);
-      .orderBy(messages.createdAt); // Assuming nanoid/similar IDs are roughly sequential
+    let fetchedMessages;
+
+    if (shared === "true") {
+      fetchedMessages = await db
+        .select({
+          id: sharedChatMessages.id,
+          userMessage: sharedChatMessages.userMessage,
+          botResponse: sharedChatMessages.botResponse,
+          createdAt: sharedChatMessages.createdAt,
+        })
+        .from(sharedChatMessages)
+        .where(eq(sharedChatMessages.sharedChatId, chatId))
+        .orderBy(sharedChatMessages.createdAt);
+    } else {
+      fetchedMessages = await db
+        .select({
+          id: messages.id,
+          userMessage: messages.userMessage,
+          botResponse: messages.botResponse,
+          // Add createdAt if you need to sort by it, otherwise ID might suffice
+          createdAt: messages.createdAt,
+        })
+        .from(messages)
+        .innerJoin(chat, eq(messages.chatId, chat.id)) // Join messages with chat
+        .where(
+          and(
+            eq(messages.chatId, chatId), // Filter by the requested chatId
+            eq(chat.userId, userId) // Filter by the authenticated user's ID
+          )
+        )
+        // Add ordering if needed, e.g., by message ID or timestamp
+        // .orderBy(messages.createdAt); // or .orderBy(messages.id);
+        .orderBy(messages.createdAt); // Assuming nanoid/similar IDs are roughly sequential
+    }
 
     // --- Format the response ---
     // The frontend expects an array of { role, content } objects.

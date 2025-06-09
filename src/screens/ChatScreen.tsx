@@ -8,15 +8,27 @@ import MessageRenderer from "@/components/MessageRenderer";
 import { useUserStore } from "@/store/userStore";
 import { authClient } from "@/lib/auth-client";
 import Cookies from "js-cookie";
-import { fetchAllChatsAndCache } from "@/lib/fetchChats";
+import {
+  fetchAllChatsAndCache,
+  fetchSharedChatsAndCache,
+  CHAT_CACHE_UPDATED_EVENT,
+} from "@/lib/fetchChats";
 import { cn } from "@/lib/utils";
 import Logo_light from "@/assets/logo_light.svg";
 import Logo_Dark from "@/assets/logo_dark.svg";
 import Image from "next/image";
 import ChatHistoryDesktop from "@/components/ChatHistoryDesktop";
 import Head from "next/head";
-import { Check, CopyIcon } from "lucide-react";
+import { Check, CopyIcon, Upload } from "lucide-react";
 import { Pacifico } from "next/font/google";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 // import { Button } from "@/components/ui/button";
 
 interface Message {
@@ -207,6 +219,9 @@ const addChatToCache = (newChat: Chat): boolean => {
   }
 };
 
+// Add this constant near the top where other constants are defined
+const SHARED_CHATS_CACHE_KEY = "sharedChatHistoryCache";
+
 interface ChatPageProps {
   sessionDetails: {
     user: User | null; // Allow user to be null within sessionDetails
@@ -249,7 +264,11 @@ export default function ChatPage({
 
   const anonymousSignInAttempted = useRef(false); // <-- Add this ref
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
-
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [CopyClicked, setCopyClicked] = useState(false);
+  const [chatShared, setChatShared] = useState(false);
+  const [chatShareLoading, setChatShareLoading] = useState(false);
+  const [sharedChatId, setSharedChatId] = useState<string | null>(null);
   // const errorTost = () => toast.error('Here is your toast.');
 
   useEffect(() => {
@@ -297,11 +316,13 @@ export default function ChatPage({
         if (!isNewUser && !isAnonymous && !userAlreadySet) {
           console.log("Setting user cookie based on session.");
           await fetchAllChatsAndCache();
+          await fetchSharedChatsAndCache();
           return Cookies.set("user-status", "user", { expires: 7 });
         }
         if (isAnonymous && !userAlreadySet) {
           console.log("Setting guest cookie based on session (anonymous).");
           await fetchAllChatsAndCache();
+          await fetchSharedChatsAndCache();
           return Cookies.set("user-status", "guest", { expires: 7 });
         }
       }
@@ -324,6 +345,7 @@ export default function ChatPage({
             async function updateChatCache() {
               setIsLoadingChats(true);
               const success = await fetchAllChatsAndCache();
+              await fetchSharedChatsAndCache();
               if (success) {
                 console.log("Chat cache updated.");
               } else {
@@ -343,11 +365,13 @@ export default function ChatPage({
             serverFetchInitiated.current[chatIdToFetch] = true;
             console.log(
               `Fetching messages from server for chatId: ${chatIdToFetch}`
-            ); // Add this
+            );
+
+            const shared = searchParams.get("shared") || false;
 
             try {
               const response = await fetch(
-                `/api/messages?chatId=${chatIdToFetch}`
+                `/api/messages?chatId=${chatIdToFetch}&shared=${shared}`
               );
 
               if (!response.ok) {
@@ -460,11 +484,13 @@ export default function ChatPage({
             serverFetchInitiated.current[chatIdToFetch] = true;
             console.log(
               `Fetching messages from server for chatId: ${chatIdToFetch}`
-            ); // Add this
+            );
+
+            const shared = searchParams.get("shared") || false;
 
             try {
               const response = await fetch(
-                `/api/messages?chatId=${chatIdToFetch}`
+                `/api/messages?chatId=${chatIdToFetch}&shared=${shared}`
               );
 
               if (!response.ok) {
@@ -624,6 +650,10 @@ export default function ChatPage({
         { role: "assistant", content: "loading" },
       ]);
 
+      if (searchParams.get("shared") === "true") {
+        chatIdForRequest = generateChatId();
+      }
+
       // Prepare request
       const requestHeaders = new Headers({
         "Content-Type": "application/json",
@@ -642,11 +672,14 @@ export default function ChatPage({
 
       try {
         // Make the LLM provider dynamic
-        const response = await fetch("/api/openai", {
-          method: "POST",
-          headers: requestHeaders,
-          body: JSON.stringify(requestBody),
-        });
+        const response = await fetch(
+          `/api/openai?shared=${searchParams.get("shared") || false}`,
+          {
+            method: "POST",
+            headers: requestHeaders,
+            body: JSON.stringify(requestBody),
+          }
+        );
 
         if (!response.ok) {
           let errorMsg = `Network response was not ok (${response.status})`;
@@ -762,6 +795,12 @@ export default function ChatPage({
             getLocalStorageKey(chatIdForRequest),
             JSON.stringify(finalMessagesState)
           );
+          const currentSearchParams = new URLSearchParams(
+            window.location.search
+          );
+          currentSearchParams.set("chatId", chatIdForRequest);
+          currentSearchParams.delete("shared");
+          window.history.pushState({}, "", `/chat?${currentSearchParams}`);
         } catch (lsError) {
           console.error(
             "Error saving final messages to Local Storage:",
@@ -886,6 +925,163 @@ export default function ChatPage({
     };
   }, [currentChatId]);
 
+  // Add a function to check if current chat is already shared and get its shared ID
+  const checkIfChatIsShared = useCallback(() => {
+    if (!currentChatId) return { isShared: false, sharedId: null };
+
+    try {
+      const sharedChatsCache = localStorage.getItem(SHARED_CHATS_CACHE_KEY);
+      if (sharedChatsCache) {
+        const parsedCache = JSON.parse(sharedChatsCache);
+        if (parsedCache && Array.isArray(parsedCache.chats)) {
+          // Compare chatId (original chat ID) with currentChatId
+          const sharedChat = parsedCache.chats.find(
+            (chat: { chatId: string }) => chat.chatId === currentChatId
+          );
+          if (sharedChat) {
+            // Return the shared chat ID (stored in the 'id' field)
+            return {
+              isShared: true,
+              sharedId: sharedChat.id,
+            };
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error checking shared chats cache:", error);
+    }
+    return { isShared: false, sharedId: null };
+  }, [currentChatId]);
+
+  // Add useEffect to check shared status when dialog opens or currentChatId changes
+  useEffect(() => {
+    if (isShareDialogOpen && currentChatId) {
+      const { isShared, sharedId } = checkIfChatIsShared();
+      setChatShared(isShared);
+      setSharedChatId(sharedId);
+
+      // If chat is shared but we don't have the sharedChatId, we might need to fetch it
+      // For now, we'll handle this case in the UI by showing a different state
+    }
+  }, [isShareDialogOpen, currentChatId, checkIfChatIsShared]);
+
+  // Update the handleShareChat function
+  const handleShareChat = async () => {
+    if (!currentChatId) {
+      console.error("No chat ID available to share");
+      return;
+    }
+
+    try {
+      setChatShareLoading(true);
+
+      const response = await fetch("/api/share-chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          chatId: currentChatId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to share chat");
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Store the shared chat ID
+        setSharedChatId(data.sharedChatId);
+
+        // Update the shared chats cache
+        try {
+          const sharedChatsCache = localStorage.getItem(SHARED_CHATS_CACHE_KEY);
+          let cacheData;
+
+          if (sharedChatsCache) {
+            cacheData = JSON.parse(sharedChatsCache);
+          } else {
+            cacheData = {
+              chats: [],
+              totalChats: 0,
+              timestamp: Date.now(),
+            };
+          }
+
+          // Find the current chat in the regular chats cache to get its details
+          const allChatsCache = localStorage.getItem(ALL_CHATS_CACHE_KEY);
+          let currentChatDetails = null;
+
+          if (allChatsCache) {
+            const parsedAllChats = JSON.parse(allChatsCache);
+            currentChatDetails = parsedAllChats.chats.find(
+              (chat: Chat) => chat.id === currentChatId
+            );
+          }
+
+          // Check if chat already exists in shared cache
+          const existingSharedChatIndex = cacheData.chats.findIndex(
+            (chat: { chatId: string }) => chat.chatId === currentChatId
+          );
+
+          if (currentChatDetails) {
+            const sharedChatEntry = {
+              id: data.sharedChatId, // This is the shared chat ID
+              title: currentChatDetails.title,
+              userId: sessionDetails?.user?.id || user?.id,
+              createdAt: currentChatDetails.createdAt,
+              isShared: true,
+              chatId: currentChatId, // This is the original chat ID
+            };
+
+            if (existingSharedChatIndex >= 0) {
+              // Update existing entry
+              cacheData.chats[existingSharedChatIndex] = sharedChatEntry;
+            } else {
+              // Add new entry
+              cacheData.chats.unshift(sharedChatEntry);
+              cacheData.totalChats += 1;
+            }
+
+            cacheData.timestamp = Date.now();
+
+            localStorage.setItem(
+              SHARED_CHATS_CACHE_KEY,
+              JSON.stringify(cacheData)
+            );
+
+            // Dispatch cache update event
+            window.dispatchEvent(new Event(CHAT_CACHE_UPDATED_EVENT));
+
+            console.log(
+              "Added/updated chat in shared chats cache with sharedChatId:",
+              data.sharedChatId
+            );
+          }
+        } catch (cacheError) {
+          console.error("Error updating shared chats cache:", cacheError);
+          // Continue even if cache update fails - the share was successful
+        }
+
+        setChatShared(true);
+        console.log(
+          "Chat shared successfully with sharedChatId:",
+          data.sharedChatId
+        );
+      } else {
+        throw new Error("Failed to share chat");
+      }
+    } catch (error) {
+      console.error("Error sharing chat:", error);
+      // You might want to show a toast notification here
+    } finally {
+      setChatShareLoading(false);
+    }
+  };
+
   return (
     <div className={`flex w-full h-full`}>
       {/* Chat History - Hidden on mobile by default */}
@@ -909,7 +1105,21 @@ export default function ChatPage({
       <div
         className={`flex flex-col w-full dark:bg-[#222325] bg-white lg:mt-0 `}
       >
-        <Header landingPage={true} isAnonymous={isAnonymous} />
+        <div className="lg:hidden">
+          <Header landingPage={true} isAnonymous={isAnonymous} />
+        </div>
+
+        {!searchParams.get("shared") ? (
+          <div className="fixed top-4 right-4 z-50">
+            <Button
+              onClick={() => setIsShareDialogOpen(true)}
+              className="cursor-pointer"
+            >
+              <Upload className="w-4 h-4" />
+              Share
+            </Button>
+          </div>
+        ) : null}
 
         {messages.length === 0 && searchParams.get("new") ? (
           <div className="max-w-[750px] mx-auto px-4 text-center md:mt-[250px] mt-[170px]">
@@ -977,6 +1187,87 @@ export default function ChatPage({
           </div>
         </div>
       </div>
+
+      {/* Share Dialog */}
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent className="sm:max-w-md p-5 bg-white dark:bg-[#222325]">
+          <DialogHeader>
+            <DialogTitle>Share this conversation</DialogTitle>
+            <DialogDescription>
+              Share this chat with others by copying the link below.
+            </DialogDescription>
+          </DialogHeader>
+          {chatShared ? (
+            sharedChatId ? (
+              <div className="flex items-center space-x-2 p-2">
+                <div className="grid flex-1 gap-2">
+                  <p className="text-sm text-black dark:text-white font-lora text-ellipsis overflow-hidden whitespace-nowrap ">
+                    {`${window.location.origin}/chat?chatId=${sharedChatId}&shared=true`}
+                  </p>
+                </div>
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="px-3 bg-black dark:bg-[#2d2e30] dark:text-white rounded-lg cursor-pointer"
+                  onClick={() => {
+                    setCopyClicked(true);
+                    navigator.clipboard.writeText(
+                      `${window.location.origin}/chat?chatId=${sharedChatId}&shared=true`
+                    );
+                    setTimeout(() => {
+                      setCopyClicked(false);
+                    }, 1000);
+                  }}
+                >
+                  <span className="sr-only">Copy</span>
+                  {CopyClicked ? (
+                    <Check className="w-4 h-4 m-2" />
+                  ) : (
+                    <CopyIcon className="w-4 h-4 cursor-pointer m-2" />
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="p-2 text-center">
+                <p className="text-sm text-black dark:text-white font-lora mb-2">
+                  This chat is already shared, but we&apos;re unable to retrieve
+                  the share link at the moment.
+                </p>
+                <Button
+                  onClick={() => {
+                    setChatShared(false);
+                    setSharedChatId(null);
+                  }}
+                  variant="outline"
+                  className="cursor-pointer"
+                >
+                  Try sharing again
+                </Button>
+              </div>
+            )
+          ) : (
+            <Button
+              onClick={() => {
+                setChatShareLoading(true);
+                handleShareChat();
+              }}
+              className="cursor-pointer"
+              disabled={chatShareLoading}
+            >
+              {chatShareLoading ? (
+                <p className="text-sm text-white dark:text-black font-lora">
+                  Sharing...
+                </p>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Share
+                </>
+              )}
+            </Button>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

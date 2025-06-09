@@ -5,6 +5,39 @@ import { auth } from "@/lib/auth";
 import { eq, and } from "drizzle-orm";
 import { chat, messages } from "@/database/schema/auth-schema";
 
+export async function GET() {
+  // --- Authentication ---
+  const sessionData = await auth.api.getSession({
+    headers: await nextHeaders(),
+  });
+
+  if (!sessionData?.session || !sessionData?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const userId = sessionData.user.id;
+
+  // Get all shared chats for the user
+  const sharedChats = await db
+    .select({
+      id: chat.id,
+      title: chat.title,
+      userId: chat.userId,
+      createdAt: chat.createdAt,
+      isShared: chat.isShared,
+    })
+    .from(chat)
+    .where(and(eq(chat.userId, userId), eq(chat.isShared, true)))
+    .orderBy(chat.createdAt);
+
+  return NextResponse.json(
+    {
+      chats: sharedChats,
+      count: sharedChats.length,
+    },
+    { status: 200 }
+  );
+}
+
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ chatId: string }> }

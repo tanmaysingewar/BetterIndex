@@ -88,6 +88,7 @@ export const chat = pgTable("chat", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  isShared: boolean("is_shared").default(false),
 });
 
 export const chatRelations = relations(chat, ({ one, many }) => ({
@@ -114,3 +115,25 @@ export const messagesRelations = relations(messages, ({ one }) => ({
     references: [chat.id],
   }),
 }));
+
+export const sharedChat = pgTable("shared_chat", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  chatId: text("chat_id").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  userId: text("user_id").notNull(),
+});
+
+export const sharedChatRelations = relations(sharedChat, ({ many }) => ({
+  messages: many(sharedChatMessages),
+}));
+
+export const sharedChatMessages = pgTable("shared_chat_messages", {
+  id: text("id").primaryKey(),
+  userMessage: text("user_message"),
+  botResponse: text("bot_response"),
+  sharedChatId: text("shared_chat_id")
+    .notNull()
+    .references(() => sharedChat.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull(),
+});

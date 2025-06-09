@@ -14,6 +14,9 @@ interface PaginationInfo {
 // Define a specific cache key for all chats
 const ALL_CHATS_CACHE_KEY = "chatHistoryCache";
 
+// Define a specific cache key for shared chats
+const SHARED_CHATS_CACHE_KEY = "sharedChatHistoryCache";
+
 // Define the structure for the data we'll store
 interface AllChatsCacheData {
   chats: Chat[];
@@ -157,6 +160,93 @@ export const fetchAllChatsAndCache = async (
     console.error("Failed to fetch all chats:", error);
     // Optional: You might want to clear any potentially incomplete cache entry
     // localStorage.removeItem(ALL_CHATS_CACHE_KEY);
+    return false;
+  }
+};
+
+export const fetchSharedChatsAndCache = async (): Promise<boolean> => {
+  // Check if localStorage is available
+  if (typeof window === "undefined" || !window.localStorage) {
+    console.error("localStorage is not available. Cannot cache shared chats.");
+    return false;
+  }
+
+  console.log("Attempting to fetch all shared chats for caching...");
+
+  try {
+    // Fetch shared chats from the API (no pagination needed based on the route structure)
+    const apiUrl = `/api/share-chat`;
+    console.log(`Fetching: ${apiUrl}`);
+    const response = await fetch(apiUrl, {
+      method: "GET",
+      credentials: "include", // Include cookies for authentication
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        console.error("Authentication failed. User not logged in.");
+      } else if (response.status === 403) {
+        console.error("Access forbidden.");
+      } else {
+        console.error(`API Error: ${response.status} ${response.statusText}`);
+      }
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    // Validate the response structure
+    if (!data || !Array.isArray(data.chats)) {
+      throw new Error("Invalid API response structure received.");
+    }
+
+    const sharedChats: Chat[] = data.chats;
+    const totalSharedChats = data.count || sharedChats.length;
+
+    console.log(
+      `Fetched ${sharedChats.length} shared chats (API reported ${totalSharedChats})`
+    );
+
+    // Store the data in localStorage
+    const cacheData: AllChatsCacheData = {
+      chats: sharedChats,
+      totalChats: totalSharedChats,
+      timestamp: Date.now(),
+    };
+
+    try {
+      localStorage.setItem(SHARED_CHATS_CACHE_KEY, JSON.stringify(cacheData));
+      console.log(
+        `Successfully fetched and cached ${sharedChats.length} shared chats under key "${SHARED_CHATS_CACHE_KEY}".`
+      );
+
+      // Dispatch a custom event when cache is updated
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event(CHAT_CACHE_UPDATED_EVENT));
+      }
+
+      return true;
+    } catch (storageError) {
+      console.error(
+        "Failed to save shared chats to localStorage:",
+        storageError
+      );
+      // Consider potential storage limits
+      if (
+        storageError instanceof Error &&
+        storageError.name === "QuotaExceededError"
+      ) {
+        console.error(
+          "LocalStorage quota exceeded. Unable to cache all shared chats."
+        );
+      }
+      return false;
+    }
+  } catch (error) {
+    console.error("Failed to fetch shared chats:", error);
     return false;
   }
 };

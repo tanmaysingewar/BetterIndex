@@ -41,8 +41,6 @@ export default function Header({ landingPage, isAnonymous }: HeaderInterface) {
 
   const { user, setUser } = useUserStore();
 
-  console.log(user);
-
   const handleLogout = async () => {
     setLogOutLading(true);
     await authClient.signOut({

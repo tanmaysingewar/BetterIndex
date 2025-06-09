@@ -25,9 +25,14 @@ export async function POST(req: Request) {
   let title = "";
 
   try {
-    // --- 1. Get Headers and Body ---
+    // --- 1. Get Headers, Query Params, and Body ---
     const requestHeaders = await nextHeaders();
     currentChatId = requestHeaders.get("X-Chat-ID");
+
+    // Extract shared query parameter from URL
+    const url = new URL(req.url);
+    const shared = url.searchParams.get("shared") === "true";
+
     const { message, previous_conversations, search_enabled, model } =
       await req.json();
 
@@ -308,6 +313,46 @@ export async function POST(req: Request) {
                 chatId: finalChatId, // Link to the correct chat ID
                 createdAt: new Date(),
               });
+
+              // Save all previous conversations to database if shared is true
+              if (
+                shared &&
+                Array.isArray(previous_conversations) &&
+                previous_conversations.length > 0
+              ) {
+                const conversationPairs = [];
+
+                // Group messages into user-assistant pairs
+                for (let i = 0; i < previous_conversations.length - 1; i += 2) {
+                  const userMsg = previous_conversations[i];
+                  const assistantMsg = previous_conversations[i + 1];
+
+                  if (
+                    userMsg?.role === "user" &&
+                    assistantMsg?.role === "assistant" &&
+                    typeof userMsg.content === "string" &&
+                    typeof assistantMsg.content === "string" &&
+                    userMsg.content.trim() !== "" &&
+                    assistantMsg.content.trim() !== ""
+                  ) {
+                    conversationPairs.push({
+                      id: nanoid(),
+                      userMessage: userMsg.content.trim(),
+                      botResponse: assistantMsg.content.trim(),
+                      chatId: finalChatId,
+                      createdAt: new Date(),
+                    });
+                  }
+                }
+
+                // Insert all conversation pairs at once if we have any
+                if (conversationPairs.length > 0) {
+                  await db.insert(messages).values(conversationPairs);
+                  console.log(
+                    `Saved ${conversationPairs.length} previous conversation pairs for shared chat ${finalChatId}`
+                  );
+                }
+              }
             } catch (dbError) {
               // Log error but don't necessarily stop the stream response
               console.error("Error saving message pair:", dbError);
