@@ -269,6 +269,12 @@ export default function ChatPage({
   const [chatShared, setChatShared] = useState(false);
   const [chatShareLoading, setChatShareLoading] = useState(false);
   const [sharedChatId, setSharedChatId] = useState<string | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(() => {
+    // Initialize as true if we need to do anonymous sign-in
+    const userAlreadySet =
+      typeof window !== "undefined" ? Cookies.get("user-status") : null;
+    return isNewUser && !user && !userAlreadySet;
+  });
   // const errorTost = () => toast.error('Here is your toast.');
 
   useEffect(() => {
@@ -282,20 +288,28 @@ export default function ChatPage({
         !userAlreadySet &&
         !anonymousSignInAttempted.current
       ) {
+        setIsAuthenticating(true); // Set loading state
         anonymousSignInAttempted.current = true; // <-- Set the ref immediately
         console.log("Attempting Anonymous User creation on CI - fetchData"); // Updated log
-        const userResult = await authClient.signIn.anonymous(); // API call
-        if (userResult?.data?.user) {
-          console.log("Anonymous user created, setting state and cookie."); // Added log
-          console.log(userResult.data.user);
-          setUser(userResult.data.user); // State Update
-          // Return the promise from Cookies.set
-          return Cookies.set("user-status", "guest", { expires: 7 });
-        } else {
-          console.warn("Anonymous sign-in failed or returned no user.");
-          // Reset the ref if the sign-in *fails* structurally, allowing a retry maybe?
-          // Or handle the error state appropriately. For now, we leave it true.
-          // anonymousSignInAttempted.current = false;
+
+        try {
+          const userResult = await authClient.signIn.anonymous(); // API call
+          if (userResult?.data?.user) {
+            console.log("Anonymous user created, setting state and cookie."); // Added log
+            console.log(userResult.data.user);
+            setUser(userResult.data.user); // State Update
+            // Return the promise from Cookies.set
+            Cookies.set("user-status", "guest", { expires: 7 });
+          } else {
+            console.warn("Anonymous sign-in failed or returned no user.");
+            // Reset the ref if the sign-in *fails* structurally, allowing a retry maybe?
+            // Or handle the error state appropriately. For now, we leave it true.
+            // anonymousSignInAttempted.current = false;
+          }
+        } catch (error) {
+          console.error("Error during anonymous sign-in:", error);
+        } finally {
+          setIsAuthenticating(false); // Clear loading state
         }
       } else if (user && !userAlreadySet && (isNewUser || isAnonymous)) {
         // If user exists in state but cookie is missing (e.g., after state update), set cookie
@@ -317,13 +331,13 @@ export default function ChatPage({
           console.log("Setting user cookie based on session.");
           await fetchAllChatsAndCache();
           await fetchSharedChatsAndCache();
-          return Cookies.set("user-status", "user", { expires: 7 });
+          Cookies.set("user-status", "user", { expires: 7 });
         }
         if (isAnonymous && !userAlreadySet) {
           console.log("Setting guest cookie based on session (anonymous).");
           await fetchAllChatsAndCache();
           await fetchSharedChatsAndCache();
-          return Cookies.set("user-status", "guest", { expires: 7 });
+          Cookies.set("user-status", "guest", { expires: 7 });
         }
       }
     }
@@ -333,6 +347,12 @@ export default function ChatPage({
   }, [user, isNewUser, setUser, isAnonymous, sessionDetails]);
 
   useEffect(() => {
+    // Don't proceed if authentication is in progress
+    if (isAuthenticating) {
+      console.log("Authentication in progress, delaying navigation actions");
+      return;
+    }
+
     if (typeof window !== "undefined") {
       const navigationEntries =
         window.performance.getEntriesByType("navigation");
@@ -429,10 +449,16 @@ export default function ChatPage({
         }
       }
     }
-  }, []);
+  }, [isAuthenticating]);
 
   // Effect 1: Set initial chat ID from URL & Load from Local Storage
   useEffect(() => {
+    // Don't proceed if authentication is in progress
+    if (isAuthenticating) {
+      console.log("Authentication in progress, delaying chat loading");
+      return;
+    }
+
     const chatIdFromUrl = searchParams.get("chatId") || undefined;
     console.log("chatIdFromUrl:", chatIdFromUrl); // Add this
 
@@ -555,7 +581,7 @@ export default function ChatPage({
       console.warn("No chat ID found in URL parameters.");
       // Optional: Redirect or handle base route
     }
-  }, [searchParams, currentChatId, isGenerating]);
+  }, [searchParams, currentChatId, isGenerating, isAuthenticating]);
 
   // Effect 3: Scroll to bottom
   useEffect(() => {
@@ -594,7 +620,7 @@ export default function ChatPage({
   const handleSendMessage = useCallback(
     async (messageContent: string) => {
       const trimmedMessage = messageContent.trim();
-      if (!trimmedMessage || isGenerating) return;
+      if (!trimmedMessage || isGenerating || isAuthenticating) return;
 
       setIsGenerating(true);
       setLoadingPhase("searching");
@@ -841,6 +867,7 @@ export default function ChatPage({
     },
     [
       isGenerating,
+      isAuthenticating,
       currentChatId,
       router,
       messages,
@@ -1082,6 +1109,14 @@ export default function ChatPage({
     }
   };
 
+  if (isAuthenticating) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Spinner />
+      </div>
+    );
+  }
+
   return (
     <div className={`flex w-full h-full`}>
       {/* Chat History - Hidden on mobile by default */}
@@ -1178,7 +1213,7 @@ export default function ChatPage({
               input={input}
               setInput={setInput}
               onSend={handleSendMessage}
-              disabled={isGenerating}
+              disabled={isGenerating || isAuthenticating}
               searchEnabled={searchEnabled}
               onSearchToggle={setSearchEnabled}
               selectedModel={selectedModel}
