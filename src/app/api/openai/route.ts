@@ -254,13 +254,41 @@ export async function POST(req: Request) {
           const completion = await openaiClient.chat.completions.create({
             messages: messages_format,
             model: model,
-            temperature: 0.2,
             stream: true as const,
           });
 
+          let reasoningStarted = false;
+          let reasoningComplete = false;
+
           for await (const chunk of completion) {
             const content = chunk.choices[0]?.delta?.content || "";
+            const reasoning =
+              (chunk.choices[0]?.delta as { reasoning?: string })?.reasoning ||
+              "";
+
+            if (reasoning) {
+              // Start reasoning block if this is the first reasoning chunk
+              if (!reasoningStarted) {
+                const reasoningStart = `\`\`\` think\n`;
+                fullBotResponse += reasoningStart;
+                controller.enqueue(encoder.encode(reasoningStart));
+                reasoningStarted = true;
+              }
+
+              // Stream the reasoning chunk
+              fullBotResponse += reasoning;
+              controller.enqueue(encoder.encode(reasoning));
+            }
+
             if (content) {
+              // Close reasoning block if we had reasoning and now we're getting content
+              if (reasoningStarted && !reasoningComplete) {
+                const reasoningEnd = `\n\`\`\`\n\n`;
+                fullBotResponse += reasoningEnd;
+                controller.enqueue(encoder.encode(reasoningEnd));
+                reasoningComplete = true;
+              }
+
               fullBotResponse += content;
               controller.enqueue(encoder.encode(content));
             }

@@ -7,7 +7,6 @@ import Cookies from "js-cookie";
 import Spinner from "@/components/Spinner";
 import { useUserStore } from "@/store/userStore";
 import { fetchAllChatsAndCache } from "@/lib/fetchChats";
-import getRateLimit from "@/lib/fetchRateLimit";
 
 interface User {
   id: string;
@@ -57,7 +56,6 @@ export default function ChatPage() {
         Cookies.set("user-status", "user", { expires: 7 });
         await refreshSession();
         await fetchAllChatsAndCache();
-        await getRateLimit();
       }
 
       if (userStatus === "user") {
