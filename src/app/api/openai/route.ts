@@ -83,7 +83,7 @@ export async function POST(req: Request) {
       // Create a new ratelimiter, that allows 1 requests per 24 hours
       ratelimit = new Ratelimit({
         redis: Redis.fromEnv(),
-        limiter: Ratelimit.slidingWindow(1, "24 h"),
+        limiter: Ratelimit.slidingWindow(3, "24 h"),
       });
 
       // Use user email as the identifier for rate limiting
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
     } else {
       ratelimit = new Ratelimit({
         redis: Redis.fromEnv(),
-        limiter: Ratelimit.slidingWindow(10, "24 h"),
+        limiter: Ratelimit.slidingWindow(30, "24 h"),
       });
 
       // Use user email as the identifier for rate limiting
