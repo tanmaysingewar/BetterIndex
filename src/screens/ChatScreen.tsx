@@ -9,7 +9,6 @@ import { useUserStore } from "@/store/userStore";
 import { authClient } from "@/lib/auth-client";
 import Cookies from "js-cookie";
 import { fetchAllChatsAndCache } from "@/lib/fetchChats";
-import getRateLimit from "@/lib/fetchRateLimit";
 import { cn } from "@/lib/utils";
 import Logo_light from "@/assets/logo_light.svg";
 import Logo_Dark from "@/assets/logo_dark.svg";
@@ -297,13 +296,11 @@ export default function ChatPage({
         // Cookie setting logic moved slightly to avoid redundant sets
         if (!isNewUser && !isAnonymous && !userAlreadySet) {
           console.log("Setting user cookie based on session.");
-          await getRateLimit();
           await fetchAllChatsAndCache();
           return Cookies.set("user-status", "user", { expires: 7 });
         }
         if (isAnonymous && !userAlreadySet) {
           console.log("Setting guest cookie based on session (anonymous).");
-          await getRateLimit();
           await fetchAllChatsAndCache();
           return Cookies.set("user-status", "guest", { expires: 7 });
         }
@@ -326,7 +323,6 @@ export default function ChatPage({
           try {
             async function updateChatCache() {
               setIsLoadingChats(true);
-              await getRateLimit();
               const success = await fetchAllChatsAndCache();
               if (success) {
                 console.log("Chat cache updated.");

@@ -87,7 +87,7 @@ export default function InputBox({
       name: "Claude 3.7 Sonnet: Thinking",
       description: "Pro feature",
       icon: Sparkles,
-      available: false,
+      available: true,
     },
     {
       id: "deepseek/deepseek-r1-0528",

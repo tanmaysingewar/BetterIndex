@@ -1,9 +1,15 @@
-import { Check, CopyIcon } from "lucide-react";
+import { Check, ChevronDownIcon, ChevronUpIcon, CopyIcon } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import remarkGfm from "remark-gfm";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 interface MessageRendererProps {
   content: string;
@@ -55,6 +61,8 @@ const CopyButton = ({ text }: { text: string }) => {
 };
 
 const MessageRenderer = ({ content }: MessageRendererProps) => {
+  const [isReasoningExpanded, setIsReasoningExpanded] = useState(false);
+
   return (
     <div className={`md:max-w-[710px] max-w-svw`}>
       <section>
@@ -66,6 +74,41 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
               const match = /language-(\w+)/.exec(className || "");
               const codeText = String(children).replace(/\n$/, "");
               const language = match ? match[1] : null;
+
+              // Handle "think" language as accordion
+              if (language === "think") {
+                return (
+                  <div className="">
+                    <div
+                      className="flex items-center gap-2 cursor-pointer select-none"
+                      onClick={() =>
+                        setIsReasoningExpanded(!isReasoningExpanded)
+                      }
+                    >
+                      <p className="text-sm font-medium select-none">
+                        Reasoning
+                      </p>{" "}
+                      {isReasoningExpanded ? (
+                        <ChevronUpIcon
+                          size={16}
+                          className="text-muted-foreground mt-[-15px]"
+                        />
+                      ) : (
+                        <ChevronDownIcon
+                          size={16}
+                          className="text-muted-foreground mt-[-15px]"
+                        />
+                      )}
+                    </div>
+                    {isReasoningExpanded && (
+                      <p className="text-sm text-muted-foreground bg-muted/30 rounded-sm whitespace-pre-wrap font-firaCode dark:bg-[#161719] p-2 ">
+                        {codeText}
+                      </p>
+                    )}
+                  </div>
+                );
+              }
+
               return match ? (
                 <div
                   style={{
