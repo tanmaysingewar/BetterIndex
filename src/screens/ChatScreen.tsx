@@ -1,5 +1,12 @@
 "use client";
-import React, { useState, useRef, useEffect, useCallback, memo } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  memo,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import InputBox from "@/components/InputArea/InputBox";
 import Header from "@/components/Header";
@@ -19,7 +26,7 @@ import Logo_Dark from "@/assets/logo_dark.svg";
 import Image from "next/image";
 import ChatHistoryDesktop from "@/components/ChatHistoryDesktop";
 import Head from "next/head";
-import { Check, CopyIcon, Upload } from "lucide-react";
+import { Check, CopyIcon, Edit3, Upload } from "lucide-react";
 import { Pacifico } from "next/font/google";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +36,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+
+import { Textarea } from "@/components/ui/textarea";
 // import { Button } from "@/components/ui/button";
 
 interface Message {
@@ -148,13 +157,25 @@ const addChatToCache = (newChat: Chat): boolean => {
         };
       }
 
-      // --- Step 3a: Add new chat to existing list (prepend) ---
-      cacheData.chats.unshift(newChat); // Add to the beginning
-      cacheData.totalChats += 1; // Increment total count
-      cacheData.timestamp = Date.now(); // Update timestamp
-      console.log(
-        `Added chat to existing cache. New total: ${cacheData.totalChats}`
+      // --- Step 3a: Check for duplicate and add/update chat ---
+      const existingChatIndex = cacheData.chats.findIndex(
+        (chat) => chat.id === newChat.id
       );
+
+      if (existingChatIndex >= 0) {
+        // Update existing chat (for edited messages with same ID)
+        cacheData.chats[existingChatIndex] = newChat;
+        console.log(`Updated existing chat (ID: ${newChat.id}) in cache`);
+      } else {
+        // Add new chat to the beginning
+        cacheData.chats.unshift(newChat);
+        cacheData.totalChats += 1; // Only increment for truly new chats
+        console.log(
+          `Added new chat to cache. New total: ${cacheData.totalChats}`
+        );
+      }
+
+      cacheData.timestamp = Date.now(); // Update timestamp
     } else {
       // --- Step 2b/3b: Create new cache if none exists ---
       console.log("No existing cache found. Creating a new one.");
@@ -275,6 +296,8 @@ export default function ChatPage({
       typeof window !== "undefined" ? Cookies.get("user-status") : null;
     return isNewUser && !user && !userAlreadySet;
   });
+  const [messagesLoadedFromLocalStorage, setMessagesLoadedFromLocalStorage] =
+    useState(false);
   // const errorTost = () => toast.error('Here is your toast.');
 
   useEffect(() => {
@@ -346,6 +369,17 @@ export default function ChatPage({
     // Dependency array remains the same. The ref handles the execution logic.
   }, [user, isNewUser, setUser, isAnonymous, sessionDetails]);
 
+  // useLayoutEffect to scroll to bottom when messages are loaded from localStorage
+  useLayoutEffect(() => {
+    if (messagesLoadedFromLocalStorage && messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: "instant",
+        block: "end",
+      });
+      setMessagesLoadedFromLocalStorage(false); // Reset the flag
+    }
+  }, [messagesLoadedFromLocalStorage]);
+
   useEffect(() => {
     // Don't proceed if authentication is in progress
     if (isAuthenticating) {
@@ -413,13 +447,8 @@ export default function ChatPage({
                   : fetchedMessages;
               setMessages(finalMessagesFromServer);
 
-              // Immediately scroll to bottom when messages are loaded from server
-              setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({
-                  behavior: "instant",
-                  block: "end",
-                });
-              }, 0);
+              // Trigger scroll to bottom when messages are loaded from server
+              setMessagesLoadedFromLocalStorage(true);
 
               try {
                 localStorage.setItem(
@@ -466,6 +495,7 @@ export default function ChatPage({
       setCurrentChatId(chatIdFromUrl);
       console.log("Setting currentChatId to:", chatIdFromUrl); // Add this
       setChatInitiated(false);
+      setMessagesLoadedFromLocalStorage(false); // Reset the flag when switching chats
       serverFetchInitiated.current = {};
 
       let foundInLs = false;
@@ -478,14 +508,7 @@ export default function ChatPage({
           if (Array.isArray(parsedMessages)) {
             setMessages(parsedMessages); // Set state from LS
             foundInLs = true;
-
-            // Immediately scroll to bottom when messages are loaded from localStorage
-            setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({
-                behavior: "instant",
-                block: "end",
-              });
-            }, 0);
+            setMessagesLoadedFromLocalStorage(true); // Set flag to trigger scroll
 
             // Get chat title from cache
             const chatCache = localStorage.getItem("chatHistoryCache");
@@ -537,14 +560,9 @@ export default function ChatPage({
                     ]
                   : fetchedMessages;
 
-              // Set messages and immediately scroll to bottom
+              // Set messages and trigger scroll to bottom
               setMessages(finalMessagesFromServer);
-              setTimeout(() => {
-                messagesEndRef.current?.scrollIntoView({
-                  behavior: "instant",
-                  block: "end",
-                });
-              }, 0);
+              setMessagesLoadedFromLocalStorage(true); // Trigger scroll using the same mechanism
 
               try {
                 localStorage.setItem(
@@ -618,7 +636,11 @@ export default function ChatPage({
   };
 
   const handleSendMessage = useCallback(
-    async (messageContent: string) => {
+    async (
+      messageContent: string,
+      editedMessage: boolean,
+      messagesUpToEdit?: Message[]
+    ) => {
       const trimmedMessage = messageContent.trim();
       if (!trimmedMessage || isGenerating || isAuthenticating) return;
 
@@ -647,8 +669,13 @@ export default function ChatPage({
         messagesBeforeOptimisticUpdate = []; // History is empty
       } else {
         // For existing chats, capture the current state *before* adding the new user message
-        // Use the state directly, as functional update below handles concurrency
-        // messagesBeforeOptimisticUpdate = messages; // This might be stale, functional update is better
+        // If this is an edited message, use the provided messagesUpToEdit
+        if (editedMessage && messagesUpToEdit) {
+          messagesBeforeOptimisticUpdate = messagesUpToEdit;
+        } else {
+          // Use the state directly, as functional update below handles concurrency
+          // messagesBeforeOptimisticUpdate = messages; // This might be stale, functional update is better
+        }
         setChatInitiated(true);
       }
 
@@ -658,16 +685,30 @@ export default function ChatPage({
       // This ensures we append to the *very latest* state, preventing race conditions
       // with Effect 1 (LS) or Effect 2 (Server) setting state.
       setMessages((prevMessages) => {
-        messagesBeforeOptimisticUpdate = prevMessages; // Capture the state right before update
-        // Prevent adding duplicates if called rapidly
-        if (
-          prevMessages.length > 0 &&
-          prevMessages[prevMessages.length - 1].role === "user" &&
-          prevMessages[prevMessages.length - 1].content === trimmedMessage
-        ) {
-          return prevMessages;
+        // For edited messages, we already have the correct state, so just capture it
+        if (editedMessage && messagesUpToEdit) {
+          // Don't update messagesBeforeOptimisticUpdate here since it's already set correctly above
+          // Prevent adding duplicates if called rapidly
+          if (
+            prevMessages.length > 0 &&
+            prevMessages[prevMessages.length - 1].role === "user" &&
+            prevMessages[prevMessages.length - 1].content === trimmedMessage
+          ) {
+            return prevMessages;
+          }
+          return [...prevMessages, newUserMessage];
+        } else {
+          messagesBeforeOptimisticUpdate = prevMessages; // Capture the state right before update
+          // Prevent adding duplicates if called rapidly
+          if (
+            prevMessages.length > 0 &&
+            prevMessages[prevMessages.length - 1].role === "user" &&
+            prevMessages[prevMessages.length - 1].content === trimmedMessage
+          ) {
+            return prevMessages;
+          }
+          return [...prevMessages, newUserMessage];
         }
-        return [...prevMessages, newUserMessage];
       });
       // --- End Optimistic Update ---
       //
@@ -691,7 +732,12 @@ export default function ChatPage({
         message: trimmedMessage,
         // Send history *before* the optimistic user message
         // For new chats, history will be empty
-        previous_conversations: isNewChat ? [] : messages,
+        // For edited messages, use the filtered messages up to the edit point
+        previous_conversations: isNewChat
+          ? []
+          : editedMessage && messagesUpToEdit
+          ? messagesUpToEdit
+          : messages,
         search_enabled: searchEnabled,
         model: selectedModel,
       };
@@ -699,7 +745,9 @@ export default function ChatPage({
       try {
         // Make the LLM provider dynamic
         const response = await fetch(
-          `/api/openai?shared=${searchParams.get("shared") || false}`,
+          `/api/openai?shared=${
+            searchParams.get("shared") || false
+          }&editedMessage=${editedMessage}`,
           {
             method: "POST",
             headers: requestHeaders,
@@ -879,7 +927,7 @@ export default function ChatPage({
   // Effect 4: Handle Initial Message from Store
   useEffect(() => {
     if (!isGenerating && currentChatId !== null) {
-      handleSendMessage(""); // Trigger send
+      handleSendMessage("", false); // Trigger send
       console.log(isChatHistoryOpen);
     }
   }, [isGenerating, messages, currentChatId, router, handleSendMessage]);
@@ -1144,8 +1192,8 @@ export default function ChatPage({
           <Header landingPage={true} isAnonymous={isAnonymous} />
         </div>
 
-        {!searchParams.get("shared") ? (
-          <div className="fixed top-4 right-4 z-50">
+        {!searchParams.get("shared") && !searchParams.get("new") ? (
+          <div className="fixed top-4 right-4 z-50 hidden lg:block">
             <Button
               onClick={() => setIsShareDialogOpen(true)}
               className="cursor-pointer"
@@ -1199,6 +1247,8 @@ export default function ChatPage({
                   chatInitiated={chatInitiated}
                   loadingPhase={loadingPhase}
                   searchEnabled={searchEnabled}
+                  setMessages={setMessages}
+                  handleSendMessage={handleSendMessage}
                 />
               ))}
               <div ref={messagesEndRef} className="pb-[120px]" />
@@ -1212,7 +1262,9 @@ export default function ChatPage({
               height={inputBoxHeight}
               input={input}
               setInput={setInput}
-              onSend={handleSendMessage}
+              onSend={(messageContent) =>
+                handleSendMessage(messageContent, false)
+              }
               disabled={isGenerating || isAuthenticating}
               searchEnabled={searchEnabled}
               onSearchToggle={setSearchEnabled}
@@ -1315,6 +1367,12 @@ interface RenderMessageProps {
   chatInitiated: boolean;
   loadingPhase: "searching" | "generating" | null;
   searchEnabled: boolean;
+  setMessages: (messages: Message[]) => void;
+  handleSendMessage: (
+    messageContent: string,
+    editedMessage: boolean,
+    messagesUpToEdit?: Message[]
+  ) => Promise<void>;
 }
 
 /**
@@ -1360,6 +1418,41 @@ const highlightSpecialWords = (text: string) => {
  * Memoized to prevent re-rendering if props haven't changed.
  */
 
+const handleEditKeyPress = (
+  e: React.KeyboardEvent,
+  index: number,
+  editingText: string,
+  setEditingMessageIndex: (index: number | null) => void,
+  setEditingText: (text: string) => void,
+  messages: Message[],
+  setMessages: (messages: Message[]) => void,
+  handleSendMessage: (
+    messageContent: string,
+    editedMessage: boolean,
+    messagesUpToEdit?: Message[]
+  ) => Promise<void>
+) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    // Handle the edit here
+    console.log("Editing message:", editingText);
+
+    // Filter messages to only include those before the edited message
+    const messagesUpToEdit = messages.filter((_, i) => i < index);
+
+    // Set the filtered messages immediately
+    setMessages(messagesUpToEdit);
+
+    // Clear editing state
+    setEditingMessageIndex(null);
+    setEditingText("");
+
+    // Send the edited message with the correct context
+    const editedMessage = true;
+    handleSendMessage(editingText, editedMessage, messagesUpToEdit);
+  }
+};
+
 const RenderMessageOnScreen = ({
   message,
   index,
@@ -1367,8 +1460,82 @@ const RenderMessageOnScreen = ({
   chatInitiated,
   loadingPhase,
   searchEnabled,
+  setMessages,
+  handleSendMessage,
 }: RenderMessageProps) => {
   const [CopyClicked, setCopyClicked] = useState(false);
+  const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(
+    null
+  );
+  const [editingText, setEditingText] = useState<string>("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea based on content
+  useEffect(() => {
+    // Add a small delay to ensure the textarea is rendered
+    const timeoutId = setTimeout(() => {
+      if (textareaRef.current && editingMessageIndex === index) {
+        const textarea = textareaRef.current;
+        console.log("Textarea ref found:", textarea); // Debug log
+
+        // Reset height to auto to get the correct scrollHeight
+        textarea.style.height = "auto";
+        textarea.style.overflow = "hidden";
+        textarea.style.resize = "none";
+
+        // Set height to scrollHeight to fit content
+        const newHeight = Math.max(textarea.scrollHeight, 60); // minimum height
+        textarea.style.height = newHeight + "px";
+        console.log("heightOfTheTextArea", newHeight);
+
+        textarea.scrollIntoView({
+          behavior: "smooth",
+          block: "end",
+          inline: "nearest",
+        });
+
+        textarea.focus();
+      } else {
+        console.log("Textarea ref not found or not editing:", {
+          current: textareaRef.current,
+          editingMessageIndex,
+          index,
+        }); // Debug log
+      }
+    }, 10); // Small delay to ensure DOM is updated
+
+    return () => clearTimeout(timeoutId);
+  }, [editingText, editingMessageIndex, index]);
+
+  // Create a callback ref that handles auto-resizing
+  const textareaCallbackRef = useCallback(
+    (textarea: HTMLTextAreaElement | null) => {
+      if (textarea && editingMessageIndex === index) {
+        console.log("Textarea callback ref called:", textarea); // Debug log
+
+        // Store the ref for other uses
+        textareaRef.current = textarea;
+
+        // Auto-resize logic
+        textarea.style.height = "auto";
+        textarea.style.overflow = "hidden";
+        textarea.style.resize = "none";
+
+        const newHeight = Math.max(textarea.scrollHeight, 60);
+        textarea.style.height = newHeight + "px";
+        console.log("heightOfTheTextArea from callback:", newHeight);
+
+        textarea.scrollIntoView({
+          behavior: "smooth",
+          block: "end",
+          inline: "nearest",
+        });
+
+        textarea.focus();
+      }
+    },
+    [editingText, editingMessageIndex, index]
+  );
 
   const handleCopyClick = () => {
     setCopyClicked(true);
@@ -1416,13 +1583,41 @@ const RenderMessageOnScreen = ({
           {message.role === "user" && (
             <div className="ml-auto max-w-full w-fit">
               <div
-                className={`p-3 rounded-3xl bg-gray-100 dark:bg-[#2d2e30] dark:text-white rounded-br-lg  px-4 font-lora`}
+                className={`rounded-3xl bg-gray-100  dark:text-white rounded-br-lg   font-lora ${
+                  editingMessageIndex === index
+                    ? "px-[1px] w-screen max-w-[720px] dark:bg-neutral-900"
+                    : "p-2 px-4 dark:bg-[#2d2e30]"
+                }`}
               >
-                <p className="font-lora">
-                  {highlightSpecialWords(message.content)}
-                </p>
+                {editingMessageIndex === index ? (
+                  <Textarea
+                    ref={textareaCallbackRef}
+                    value={editingText}
+                    className="rounded-xl p-3 border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 text-xl font-lora dark:bg-neutral-900 bg-neutral-200"
+                    onChange={(e) => setEditingText(e.target.value)}
+                    style={{
+                      fontSize: "17px",
+                    }}
+                    onKeyDown={(e) =>
+                      handleEditKeyPress(
+                        e,
+                        index,
+                        editingText,
+                        setEditingMessageIndex,
+                        setEditingText,
+                        messages,
+                        setMessages,
+                        handleSendMessage
+                      )
+                    }
+                  />
+                ) : (
+                  <p className="font-lora">
+                    {highlightSpecialWords(message.content)}
+                  </p>
+                )}
               </div>
-              <div className="flex flex-col justify-end items-end">
+              <div className="flex flex-row justify-end items-end">
                 {CopyClicked ? (
                   <Check className="w-4 h-4 m-2" />
                 ) : (
@@ -1431,6 +1626,17 @@ const RenderMessageOnScreen = ({
                     onClick={handleCopyClick}
                   />
                 )}
+                <Edit3
+                  className="w-4 h-4 cursor-pointer m-2"
+                  onClick={() => {
+                    if (editingMessageIndex === index) {
+                      setEditingMessageIndex(null);
+                    } else {
+                      setEditingMessageIndex(index);
+                    }
+                    setEditingText(message.content);
+                  }}
+                />
               </div>
             </div>
           )}
@@ -1488,11 +1694,41 @@ const RenderMessageOnScreen = ({
           {message.role === "user" && (
             <div className="ml-auto max-w-full w-fit">
               <div
-                className={`p-3 rounded-3xl bg-gray-100 dark:bg-[#2d2e30] dark:text-white rounded-br-lg px-4`}
+                className={`rounded-3xl bg-gray-100 dark:bg-[#2d2e30] dark:text-white rounded-br-lg font-lora ${
+                  editingMessageIndex === index
+                    ? "px-[1px] w-screen max-w-[720px]"
+                    : "p-3 px-4"
+                }`}
               >
-                {highlightSpecialWords(message.content)}
+                {editingMessageIndex === index ? (
+                  <Textarea
+                    ref={textareaCallbackRef}
+                    value={editingText}
+                    className="rounded-xl p-3 border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 text-lg font-lora bg-neutral-900"
+                    style={{
+                      fontSize: "16px",
+                      resize: "none",
+                      overflow: "hidden",
+                    }}
+                    onChange={(e) => setEditingText(e.target.value)}
+                    onKeyDown={(e) =>
+                      handleEditKeyPress(
+                        e,
+                        index,
+                        editingText,
+                        setEditingMessageIndex,
+                        setEditingText,
+                        messages,
+                        setMessages,
+                        handleSendMessage
+                      )
+                    }
+                  />
+                ) : (
+                  <div>{highlightSpecialWords(message.content)}</div>
+                )}
               </div>
-              <div className="flex flex-col justify-end items-end">
+              <div className="flex flex-row justify-end items-end">
                 {CopyClicked ? (
                   <Check className="w-4 h-4 m-2" />
                 ) : (
@@ -1501,6 +1737,17 @@ const RenderMessageOnScreen = ({
                     onClick={handleCopyClick}
                   />
                 )}
+                <Edit3
+                  className="w-4 h-4 cursor-pointer m-2"
+                  onClick={() => {
+                    if (editingMessageIndex === index) {
+                      setEditingMessageIndex(null);
+                    } else {
+                      setEditingMessageIndex(index);
+                    }
+                    setEditingText(message.content);
+                  }}
+                />
               </div>
             </div>
           )}

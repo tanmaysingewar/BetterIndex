@@ -32,6 +32,7 @@ export async function POST(req: Request) {
     // Extract shared query parameter from URL
     const url = new URL(req.url);
     const shared = url.searchParams.get("shared") === "true";
+    const editedMessage = url.searchParams.get("editedMessage") === "true";
 
     const { message, previous_conversations, search_enabled, model } =
       await req.json();
@@ -148,11 +149,32 @@ export async function POST(req: Request) {
             { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }
-        // Chat exists and belongs to the user
-        isNewChatFlow = false;
+
+        // If editedMessage is true, delete the existing chat and all its messages
+        if (editedMessage) {
+          // Delete all messages associated with this chat
+          await db.delete(messages).where(eq(messages.chatId, currentChatId));
+
+          // Delete the chat itself
+          await db.delete(chat).where(eq(chat.id, currentChatId));
+
+          console.log(
+            `Deleted chat ${currentChatId} and its messages for edited message flow`
+          );
+
+          // Set flag to create new chat
+          isNewChatFlow = true;
+        } else {
+          // Chat exists and belongs to the user, normal flow
+          isNewChatFlow = false;
+        }
       } else {
         // Chat does NOT exist - Create it using the ID from the frontend
+        isNewChatFlow = true;
+      }
 
+      // Create new chat if needed (either doesn't exist or was deleted for edit)
+      if (isNewChatFlow) {
         // Generate the title
         const completion = await openaiClient.chat.completions.create({
           messages: [
@@ -182,7 +204,6 @@ export async function POST(req: Request) {
           userId: userId,
           createdAt: new Date(),
         });
-        isNewChatFlow = true; // Mark that we just created this chat
       }
     } catch (dbError) {
       console.error(
@@ -306,22 +327,15 @@ export async function POST(req: Request) {
             );
           } else {
             try {
-              await db.insert(messages).values({
-                id: nanoid(),
-                userMessage: message.trim(),
-                botResponse: fullBotResponse,
-                chatId: finalChatId, // Link to the correct chat ID
-                createdAt: new Date(),
-              });
+              // Prepare all messages to be saved
+              const messagesToSave = [];
 
-              // Save all previous conversations to database if shared is true
+              // Save all previous conversations to database if shared is true OR editedMessage is true
               if (
-                shared &&
+                (shared || editedMessage) &&
                 Array.isArray(previous_conversations) &&
                 previous_conversations.length > 0
               ) {
-                const conversationPairs = [];
-
                 // Group messages into user-assistant pairs
                 for (let i = 0; i < previous_conversations.length - 1; i += 2) {
                   const userMsg = previous_conversations[i];
@@ -335,7 +349,7 @@ export async function POST(req: Request) {
                     userMsg.content.trim() !== "" &&
                     assistantMsg.content.trim() !== ""
                   ) {
-                    conversationPairs.push({
+                    messagesToSave.push({
                       id: nanoid(),
                       userMessage: userMsg.content.trim(),
                       botResponse: assistantMsg.content.trim(),
@@ -344,14 +358,23 @@ export async function POST(req: Request) {
                     });
                   }
                 }
+              }
 
-                // Insert all conversation pairs at once if we have any
-                if (conversationPairs.length > 0) {
-                  await db.insert(messages).values(conversationPairs);
-                  console.log(
-                    `Saved ${conversationPairs.length} previous conversation pairs for shared chat ${finalChatId}`
-                  );
-                }
+              // Add the current message pair
+              messagesToSave.push({
+                id: nanoid(),
+                userMessage: message.trim(),
+                botResponse: fullBotResponse,
+                chatId: finalChatId, // Link to the correct chat ID
+                createdAt: new Date(),
+              });
+
+              // Insert all messages at once
+              if (messagesToSave.length > 0) {
+                await db.insert(messages).values(messagesToSave);
+                console.log(
+                  `Saved ${messagesToSave.length} message pairs for chat ${finalChatId}`
+                );
               }
             } catch (dbError) {
               // Log error but don't necessarily stop the stream response
