@@ -9,6 +9,7 @@ import { tavily } from "@tavily/core";
 import OpenAI from "openai";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import * as mammoth from "mammoth";
 
 const tavilyClient = tavily({ apiKey: process.env.TAVILY_API_KEY! });
 
@@ -34,8 +35,15 @@ export async function POST(req: Request) {
     const shared = url.searchParams.get("shared") === "true";
     const editedMessage = url.searchParams.get("editedMessage") === "true";
 
-    const { message, previous_conversations, search_enabled, model } =
-      await req.json();
+    const {
+      message,
+      previous_conversations,
+      search_enabled,
+      model,
+      fileUrl,
+      fileType,
+      fileName,
+    } = await req.json();
 
     // --- 2. Validate Input ---
     if (!currentChatId) {
@@ -237,9 +245,11 @@ export async function POST(req: Request) {
     }
 
     // --- Prepare messages for OpenAI API ---
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const messages_format: Array<{
       role: "system" | "user" | "assistant";
-      content: string;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      content: string | Array<any>;
     }> = [
       {
         role: "system",
@@ -259,43 +269,188 @@ export async function POST(req: Request) {
       messages_format.push(...validPreviousConversations);
     }
 
+    // --- 7. Prepare User Message Content with File Support ---
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let userMessageContent: string | Array<any>;
+
+    // Prepare base text content with search results if available
+    let textContent = message.trim();
     if (searchResults && searchResults.trim() !== "") {
-      // Add the current user message
-      messages_format.push({
-        role: "user",
-        content: `
-        -------- Web Search Results --------
-        ${searchResults}
-        -------- End of Web Search Results --------\n\n
-        ${message.trim()}`,
-      });
-    } else {
-      // Add the current user message
-      messages_format.push({
-        role: "user",
-        content: `
-      ${message.trim()}`,
-      });
+      textContent = `-------- Web Search Results --------
+${searchResults}
+-------- End of Web Search Results --------
+
+${message.trim()}`;
     }
+
+    // Check if we have file content to include
+    if (fileUrl && fileType && fileName) {
+      // Create content array with text and file
+      userMessageContent = [
+        {
+          type: "text",
+          text: textContent,
+        },
+      ];
+
+      try {
+        // Add file content based on type
+        if (fileType.startsWith("image/")) {
+          // Handle images (png, jpeg, webp) - Public URLs work directly with OpenRouter
+          userMessageContent.push({
+            type: "image_url",
+            image_url: {
+              url: fileUrl, // UploadThing public URL works for images
+            },
+          });
+          console.log("Image file added to message content, fileUrl:", fileUrl);
+        } else if (fileType === "application/pdf") {
+          // Handle PDFs - Need to fetch and convert to base64 for OpenRouter
+          try {
+            console.log(`Fetching PDF from URL: ${fileUrl}`);
+            const response = await fetch(fileUrl);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch PDF: ${response.statusText}`);
+            }
+            const arrayBuffer = await response.arrayBuffer();
+            const base64 = Buffer.from(arrayBuffer).toString("base64");
+            const dataUrl = `data:application/pdf;base64,${base64}`;
+
+            userMessageContent.push({
+              type: "file",
+              file: {
+                filename: fileName,
+                file_data: dataUrl,
+              },
+            });
+            console.log(`Successfully processed PDF: ${fileName}`);
+          } catch (fetchError) {
+            console.error("Error fetching PDF file:", fetchError);
+            userMessageContent[0].text += `\n\n[Note: PDF file "${fileName}" could not be processed - ${
+              fetchError instanceof Error ? fetchError.message : "Unknown error"
+            }]`;
+          }
+        } else if (fileType === "text/plain" || fileType.startsWith("text/")) {
+          // Handle text files by fetching content and adding to message
+          try {
+            console.log(`Fetching text file from URL: ${fileUrl}`);
+            const response = await fetch(fileUrl);
+            if (!response.ok) {
+              throw new Error(
+                `Failed to fetch text file: ${response.statusText}`
+              );
+            }
+            const textFileContent = await response.text();
+            userMessageContent[0].text += `\n\n-------- File Content: ${fileName} --------\n${textFileContent}\n-------- End of File Content --------`;
+            console.log(`Successfully processed text file: ${fileName}`);
+          } catch (fetchError) {
+            console.error("Error fetching text file:", fetchError);
+            userMessageContent[0].text += `\n\n[Note: Text file "${fileName}" could not be processed - ${
+              fetchError instanceof Error ? fetchError.message : "Unknown error"
+            }]`;
+          }
+        } else if (
+          fileType ===
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+          fileType === "application/msword" ||
+          fileName.toLowerCase().endsWith(".docx") ||
+          fileName.toLowerCase().endsWith(".doc")
+        ) {
+          // Handle Microsoft Word documents
+          try {
+            console.log(`Processing Word document: ${fileName} (${fileType})`);
+            const response = await fetch(fileUrl);
+            if (!response.ok) {
+              throw new Error(
+                `Failed to fetch Word document: ${response.statusText}`
+              );
+            }
+
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+
+            if (fileName.toLowerCase().endsWith(".docx")) {
+              // Handle .docx files with mammoth
+              const result = await mammoth.extractRawText({ buffer });
+              const documentText = result.value;
+
+              if (documentText.trim()) {
+                userMessageContent[0].text += `\n\n-------- Document Content: ${fileName} --------\n${documentText}\n-------- End of Document Content --------`;
+                console.log(
+                  `Successfully extracted text from .docx: ${fileName}`
+                );
+              } else {
+                userMessageContent[0].text += `\n\n[Note: Word document "${fileName}" was processed but no readable text content was found.]`;
+              }
+            } else {
+              // Handle .doc files (older format)
+              userMessageContent[0].text += `\n\n[Note: Microsoft Word document "${fileName}" (.doc format) was attached. For best results with older .doc files, please convert to .docx format or copy/paste the text content.]`;
+            }
+          } catch (fetchError) {
+            console.error("Error processing Word document:", fetchError);
+            userMessageContent[0].text += `\n\n[Note: Word document "${fileName}" could not be processed - ${
+              fetchError instanceof Error ? fetchError.message : "Unknown error"
+            }. Consider copying and pasting the text content instead.]`;
+          }
+        } else {
+          // Unsupported file type
+          console.warn(
+            `Unsupported file type: ${fileType} for file: ${fileName}`
+          );
+          userMessageContent[0].text += `\n\n[Note: File "${fileName}" (${fileType}) was attached but is not supported for processing]`;
+        }
+      } catch (error) {
+        console.error("Error processing file:", error);
+        userMessageContent[0].text += `\n\n[Note: File "${fileName}" could not be processed due to an error]`;
+      }
+    } else {
+      // No file, just use text content
+      userMessageContent = textContent;
+    }
+
+    // Add the current user message
+    messages_format.push({
+      role: "user",
+      content: userMessageContent,
+    });
 
     // --- 7. Stream OpenAI Response and Save Message ---
     const encoder = new TextEncoder();
     let fullBotResponse = "";
     const finalChatId = currentChatId; // Use the validated/created chat ID
 
+    // Prepare completion parameters
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const completionParams: any = {
+      messages: messages_format,
+      model: model,
+      stream: true,
+    };
+
+    // Add PDF processing plugin if we have a PDF file (OpenRouter specific feature)
+    if (fileUrl && fileType === "application/pdf") {
+      completionParams.plugins = [
+        {
+          id: "file-parser",
+          pdf: {
+            engine: "pdf-text", // Use free engine by default, can be changed to "mistral-ocr" for better OCR
+          },
+        },
+      ];
+    }
+
     // Streaming the Response
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const completion = await openaiClient.chat.completions.create({
-            messages: messages_format,
-            model: model,
-            stream: true as const,
-          });
+          const completion = await openaiClient.chat.completions.create(
+            completionParams
+          );
 
           let reasoningStarted = false;
           let reasoningComplete = false;
 
+          // @ts-expect-error- OpenRouter plugins affect TypeScript inference but streaming works correctly
           for await (const chunk of completion) {
             const content = chunk.choices[0]?.delta?.content || "";
             const reasoning =

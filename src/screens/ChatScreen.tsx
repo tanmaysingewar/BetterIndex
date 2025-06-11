@@ -305,7 +305,9 @@ export default function ChatPage({
   });
   const [messagesLoadedFromLocalStorage, setMessagesLoadedFromLocalStorage] =
     useState(false);
-  // const errorTost = () => toast.error('Here is your toast.');
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [fileType, setFileType] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -735,19 +737,48 @@ export default function ChatPage({
         "X-Chat-ID": chatIdForRequest,
       });
 
-      const requestBody = {
-        message: trimmedMessage,
-        // Send history *before* the optimistic user message
-        // For new chats, history will be empty
-        // For edited messages, use the filtered messages up to the edit point
-        previous_conversations: isNewChat
-          ? []
-          : editedMessage && messagesUpToEdit
-          ? messagesUpToEdit
-          : messages,
-        search_enabled: searchEnabled,
-        model: selectedModel,
-      };
+      let requestBody = {};
+
+      console.log("File URL:", fileUrl);
+
+      if (fileUrl) {
+        console.log("File uploaded");
+        console.log("fileUrl:", fileUrl);
+        console.log("fileType:", fileType);
+        console.log("fileName:", fileName);
+        requestBody = {
+          message: trimmedMessage,
+          previous_conversations: isNewChat
+            ? []
+            : editedMessage && messagesUpToEdit
+            ? messagesUpToEdit
+            : messages,
+          search_enabled: searchEnabled,
+          model: selectedModel,
+          fileUrl: fileUrl,
+          fileType: fileType,
+          fileName: fileName,
+        };
+      } else {
+        console.log("No file uploaded");
+        requestBody = {
+          message: trimmedMessage,
+          previous_conversations: isNewChat
+            ? []
+            : editedMessage && messagesUpToEdit
+            ? messagesUpToEdit
+            : messages,
+          search_enabled: searchEnabled,
+          model: selectedModel,
+          fileUrl: "",
+          fileType: "",
+          fileName: "",
+        };
+      }
+
+      setFileUrl("");
+      setFileType("");
+      setFileName("");
 
       try {
         // Make the LLM provider dynamic
@@ -928,6 +959,9 @@ export default function ChatPage({
       messages,
       searchEnabled,
       selectedModel,
+      fileUrl,
+      fileType,
+      fileName,
     ]
   );
 
@@ -1342,14 +1376,20 @@ export default function ChatPage({
               height={inputBoxHeight}
               input={input}
               setInput={setInput}
-              onSend={(messageContent) =>
-                handleSendMessage(messageContent, false)
-              }
+              onSend={(messageContent) => {
+                handleSendMessage(messageContent, false);
+              }}
               disabled={isGenerating || isAuthenticating}
               searchEnabled={searchEnabled}
               onSearchToggle={setSearchEnabled}
               selectedModel={selectedModel}
               onModelChange={setSelectedModel}
+              fileUrl={fileUrl || ""}
+              setFileUrl={setFileUrl}
+              fileType={fileType || ""}
+              setFileType={setFileType}
+              fileName={fileName || ""}
+              setFileName={setFileName}
             />
           </div>
         </div>
@@ -1571,11 +1611,11 @@ const RenderMessageOnScreen = ({
         textarea.style.height = newHeight + "px";
         console.log("heightOfTheTextArea", newHeight);
 
-        textarea.scrollIntoView({
-          behavior: "smooth",
-          block: "end",
-          inline: "nearest",
-        });
+        // textarea.scrollIntoView({
+        //   behavior: "smooth",
+        //   block: "end",
+        //   inline: "nearest",
+        // });
 
         textarea.focus();
       } else {

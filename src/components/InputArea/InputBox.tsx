@@ -9,11 +9,22 @@ import {
   Crown,
   ChevronUp,
   Search,
+  Paperclip,
+  Loader2,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import TextInput from "./TextInput";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-// import Link from "next/link";
+import {
+  // UploadButton,
+  // UploadDropzone,
+  useUploadThing,
+} from "@/lib/uploadthing";
+import { useDropzone } from "@uploadthing/react";
+import {
+  generateClientDropzoneAccept,
+  generatePermittedFileTypes,
+} from "uploadthing/client";
 
 interface InputBoxProps {
   input: string;
@@ -25,6 +36,12 @@ interface InputBoxProps {
   onSearchToggle: (enabled: boolean) => void;
   selectedModel: string;
   onModelChange: (model: string) => void;
+  fileUrl: string;
+  setFileUrl: (value: string) => void;
+  fileType: string;
+  setFileType: (value: string) => void;
+  fileName: string;
+  setFileName: (value: string) => void;
 }
 
 export default function InputBox({
@@ -37,6 +54,11 @@ export default function InputBox({
   onSearchToggle,
   selectedModel,
   onModelChange,
+  fileUrl,
+  setFileUrl,
+  setFileType,
+  fileName,
+  setFileName,
 }: InputBoxProps) {
   // Model definitions
   const models = [
@@ -87,7 +109,7 @@ export default function InputBox({
       name: "Claude 3.7 Sonnet: Thinking",
       description: "Pro feature",
       icon: Sparkles,
-      available: true,
+      available: false,
     },
     {
       id: "deepseek/deepseek-r1-0528",
@@ -128,6 +150,7 @@ export default function InputBox({
   const [modelSearch, setModelSearch] = useState("");
   const suggestionsContainerRef = useRef<HTMLDivElement>(null);
   const suggestionItemRefs = useRef<(HTMLParagraphElement | null)[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Filter models based on search
   const filteredModels = models.filter(
@@ -221,6 +244,61 @@ export default function InputBox({
     }
   }, [isPopoverOpen]);
 
+  const { startUpload, routeConfig } = useUploadThing("mediaUploader", {
+    onClientUploadComplete: (res) => {
+      console.log("Upload completed:", res);
+      setIsUploading(false);
+      if (res && res.length > 0) {
+        setFileUrl(res[0].url || "");
+        setFileType(res[0].type || "");
+      }
+    },
+    onUploadError: (error) => {
+      console.error("Upload error:", error);
+      setIsUploading(false);
+    },
+    onUploadBegin: (file) => {
+      console.log("upload has begun for", file);
+      setIsUploading(true);
+    },
+  });
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      if (acceptedFiles.length > 0) {
+        startUpload(acceptedFiles);
+        setFileName(acceptedFiles[0].name);
+      }
+    },
+    [startUpload]
+  );
+
+  const { getRootProps, getInputProps } = useDropzone({
+    onDrop,
+    accept: generateClientDropzoneAccept(
+      generatePermittedFileTypes(routeConfig).fileTypes
+    ),
+  });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      console.log(
+        "Selected file:",
+        file.name,
+        "Type:",
+        file.type,
+        "Size:",
+        file.size
+      );
+      setFileName(file.name);
+      startUpload([file]);
+      setFileUrl(file.name);
+      setFileType(file.type);
+      setFileName(file.name);
+    }
+  };
+
   return (
     <div>
       <div className="max-w-3xl text-base font-sans lg:px-0 w-screen md:rounded-t-3xl px-2 fixed bottom-0  select-none">
@@ -250,6 +328,29 @@ export default function InputBox({
           </div>
         )}
         <div className="flex flex-col items-center rounded-t-3xl dark:bg-[#303335]/80 bg-neutral-100/70 p-2 w-full backdrop-blur-xs">
+          {/* PDF Content Indicator */}
+          {fileUrl && (
+            <div className="w-full mx-3 mb-2">
+              <div className="flex items-center justify-between bg-blue-50 dark:bg-[#344f5a]/30 border border-blue-200 dark:border-[#344f5a] rounded-lg px-3 py-2">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-[#344f5a] rounded-full"></div>
+                  <span className="text-sm text-[#344f5a] dark:text-blue-300">
+                    {fileName}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setFileUrl("");
+                    setFileType("");
+                    setFileName("");
+                  }}
+                  className="text-[#7bc2de] dark:text-[#7bc2de] hover:text-[#8fdfff] dark:hover:text-[#8fdfff] text-sm cursor-pointer"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          )}
           <TextInput
             input={input}
             setInput={setInput}
@@ -281,17 +382,6 @@ export default function InputBox({
                         Self-hosted it on Vercel
                       </h3>
                       <div className="flex items-center justify-between">
-                        {/* <div className="flex items-center space-x-1">
-                          <span className="text-sm dark:text-neutral-400 text-neutral-500">
-                            Add to wishlist
-                          </span>
-                        </div>
-                        <Button
-                          size="sm"
-                          className="dark:bg-neutral-700 dark:hover:bg-neutral-600 bg-neutral-800 hover:bg-neutral-700 text-white"
-                        >
-                          Wishlist
-                        </Button> */}
                         <span className="text-sm dark:text-neutral-400 text-neutral-500">
                           Coming soon
                         </span>
@@ -371,7 +461,7 @@ export default function InputBox({
                 </PopoverContent>
               </Popover>
 
-              <div className="mt-0 flex flex-row ">
+              <div className="mt-0 flex flex-row gap-3">
                 <div
                   className={`flex flex-row items-center justify-center h-[28px] px-2 rounded-full space-x-1.5 border cursor-pointer  ${
                     searchEnabled
@@ -388,6 +478,39 @@ export default function InputBox({
                     }`}
                   />
                   <p className="text-sm select-none">Search</p>
+                </div>
+                <div
+                  className={`flex flex-row items-center justify-center h-[28px] px-2 rounded-full space-x-1.5 border cursor-pointer ${
+                    isUploading
+                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-600"
+                      : "bg-transparent text-neutral-500 dark:text-neutral-400 border-neutral-300 dark:border-neutral-400"
+                  }`}
+                  {...getRootProps()}
+                >
+                  <input
+                    type="file"
+                    id="file-upload"
+                    className="hidden"
+                    accept=".txt,.pdf,.doc,.docx"
+                    onChange={handleFileUpload}
+                    {...getInputProps()}
+                    disabled={isUploading}
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className={`flex flex-row items-center space-x-1.5 ${
+                      isUploading ? "cursor-wait" : "cursor-pointer"
+                    }`}
+                  >
+                    {isUploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Paperclip className="w-4 h-4" />
+                    )}
+                    <p className="text-sm select-none">
+                      {isUploading ? "Uploading..." : "Upload"}
+                    </p>
+                  </label>
                 </div>
               </div>
             </div>
