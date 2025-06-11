@@ -223,7 +223,6 @@ export async function POST(req: Request) {
         const res = await tavilyClient.search(message, {
           includeAnswer: true,
         });
-        console.log("Search Results in Client:", res);
         return JSON.stringify(res);
       } catch (error) {
         console.error("Error in searchWeb:", error);
@@ -235,7 +234,6 @@ export async function POST(req: Request) {
 
     if (search_enabled) {
       searchResults = await searchWeb(message);
-      console.log("Search Results:", searchResults);
     }
 
     // --- Prepare messages for OpenAI API ---
@@ -261,12 +259,24 @@ export async function POST(req: Request) {
       messages_format.push(...validPreviousConversations);
     }
 
-    // Add the current user message
-    messages_format.push({
-      role: "user",
-      content: `
+    if (searchResults && searchResults.trim() !== "") {
+      // Add the current user message
+      messages_format.push({
+        role: "user",
+        content: `
+        -------- Web Search Results --------
+        ${searchResults}
+        -------- End of Web Search Results --------\n\n
+        ${message.trim()}`,
+      });
+    } else {
+      // Add the current user message
+      messages_format.push({
+        role: "user",
+        content: `
       ${message.trim()}`,
-    });
+      });
+    }
 
     // --- 7. Stream OpenAI Response and Save Message ---
     const encoder = new TextEncoder();
