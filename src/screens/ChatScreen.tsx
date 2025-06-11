@@ -26,7 +26,14 @@ import Logo_Dark from "@/assets/logo_dark.svg";
 import Image from "next/image";
 import ChatHistoryDesktop from "@/components/ChatHistoryDesktop";
 import Head from "next/head";
-import { Check, CopyIcon, Edit3, Upload } from "lucide-react";
+import {
+  Check,
+  CopyIcon,
+  Edit3,
+  GitBranch,
+  Loader2,
+  Upload,
+} from "lucide-react";
 import { Pacifico } from "next/font/google";
 import { Button } from "@/components/ui/button";
 import {
@@ -1165,6 +1172,78 @@ export default function ChatPage({
     );
   }
 
+  const handleBranchClick = async () => {
+    // duplicate the current chat
+    const newChatId = crypto.randomUUID();
+    const newChatTitle = "Branched - " + chatTitle;
+    const newChatCreatedAt = new Date().toISOString();
+    const newChat = {
+      id: newChatId,
+      title: newChatTitle,
+      createdAt: newChatCreatedAt,
+    };
+    let newChatMessages = [];
+    // get current chat history form ChatHistoryCache key
+    const currentChatHistory = localStorage.getItem("chatHistoryCache");
+    let currentChatHistoryData = null;
+    if (currentChatHistory) {
+      currentChatHistoryData = JSON.parse(currentChatHistory);
+    }
+
+    // Get the current chat messages from the local storage
+    const currentChatMessages = localStorage.getItem(
+      getLocalStorageKey(searchParams.get("chatId") || "")
+    );
+    console.log(currentChatMessages);
+    if (currentChatMessages) {
+      const currentChatData = JSON.parse(currentChatMessages);
+      newChatMessages = currentChatData;
+    }
+
+    // Update the new chat in the DB
+    const response = await fetch("/api/branch", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        chatId: newChatId,
+        title: newChatTitle,
+        messages: newChatMessages,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Failed to branch chat");
+      return false;
+    }
+
+    //add the new chat to the currentChatHistoryData
+    if (currentChatHistoryData) {
+      localStorage.setItem(
+        "chatHistoryCache",
+        JSON.stringify({
+          chats: [newChat, ...currentChatHistoryData.chats],
+          totalChats: currentChatHistoryData.totalChats + 1,
+          timestamp: Date.now(),
+        })
+      );
+      window.dispatchEvent(new Event(CHAT_CACHE_UPDATED_EVENT));
+    }
+    // save the new chat to the local storage
+    localStorage.setItem(
+      getLocalStorageKey(newChatId),
+      JSON.stringify(newChatMessages)
+    );
+
+    document.title = newChatTitle + " - Better Index";
+    const currentSearchParams = new URLSearchParams(window.location.search);
+    currentSearchParams.set("chatId", newChatId);
+    currentSearchParams.delete("new");
+    window.history.pushState({}, "", `/chat?${currentSearchParams}`);
+    return true;
+  };
+
   return (
     <div className={`flex w-full h-full`}>
       {/* Chat History - Hidden on mobile by default */}
@@ -1249,6 +1328,7 @@ export default function ChatPage({
                   searchEnabled={searchEnabled}
                   setMessages={setMessages}
                   handleSendMessage={handleSendMessage}
+                  handleBranchClick={handleBranchClick}
                 />
               ))}
               <div ref={messagesEndRef} className="pb-[120px]" />
@@ -1373,6 +1453,7 @@ interface RenderMessageProps {
     editedMessage: boolean,
     messagesUpToEdit?: Message[]
   ) => Promise<void>;
+  handleBranchClick: () => void;
 }
 
 /**
@@ -1462,6 +1543,7 @@ const RenderMessageOnScreen = ({
   searchEnabled,
   setMessages,
   handleSendMessage,
+  handleBranchClick,
 }: RenderMessageProps) => {
   const [CopyClicked, setCopyClicked] = useState(false);
   const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(
@@ -1469,6 +1551,7 @@ const RenderMessageOnScreen = ({
   );
   const [editingText, setEditingText] = useState<string>("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [branchLoading, setBranchLoading] = useState(false);
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -1652,13 +1735,25 @@ const RenderMessageOnScreen = ({
                 ) : (
                   <div className="markdown-content">
                     <MessageRenderer content={message.content || " "} />
-                    <div className="">
+                    <div className="flex flex-row items-center gap-4">
                       {CopyClicked ? (
                         <Check className="w-4 h-4" />
                       ) : (
                         <CopyIcon
                           className="w-4 h-4 cursor-pointer"
                           onClick={handleCopyClick}
+                        />
+                      )}
+                      {branchLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <GitBranch
+                          className="w-4 h-4 cursor-pointer"
+                          onClick={async () => {
+                            setBranchLoading(true);
+                            await handleBranchClick();
+                            setBranchLoading(false);
+                          }}
                         />
                       )}
                     </div>
