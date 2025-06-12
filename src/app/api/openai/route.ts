@@ -1,4 +1,3 @@
-// import Groq from "groq-sdk";
 import { auth } from "@/lib/auth";
 import { headers as nextHeaders } from "next/headers";
 import { db } from "@/database/db";
@@ -256,15 +255,178 @@ export async function POST(req: Request) {
       },
     ];
 
-    if (!isNewChatFlow && Array.isArray(previous_conversations)) {
-      // If it's an existing chat, add previous messages sent by the client
-      const validPreviousConversations = previous_conversations.filter(
-        (msg) =>
-          msg &&
-          (msg.role === "user" || msg.role === "assistant") &&
-          typeof msg.content === "string" &&
-          msg.content.trim() !== ""
+    if ((!isNewChatFlow || shared) && Array.isArray(previous_conversations)) {
+      // If it's an existing chat OR a shared chat, add previous messages sent by the client
+      const validPreviousConversations = await Promise.all(
+        previous_conversations
+          .filter(
+            (msg) =>
+              msg &&
+              (msg.role === "user" || msg.role === "assistant") &&
+              typeof msg.content === "string" &&
+              msg.content.trim() !== ""
+          )
+          .map(async (msg) => {
+            // Clean up message format for OpenRouter - remove extra fields
+            const cleanMsg: {
+              role: "user" | "assistant";
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              content: string | Array<any>;
+            } = {
+              role: msg.role,
+              content: msg.content,
+            };
+
+            // If this is a user message with file attachments, process them appropriately
+            if (
+              msg.role === "user" &&
+              msg.fileUrl &&
+              msg.fileType &&
+              msg.fileName
+            ) {
+              if (msg.fileType.startsWith("image/")) {
+                // Convert to multimodal format for images
+                cleanMsg.content = [
+                  {
+                    type: "text",
+                    text: msg.content,
+                  },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: msg.fileUrl,
+                    },
+                  },
+                ];
+              } else if (msg.fileType === "application/pdf") {
+                // For PDFs, convert to multimodal format with file data
+                try {
+                  console.log(
+                    `Processing PDF for previous message: ${msg.fileName}`
+                  );
+                  const response = await fetch(msg.fileUrl);
+                  if (!response.ok) {
+                    throw new Error(
+                      `Failed to fetch PDF: ${response.statusText}`
+                    );
+                  }
+                  const arrayBuffer = await response.arrayBuffer();
+                  const base64 = Buffer.from(arrayBuffer).toString("base64");
+                  const dataUrl = `data:application/pdf;base64,${base64}`;
+
+                  cleanMsg.content = [
+                    {
+                      type: "text",
+                      text: msg.content,
+                    },
+                    {
+                      type: "file",
+                      file: {
+                        filename: msg.fileName,
+                        file_data: dataUrl,
+                      },
+                    },
+                  ];
+                } catch (error) {
+                  console.error(
+                    "Error processing PDF for previous message:",
+                    error
+                  );
+                  cleanMsg.content = msg.content;
+                }
+              } else if (
+                msg.fileType === "text/plain" ||
+                msg.fileType.startsWith("text/")
+              ) {
+                // For text files, check if content is already embedded, if not, fetch it
+                if (
+                  !msg.content.includes(
+                    `-------- File Content: ${msg.fileName}`
+                  )
+                ) {
+                  try {
+                    console.log(
+                      `Processing text file for previous message: ${msg.fileName}`
+                    );
+                    const response = await fetch(msg.fileUrl);
+                    if (!response.ok) {
+                      throw new Error(
+                        `Failed to fetch text file: ${response.statusText}`
+                      );
+                    }
+                    const textFileContent = await response.text();
+                    cleanMsg.content = `${msg.content}\n\n-------- File Content: ${msg.fileName} --------\n${textFileContent}\n-------- End of File Content --------`;
+                  } catch (error) {
+                    console.error(
+                      "Error processing text file for previous message:",
+                      error
+                    );
+                    cleanMsg.content = msg.content;
+                  }
+                } else {
+                  cleanMsg.content = msg.content; // Content already includes file data
+                }
+              } else if (
+                msg.fileType ===
+                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+                msg.fileType === "application/msword" ||
+                msg.fileName.toLowerCase().endsWith(".docx") ||
+                msg.fileName.toLowerCase().endsWith(".doc")
+              ) {
+                // For Word documents, check if content is already embedded, if not, fetch and process it
+                if (
+                  !msg.content.includes(
+                    `-------- Document Content: ${msg.fileName}`
+                  )
+                ) {
+                  try {
+                    console.log(
+                      `Processing Word document for previous message: ${msg.fileName}`
+                    );
+                    const response = await fetch(msg.fileUrl);
+                    if (!response.ok) {
+                      throw new Error(
+                        `Failed to fetch Word document: ${response.statusText}`
+                      );
+                    }
+
+                    const arrayBuffer = await response.arrayBuffer();
+                    const buffer = Buffer.from(arrayBuffer);
+
+                    if (msg.fileName.toLowerCase().endsWith(".docx")) {
+                      // Handle .docx files with mammoth
+                      const result = await mammoth.extractRawText({ buffer });
+                      const documentText = result.value;
+
+                      if (documentText.trim()) {
+                        cleanMsg.content = `${msg.content}\n\n-------- Document Content: ${msg.fileName} --------\n${documentText}\n-------- End of Document Content --------`;
+                      } else {
+                        cleanMsg.content = `${msg.content}\n\n[Note: Word document "${msg.fileName}" was processed but no readable text content was found.]`;
+                      }
+                    } else {
+                      // Handle .doc files (older format)
+                      cleanMsg.content = `${msg.content}\n\n[Note: Microsoft Word document "${msg.fileName}" (.doc format) was attached. For best results with older .doc files, please convert to .docx format or copy/paste the text content.]`;
+                    }
+                  } catch (error) {
+                    console.error(
+                      "Error processing Word document for previous message:",
+                      error
+                    );
+                    cleanMsg.content = msg.content;
+                  }
+                } else {
+                  cleanMsg.content = msg.content; // Content already includes file data
+                }
+              } else {
+                // For other file types, just keep the text content
+                cleanMsg.content = msg.content;
+              }
+            }
+
+            return cleanMsg;
+          })
       );
+
       messages_format.push(...validPreviousConversations);
     }
 
@@ -417,6 +579,8 @@ ${message.trim()}`;
     const encoder = new TextEncoder();
     let fullBotResponse = "";
     const finalChatId = currentChatId; // Use the validated/created chat ID
+
+    console.log("messages_format", messages_format);
 
     // Prepare completion parameters
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
