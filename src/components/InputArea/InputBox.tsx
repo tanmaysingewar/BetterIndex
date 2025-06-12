@@ -200,8 +200,9 @@ export default function InputBox({
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       if (acceptedFiles.length > 0) {
-        startUpload(acceptedFiles);
+        setIsUploading(true); // Set loading immediately
         setFileName(acceptedFiles[0].name);
+        startUpload(acceptedFiles);
       }
     },
     [startUpload]
@@ -215,6 +216,7 @@ export default function InputBox({
   });
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsUploading(true);
     const file = e.target.files?.[0];
     if (file) {
       console.log(

@@ -107,6 +107,9 @@ export const messages = pgTable("messages", {
     .notNull()
     .references(() => chat.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull(),
+  fileUrl: text("file_url").default(""),
+  fileType: text("file_type").default(""),
+  fileName: text("file_name").default(""),
 });
 
 export const messagesRelations = relations(messages, ({ one }) => ({
@@ -136,4 +139,7 @@ export const sharedChatMessages = pgTable("shared_chat_messages", {
     .notNull()
     .references(() => sharedChat.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull(),
+  fileUrl: text("file_url").default(""),
+  fileType: text("file_type").default(""),
+  fileName: text("file_name").default(""),
 });

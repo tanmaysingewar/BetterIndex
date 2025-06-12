@@ -245,7 +245,6 @@ export async function POST(req: Request) {
     }
 
     // --- Prepare messages for OpenAI API ---
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const messages_format: Array<{
       role: "system" | "user" | "assistant";
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -520,6 +519,12 @@ ${message.trim()}`;
                       botResponse: assistantMsg.content.trim(),
                       chatId: finalChatId,
                       createdAt: new Date(),
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      fileUrl: (userMsg as any).fileUrl || null,
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      fileType: (userMsg as any).fileType || null,
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      fileName: (userMsg as any).fileName || null,
                     });
                   }
                 }
@@ -532,6 +537,9 @@ ${message.trim()}`;
                 botResponse: fullBotResponse,
                 chatId: finalChatId, // Link to the correct chat ID
                 createdAt: new Date(),
+                fileUrl: fileUrl || null,
+                fileType: fileType || null,
+                fileName: fileName || null,
               });
 
               // Insert all messages at once

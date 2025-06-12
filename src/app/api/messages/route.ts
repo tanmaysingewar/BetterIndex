@@ -49,6 +49,9 @@ export async function GET(req: Request) {
           userMessage: sharedChatMessages.userMessage,
           botResponse: sharedChatMessages.botResponse,
           createdAt: sharedChatMessages.createdAt,
+          fileUrl: sharedChatMessages.fileUrl,
+          fileType: sharedChatMessages.fileType,
+          fileName: sharedChatMessages.fileName,
         })
         .from(sharedChatMessages)
         .where(eq(sharedChatMessages.sharedChatId, chatId))
@@ -61,6 +64,9 @@ export async function GET(req: Request) {
           botResponse: messages.botResponse,
           // Add createdAt if you need to sort by it, otherwise ID might suffice
           createdAt: messages.createdAt,
+          fileUrl: messages.fileUrl,
+          fileType: messages.fileType,
+          fileName: messages.fileName,
         })
         .from(messages)
         .innerJoin(chat, eq(messages.chatId, chat.id)) // Join messages with chat
@@ -81,10 +87,28 @@ export async function GET(req: Request) {
     const formattedMessages: Array<{
       role: "user" | "assistant";
       content: string;
+      fileUrl?: string;
+      fileType?: string;
+      fileName?: string;
     }> = [];
     for (const msg of fetchedMessages) {
       if (msg.userMessage) {
-        formattedMessages.push({ role: "user", content: msg.userMessage });
+        const userMessage: {
+          role: "user";
+          content: string;
+          fileUrl?: string;
+          fileType?: string;
+          fileName?: string;
+        } = { role: "user", content: msg.userMessage };
+
+        // Add file information if present
+        if (msg.fileUrl) {
+          userMessage.fileUrl = msg.fileUrl;
+          userMessage.fileType = msg.fileType || undefined;
+          userMessage.fileName = msg.fileName || undefined;
+        }
+
+        formattedMessages.push(userMessage);
       }
       if (msg.botResponse) {
         formattedMessages.push({ role: "assistant", content: msg.botResponse });
