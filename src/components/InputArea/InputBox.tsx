@@ -4,8 +4,6 @@ import {
   GlobeIcon,
   OctagonPause,
   Send,
-  Sparkles,
-  Zap,
   Crown,
   ChevronUp,
   Search,
@@ -25,6 +23,7 @@ import {
   generateClientDropzoneAccept,
   generatePermittedFileTypes,
 } from "uploadthing/client";
+import models from "@/support/models";
 
 interface InputBoxProps {
   input: string;
@@ -61,71 +60,6 @@ export default function InputBox({
   setFileName,
 }: InputBoxProps) {
   // Model definitions
-  const models = [
-    {
-      id: "gpt-4.1-mini",
-      name: "GPT 4.1 Mini",
-      description: "Mini model",
-      icon: Sparkles,
-      available: true,
-    },
-    {
-      id: "google/gemini-2.5-flash-preview-05-20",
-      name: "Gemini 2.5 Flash",
-      description: "Fast responses",
-      icon: Sparkles,
-      available: true,
-    },
-    {
-      id: "gemini-2.0-flash",
-      name: "Gemini 2.0 Flash",
-      description: "Fast responses",
-      icon: Zap,
-      available: true,
-    },
-    {
-      id: "gpt-4.1",
-      name: "GPT 4.1",
-      description: "Latest model",
-      icon: Sparkles,
-      available: false,
-    },
-    {
-      id: "anthropic/claude-sonnet-4",
-      name: "Claude 4 Sonnet",
-      description: "Pro feature",
-      icon: Sparkles,
-      available: false,
-    },
-    {
-      id: "anthropic/claude-3.7-sonnet",
-      name: "Claude 3.7 Sonnet",
-      description: "Pro feature",
-      icon: Sparkles,
-      available: false,
-    },
-    {
-      id: "anthropic/claude-3.7-sonnet:thinking",
-      name: "Claude 3.7 Sonnet: Thinking",
-      description: "Pro feature",
-      icon: Sparkles,
-      available: false,
-    },
-    {
-      id: "deepseek/deepseek-r1-0528",
-      name: "DeepSeek R1",
-      description: "Reasoning model",
-      icon: null,
-      available: false,
-    },
-    {
-      id: "google/gemini-2.5-pro-preview",
-      name: "Gemini 2.5 Pro",
-      description: "Latest model",
-      icon: Sparkles,
-      available: false,
-    },
-  ];
 
   const lastWord = input.split(" ").slice(-1)[0];
   const hasExistingTone = input
@@ -479,39 +413,41 @@ export default function InputBox({
                   />
                   <p className="text-sm select-none">Search</p>
                 </div>
-                <div
-                  className={`flex flex-row items-center justify-center h-[28px] px-2 rounded-full space-x-1.5 border cursor-pointer ${
-                    isUploading
-                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-600"
-                      : "bg-transparent text-neutral-500 dark:text-neutral-400 border-neutral-300 dark:border-neutral-400"
-                  }`}
-                  {...getRootProps()}
-                >
-                  <input
-                    type="file"
-                    id="file-upload"
-                    className="hidden"
-                    accept=".txt,.pdf,.doc,.docx"
-                    onChange={handleFileUpload}
-                    {...getInputProps()}
-                    disabled={isUploading}
-                  />
-                  <label
-                    htmlFor="file-upload"
-                    className={`flex flex-row items-center space-x-1.5 ${
-                      isUploading ? "cursor-wait" : "cursor-pointer"
+                {selectedModelData.docsUpload && (
+                  <div
+                    className={`flex flex-row items-center justify-center h-[28px] px-2 rounded-full space-x-1.5 border cursor-pointer ${
+                      isUploading
+                        ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-600"
+                        : "bg-transparent text-neutral-500 dark:text-neutral-400 border-neutral-300 dark:border-neutral-400"
                     }`}
+                    {...getRootProps()}
                   >
-                    {isUploading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Paperclip className="w-4 h-4" />
-                    )}
-                    <p className="text-sm select-none">
-                      {isUploading ? "Uploading..." : "Upload"}
-                    </p>
-                  </label>
-                </div>
+                    <input
+                      type="file"
+                      id="file-upload"
+                      className="hidden"
+                      accept=".txt,.pdf,.doc,.docx"
+                      onChange={handleFileUpload}
+                      {...getInputProps()}
+                      disabled={isUploading}
+                    />
+                    <label
+                      htmlFor="file-upload"
+                      className={`flex flex-row items-center space-x-1.5 ${
+                        isUploading ? "cursor-wait" : "cursor-pointer"
+                      }`}
+                    >
+                      {isUploading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Paperclip className="w-4 h-4" />
+                      )}
+                      <p className="text-sm select-none">
+                        {isUploading ? "Uploading..." : "Upload"}
+                      </p>
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex flex-row justify-center items-center">
