@@ -66,6 +66,9 @@ export async function POST(req: Request) {
         userMessage: messages.userMessage,
         botResponse: messages.botResponse,
         createdAt: messages.createdAt,
+        fileUrl: messages.fileUrl,
+        fileType: messages.fileType,
+        fileName: messages.fileName,
       })
       .from(messages)
       .where(eq(messages.chatId, chatId))
@@ -94,6 +97,9 @@ export async function POST(req: Request) {
           sharedChatId: sharedChatId,
           chatId: chatId,
           createdAt: new Date(),
+          fileUrl: msg.fileUrl,
+          fileType: msg.fileType,
+          fileName: msg.fileName,
         }));
 
         await tx.insert(sharedChatMessages).values(sharedMessages);
