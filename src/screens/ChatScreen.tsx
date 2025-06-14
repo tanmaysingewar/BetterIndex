@@ -53,6 +53,7 @@ interface Message {
   fileUrl?: string;
   fileType?: string;
   fileName?: string;
+  imageResponseId?: string; // For tracking OpenAI image generation response IDs
 }
 
 const generateChatId = (): string => {
@@ -647,6 +648,23 @@ export default function ChatPage({
     );
   };
 
+  // Helper function to find the last image response ID for multi-turn image generation
+  const getLastImageResponseId = (messages: Message[]): string | null => {
+    // Look through messages in reverse order to find the most recent image response ID
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
+      if (message.role === "assistant" && message.imageResponseId) {
+        console.log(
+          "Found previous image response ID:",
+          message.imageResponseId
+        );
+        return message.imageResponseId;
+      }
+    }
+    console.log("No previous image response ID found");
+    return null;
+  };
+
   const handleSendMessage = useCallback(
     async (
       messageContent: string,
@@ -657,13 +675,20 @@ export default function ChatPage({
       if (!trimmedMessage || isGenerating || isAuthenticating) return;
 
       setIsGenerating(true);
-      setLoadingPhase("searching");
-      setInput("");
 
-      // Add a timeout to switch to generating phase after 2 seconds
-      setTimeout(() => {
+      // Set appropriate loading phase based on model
+      const isImageGenerationModel = selectedModel === "openai/gpt-image-1";
+      if (isImageGenerationModel) {
         setLoadingPhase("generating");
-      }, 3000);
+      } else {
+        setLoadingPhase("searching");
+        // Add a timeout to switch to generating phase after 2 seconds for regular chat
+        setTimeout(() => {
+          setLoadingPhase("generating");
+        }, 3000);
+      }
+
+      setInput("");
 
       let chatIdForRequest = currentChatId;
       let isNewChat = false;
@@ -792,17 +817,60 @@ export default function ChatPage({
       setFileName("");
 
       try {
-        // Make the LLM provider dynamic
-        const response = await fetch(
-          `/api/openai?shared=${
-            searchParams.get("shared") || false
-          }&editedMessage=${editedMessage}`,
-          {
-            method: "POST",
-            headers: requestHeaders,
-            body: JSON.stringify(requestBody),
-          }
-        );
+        // Check if the selected model is the image generation model
+        const isImageGenerationModel = selectedModel === "openai/gpt-image-1";
+
+        let response;
+        if (isImageGenerationModel) {
+          // Get the last image response ID for multi-turn context
+          const currentMessages =
+            editedMessage && messagesUpToEdit ? messagesUpToEdit : messages;
+          const lastImageResponseId = getLastImageResponseId(currentMessages);
+
+          console.log("Image generation request:", {
+            isNewChat,
+            currentMessagesCount: currentMessages.length,
+            lastImageResponseId,
+            prompt: trimmedMessage.slice(0, 100),
+          });
+
+          // Use the image generation API
+          response = await fetch(
+            `/api/generate-image?shared=${
+              searchParams.get("shared") || false
+            }&editedMessage=${editedMessage}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Chat-ID": chatIdForRequest,
+              },
+              body: JSON.stringify({
+                messages: isNewChat
+                  ? [{ role: "user", content: trimmedMessage }]
+                  : editedMessage && messagesUpToEdit
+                  ? [
+                      ...messagesUpToEdit,
+                      { role: "user", content: trimmedMessage },
+                    ]
+                  : [...messages, { role: "user", content: trimmedMessage }],
+                previous_image_response_id: lastImageResponseId,
+              }),
+            }
+          );
+        } else {
+          // Make the LLM provider dynamic for regular chat
+          response = await fetch(
+            `/api/openai?shared=${
+              searchParams.get("shared") || false
+            }&editedMessage=${editedMessage}`,
+            {
+              method: "POST",
+              headers: requestHeaders,
+              body: JSON.stringify(requestBody),
+            }
+          );
+        }
 
         if (!response.ok) {
           let errorMsg = `Network response was not ok (${response.status})`;
@@ -829,106 +897,189 @@ export default function ChatPage({
           throw new Error(errorMsg);
         }
 
-        // Get the header of the response
-        const get_header = response.headers.get("X-Title");
-        console.log("X-Title", get_header);
-        console.log("X-Title", typeof get_header);
+        if (isImageGenerationModel) {
+          // Handle image generation response
+          const imageData = await response.json();
 
-        if (get_header) {
-          const chat = {
-            id: chatIdForRequest,
-            title: get_header!,
-            createdAt: new Date().toString(),
+          console.log("Image generation response:", {
+            url: imageData.url,
+            response_id: imageData.response_id,
+            hasResponseId: !!imageData.response_id,
+          });
+
+          // Get the header of the response (similar to regular chat)
+          const get_header = response.headers.get("X-Title");
+          console.log("X-Title", get_header);
+          console.log("X-Title", typeof get_header);
+
+          if (get_header) {
+            const chat = {
+              id: chatIdForRequest,
+              title: get_header!,
+              createdAt: new Date().toString(),
+            };
+
+            const added = addChatToCache(chat);
+            document.title = get_header;
+
+            if (added) {
+              console.log("Chat successfully added to the local cache.");
+            } else {
+              console.log("Failed to add chat to the local cache.");
+            }
+          }
+
+          // Remove the loading message
+          setMessages((prevMessages) => {
+            if (prevMessages.length === 0) {
+              return prevMessages;
+            }
+            return prevMessages.slice(0, -1);
+          });
+
+          // Create the final assistant message with the image
+          const finalAssistantMessage: Message = {
+            role: "assistant",
+            content: `![Generated Image](${imageData.url})`,
+            imageResponseId: imageData.response_id, // Store the response ID for multi-turn context
           };
 
-          const added = addChatToCache(chat);
-          document.title = get_header;
+          // Calculate the definitive final state
+          const finalMessagesState = [
+            ...messagesBeforeOptimisticUpdate,
+            newUserMessage,
+            finalAssistantMessage,
+          ];
 
-          if (added) {
-            console.log("Chat successfully added to the local cache.");
-          } else {
-            console.log("Failed to add chat to the local cache.");
+          // Set the final state
+          setMessages(finalMessagesState);
+          decrementRateLimit();
+
+          // Save to localStorage
+          try {
+            localStorage.setItem(
+              getLocalStorageKey(chatIdForRequest),
+              JSON.stringify(finalMessagesState)
+            );
+            dispatchMessagesUpdatedEvent(
+              getLocalStorageKey(chatIdForRequest),
+              JSON.stringify(finalMessagesState)
+            );
+            const currentSearchParams = new URLSearchParams(
+              window.location.search
+            );
+            currentSearchParams.set("chatId", chatIdForRequest);
+            currentSearchParams.delete("shared");
+            window.history.pushState({}, "", `/chat?${currentSearchParams}`);
+          } catch (lsError) {
+            console.error(
+              "Error saving final messages to Local Storage:",
+              lsError
+            );
           }
-        }
+        } else {
+          // Handle regular chat streaming response
+          // Get the header of the response
+          const get_header = response.headers.get("X-Title");
+          console.log("X-Title", get_header);
+          console.log("X-Title", typeof get_header);
 
-        const reader = response.body?.getReader();
-        if (!reader) {
-          setMessages(messagesBeforeOptimisticUpdate); // Revert
-          throw new Error("No reader available");
-        }
+          if (get_header) {
+            const chat = {
+              id: chatIdForRequest,
+              title: get_header!,
+              createdAt: new Date().toString(),
+            };
 
-        // remove the last message from setMessages
-        // To remove the last message:
-        setMessages((prevMessages) => {
-          // Check if there are any messages to remove
-          if (prevMessages.length === 0) {
-            return prevMessages; // Return the empty array if no messages exist
-          }
-          // Create a new array containing all elements except the last one
-          return prevMessages.slice(0, -1);
-        });
+            const added = addChatToCache(chat);
+            document.title = get_header;
 
-        // Add placeholder for assistant message using functional update
-        setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
-
-        const decoder = new TextDecoder();
-        let accumulatedText = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          accumulatedText += decoder.decode(value, { stream: true });
-          // Update the streaming content using functional update
-          setMessages((prev) => {
-            if (prev.length === 0) return prev; // Should not happen
-            const updatedMessages = [...prev];
-            const lastMsgIndex = updatedMessages.length - 1;
-            // Ensure we are updating the last message and it's the assistant placeholder/stream
-            if (updatedMessages[lastMsgIndex].role === "assistant") {
-              updatedMessages[lastMsgIndex].content = accumulatedText;
+            if (added) {
+              console.log("Chat successfully added to the local cache.");
+            } else {
+              console.log("Failed to add chat to the local cache.");
             }
-            return updatedMessages;
+          }
+
+          const reader = response.body?.getReader();
+          if (!reader) {
+            setMessages(messagesBeforeOptimisticUpdate); // Revert
+            throw new Error("No reader available");
+          }
+
+          // remove the last message from setMessages
+          // To remove the last message:
+          setMessages((prevMessages) => {
+            // Check if there are any messages to remove
+            if (prevMessages.length === 0) {
+              return prevMessages; // Return the empty array if no messages exist
+            }
+            // Create a new array containing all elements except the last one
+            return prevMessages.slice(0, -1);
           });
-        }
 
-        // --- Final State Update & Local Storage ---
-        const finalAssistantMessage: Message = {
-          role: "assistant",
-          content: accumulatedText || " ", // Use space if empty
-        };
+          // Add placeholder for assistant message using functional update
+          setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
-        // Calculate the definitive final state based on the state *before* the placeholder was added
-        // This ensures consistency even if rapid updates occurred.
-        const finalMessagesState = [
-          ...messagesBeforeOptimisticUpdate, // Start with state before optimistic user msg
-          newUserMessage, // Add the user message
-          finalAssistantMessage, // Add the final assistant message
-        ];
+          const decoder = new TextDecoder();
+          let accumulatedText = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            accumulatedText += decoder.decode(value, { stream: true });
+            // Update the streaming content using functional update
+            setMessages((prev) => {
+              if (prev.length === 0) return prev; // Should not happen
+              const updatedMessages = [...prev];
+              const lastMsgIndex = updatedMessages.length - 1;
+              // Ensure we are updating the last message and it's the assistant placeholder/stream
+              if (updatedMessages[lastMsgIndex].role === "assistant") {
+                updatedMessages[lastMsgIndex].content = accumulatedText;
+              }
+              return updatedMessages;
+            });
+          }
 
-        // Set the final state
-        setMessages(finalMessagesState);
-        decrementRateLimit();
+          // --- Final State Update & Local Storage ---
+          const finalAssistantMessage: Message = {
+            role: "assistant",
+            content: accumulatedText || " ", // Use space if empty
+          };
 
-        // Save the definitive final state to Local Storage
-        try {
-          localStorage.setItem(
-            getLocalStorageKey(chatIdForRequest),
-            JSON.stringify(finalMessagesState) // Save the calculated final state
-          );
-          dispatchMessagesUpdatedEvent(
-            getLocalStorageKey(chatIdForRequest),
-            JSON.stringify(finalMessagesState)
-          );
-          const currentSearchParams = new URLSearchParams(
-            window.location.search
-          );
-          currentSearchParams.set("chatId", chatIdForRequest);
-          currentSearchParams.delete("shared");
-          window.history.pushState({}, "", `/chat?${currentSearchParams}`);
-        } catch (lsError) {
-          console.error(
-            "Error saving final messages to Local Storage:",
-            lsError
-          );
+          // Calculate the definitive final state based on the state *before* the placeholder was added
+          // This ensures consistency even if rapid updates occurred.
+          const finalMessagesState = [
+            ...messagesBeforeOptimisticUpdate, // Start with state before optimistic user msg
+            newUserMessage, // Add the user message
+            finalAssistantMessage, // Add the final assistant message
+          ];
+
+          // Set the final state
+          setMessages(finalMessagesState);
+          decrementRateLimit();
+
+          // Save the definitive final state to Local Storage
+          try {
+            localStorage.setItem(
+              getLocalStorageKey(chatIdForRequest),
+              JSON.stringify(finalMessagesState) // Save the calculated final state
+            );
+            dispatchMessagesUpdatedEvent(
+              getLocalStorageKey(chatIdForRequest),
+              JSON.stringify(finalMessagesState)
+            );
+            const currentSearchParams = new URLSearchParams(
+              window.location.search
+            );
+            currentSearchParams.set("chatId", chatIdForRequest);
+            currentSearchParams.delete("shared");
+            window.history.pushState({}, "", `/chat?${currentSearchParams}`);
+          } catch (lsError) {
+            console.error(
+              "Error saving final messages to Local Storage:",
+              lsError
+            );
+          }
         }
       } catch (error) {
         // console.error("Error sending message:", error);
@@ -1371,6 +1522,7 @@ export default function ChatPage({
                   chatInitiated={chatInitiated}
                   loadingPhase={loadingPhase}
                   searchEnabled={searchEnabled}
+                  selectedModel={selectedModel}
                   setMessages={setMessages}
                   handleSendMessage={handleSendMessage}
                   handleBranchClick={handleBranchClick}
@@ -1498,6 +1650,7 @@ interface RenderMessageProps {
   chatInitiated: boolean;
   loadingPhase: "searching" | "generating" | null;
   searchEnabled: boolean;
+  selectedModel: string;
   setMessages: (messages: Message[]) => void;
   handleSendMessage: (
     messageContent: string,
@@ -1592,6 +1745,7 @@ const RenderMessageOnScreen = ({
   chatInitiated,
   loadingPhase,
   searchEnabled,
+  selectedModel,
   setMessages,
   handleSendMessage,
   handleBranchClick,
@@ -1679,14 +1833,19 @@ const RenderMessageOnScreen = ({
     }, 2000);
   };
   const LoadingIndicator = () => {
+    const isImageGenerationModel = selectedModel === "openai/gpt-image-1";
+
+    let loadingText = "Generating response...";
+    if (isImageGenerationModel) {
+      loadingText = "Generating image...";
+    } else if (searchEnabled && loadingPhase === "searching") {
+      loadingText = "Searching...";
+    }
+
     return (
       <div className="flex items-center space-x-2">
         <Spinner className="w-5 h-5" />
-        <span className="loading-text-shine">
-          {searchEnabled && loadingPhase === "searching"
-            ? "Searching..."
-            : "Generating response..."}
-        </span>
+        <span className="loading-text-shine">{loadingText}</span>
       </div>
     );
   };
@@ -1751,54 +1910,36 @@ const RenderMessageOnScreen = ({
                     <p>{highlightSpecialWords(message.content)}</p>
                     {message.fileUrl && (
                       <div className="mt-1">
-                        {message.fileType?.startsWith("image/") ? (
-                          <div className="relative">
-                            <img
-                              src={message.fileUrl}
-                              alt={message.fileName || "Uploaded image"}
-                              className="max-w-[300px] max-h-[200px] object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-                              onClick={() =>
-                                message.fileUrl &&
-                                window.open(message.fileUrl, "_blank")
-                              }
-                              title="Click to open in new tab"
-                            />
-                            <div className="text-xs text-gray-500 mt-1">
+                        <div
+                          className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 dark:bg-[#344d58] max-w-[300px] cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2e444e] transition-colors mb-2"
+                          onClick={() =>
+                            message.fileUrl &&
+                            window.open(message.fileUrl, "_blank")
+                          }
+                          title="Click to open in new tab"
+                        >
+                          <div className="flex-shrink-0">
+                            <svg
+                              className="w-8 h-8 text-gray-400"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
                               {message.fileName}
                             </div>
-                          </div>
-                        ) : (
-                          <div
-                            className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 dark:bg-[#344d58] max-w-[300px] cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2e444e] transition-colors mb-2"
-                            onClick={() =>
-                              message.fileUrl &&
-                              window.open(message.fileUrl, "_blank")
-                            }
-                            title="Click to open in new tab"
-                          >
-                            <div className="flex-shrink-0">
-                              <svg
-                                className="w-8 h-8 text-gray-400"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                {message.fileName}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {message.fileType}
-                              </div>
+                            <div className="text-xs text-gray-500">
+                              {message.fileType}
                             </div>
                           </div>
-                        )}
+                        </div>
                       </div>
                     )}
                   </div>

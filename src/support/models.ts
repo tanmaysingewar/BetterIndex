@@ -41,6 +41,15 @@ const models = [
     imageUpload: true,
   },
   {
+    id: "openai/gpt-image-1",
+    name: "GPT Image 1",
+    description: "Image generation model",
+    icon: OpenAIIcon,
+    available: true,
+    docsUpload: false,
+    imageUpload: true,
+  },
+  {
     id: "anthropic/claude-sonnet-4",
     name: "Claude 4 Sonnet",
     description: "Pro feature",

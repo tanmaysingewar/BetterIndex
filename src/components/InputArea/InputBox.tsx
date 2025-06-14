@@ -178,7 +178,13 @@ export default function InputBox({
     }
   }, [isPopoverOpen]);
 
-  const { startUpload, routeConfig } = useUploadThing("mediaUploader", {
+  // Determine upload route based on model capabilities
+  const uploadRoute =
+    selectedModelData.imageUpload && !selectedModelData.docsUpload
+      ? "imageUploader"
+      : "documentUploader";
+
+  const { startUpload, routeConfig } = useUploadThing(uploadRoute, {
     onClientUploadComplete: (res) => {
       console.log("Upload completed:", res);
       setIsUploading(false);
@@ -264,13 +270,15 @@ export default function InputBox({
           </div>
         )}
         <div className="flex flex-col items-center rounded-t-3xl dark:bg-[#303335]/80 bg-neutral-100/70 p-2 w-full backdrop-blur-xs">
-          {/* PDF Content Indicator */}
+          {/* File Content Indicator */}
           {fileUrl && (
             <div className="w-full mx-3 mb-2">
-              <div className="flex items-center justify-between bg-blue-50 dark:bg-[#344f5a]/30 border border-blue-200 dark:border-[#344f5a] rounded-lg px-3 py-2">
+              <div
+                className={`flex items-center justify-between border rounded-lg px-3 py-2 bg-blue-50 dark:bg-[#344f5a]/30 border-blue-200 dark:border-[#344f5a]`}
+              >
                 <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-[#344f5a] rounded-full"></div>
-                  <span className="text-sm text-[#344f5a] dark:text-blue-300">
+                  <div className={`w-2 h-2 rounded-full bg-[#344f5a]`}></div>
+                  <span className={`text-sm text-[#344f5a] dark:text-blue-300`}>
                     {fileName}
                   </span>
                 </div>
@@ -415,7 +423,8 @@ export default function InputBox({
                   />
                   <p className="text-sm select-none">Search</p>
                 </div>
-                {selectedModelData.docsUpload && (
+                {(selectedModelData.docsUpload ||
+                  selectedModelData.imageUpload) && (
                   <div
                     className={`flex flex-row items-center justify-center h-[28px] px-2 rounded-full space-x-1.5 border cursor-pointer ${
                       isUploading
@@ -428,7 +437,12 @@ export default function InputBox({
                       type="file"
                       id="file-upload"
                       className="hidden"
-                      accept=".txt,.pdf,.doc,.docx"
+                      accept={
+                        selectedModelData.imageUpload &&
+                        !selectedModelData.docsUpload
+                          ? ".jpg,.jpeg,.png,.gif,.bmp,.webp,.svg"
+                          : ".txt,.pdf,.doc,.docx"
+                      }
                       onChange={handleFileUpload}
                       {...getInputProps()}
                       disabled={isUploading}
@@ -445,7 +459,12 @@ export default function InputBox({
                         <Paperclip className="w-4 h-4" />
                       )}
                       <p className="text-sm select-none">
-                        {isUploading ? "Uploading..." : "Upload"}
+                        {isUploading
+                          ? "Uploading..."
+                          : selectedModelData.imageUpload &&
+                            !selectedModelData.docsUpload
+                          ? "Upload Image"
+                          : "Upload"}
                       </p>
                     </label>
                   </div>

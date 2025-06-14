@@ -689,6 +689,7 @@ ${message.trim()}`;
                       fileType: (userMsg as any).fileType || null,
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       fileName: (userMsg as any).fileName || null,
+                      imageResponseId: null, // Regular chat messages don't have image response IDs
                     });
                   }
                 }
@@ -704,6 +705,7 @@ ${message.trim()}`;
                 fileUrl: fileUrl || null,
                 fileType: fileType || null,
                 fileName: fileName || null,
+                imageResponseId: null, // Regular chat messages don't have image response IDs
               });
 
               // Insert all messages at once

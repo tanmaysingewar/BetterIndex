@@ -182,6 +182,16 @@ const MessageRenderer = ({ content }: MessageRendererProps) => {
                 </p>
               );
             },
+            // Handle images with fixed width
+            img(props) {
+              return (
+                <img
+                  {...props}
+                  style={{ width: "300px", height: "auto" }}
+                  className="rounded-lg my-4"
+                />
+              );
+            },
             // Add a clearfix div after certain elements to ensure proper layout
             hr(props) {
               return (

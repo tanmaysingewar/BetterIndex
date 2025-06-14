@@ -52,6 +52,7 @@ export async function GET(req: Request) {
           fileUrl: sharedChatMessages.fileUrl,
           fileType: sharedChatMessages.fileType,
           fileName: sharedChatMessages.fileName,
+          imageResponseId: sharedChatMessages.imageResponseId,
         })
         .from(sharedChatMessages)
         .where(eq(sharedChatMessages.sharedChatId, chatId))
@@ -67,6 +68,7 @@ export async function GET(req: Request) {
           fileUrl: messages.fileUrl,
           fileType: messages.fileType,
           fileName: messages.fileName,
+          imageResponseId: messages.imageResponseId,
         })
         .from(messages)
         .innerJoin(chat, eq(messages.chatId, chat.id)) // Join messages with chat
@@ -90,6 +92,7 @@ export async function GET(req: Request) {
       fileUrl?: string;
       fileType?: string;
       fileName?: string;
+      imageResponseId?: string;
     }> = [];
     for (const msg of fetchedMessages) {
       if (msg.userMessage) {
@@ -111,7 +114,18 @@ export async function GET(req: Request) {
         formattedMessages.push(userMessage);
       }
       if (msg.botResponse) {
-        formattedMessages.push({ role: "assistant", content: msg.botResponse });
+        const assistantMessage: {
+          role: "assistant";
+          content: string;
+          imageResponseId?: string;
+        } = { role: "assistant", content: msg.botResponse };
+
+        // Add image response ID if present (for multi-turn image generation)
+        if (msg.imageResponseId) {
+          assistantMessage.imageResponseId = msg.imageResponseId;
+        }
+
+        formattedMessages.push(assistantMessage);
       }
     }
 

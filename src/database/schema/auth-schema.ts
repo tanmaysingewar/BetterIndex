@@ -110,6 +110,7 @@ export const messages = pgTable("messages", {
   fileUrl: text("file_url").default(""),
   fileType: text("file_type").default(""),
   fileName: text("file_name").default(""),
+  imageResponseId: text("image_response_id"), // For OpenAI image generation response IDs
 });
 
 export const messagesRelations = relations(messages, ({ one }) => ({
@@ -142,4 +143,5 @@ export const sharedChatMessages = pgTable("shared_chat_messages", {
   fileUrl: text("file_url").default(""),
   fileType: text("file_type").default(""),
   fileName: text("file_name").default(""),
+  imageResponseId: text("image_response_id"), // For OpenAI image generation response IDs
 });
