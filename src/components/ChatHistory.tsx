@@ -3,7 +3,15 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { Trash2, Edit3, Check, X, Loader2 } from "lucide-react";
+import {
+  Trash2,
+  Edit3,
+  Check,
+  X,
+  Loader2,
+  GitBranch,
+  Image,
+} from "lucide-react";
 import { CHAT_CACHE_UPDATED_EVENT } from "@/lib/fetchChats";
 
 // Interface for individual chat items (remains the same)
@@ -644,7 +652,39 @@ export default function ChatHistory({ max_chats, onClose }: ChatHistoryProps) {
                     ) : (
                       <div className="flex items-center justify-between relative">
                         <p className="text-[15px] font-medium truncate flex-1">
-                          {chat.title || "Untitled Chat"}
+                          <span className="flex flex-row items-center">
+                            {(() => {
+                              const isBranched =
+                                chat.title?.startsWith("Branched - ");
+                              const isImage = chat.title?.includes("Image:");
+                              let displayTitle = chat.title || "Untitled Chat";
+
+                              // Remove prefixes for display
+                              if (isBranched) {
+                                displayTitle = displayTitle.replace(
+                                  "Branched - ",
+                                  ""
+                                );
+                              }
+                              if (isImage) {
+                                displayTitle = displayTitle
+                                  .replace("Image:", "")
+                                  .trim();
+                              }
+
+                              return (
+                                <>
+                                  {isBranched && (
+                                    <GitBranch className="h-4 w-4 mr-1 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
+                                  )}
+                                  {isImage && (
+                                    <Image className="h-4 w-4 mr-2 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
+                                  )}
+                                  {displayTitle || "Untitled Chat"}
+                                </>
+                              );
+                            })()}
+                          </span>
                         </p>
                         {isSelected && (
                           <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center gap-1 bg-white dark:bg-neutral-800 rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-600 px-1">
