@@ -37,6 +37,13 @@ export async function POST(req: Request) {
       fileName,
     } = await req.json();
 
+    console.log("Image generation request details:", {
+      hasFileUrl: !!fileUrl,
+      fileUrl: fileUrl,
+      fileType: fileType,
+      fileName: fileName,
+    });
+
     // --- 2. Validate Input ---
     if (
       !messageHistory ||
@@ -412,7 +419,7 @@ export async function POST(req: Request) {
       }
 
       // Add the current message pair (image generation)
-      messagesToSave.push({
+      const currentMessageData = {
         id: nanoid(),
         userMessage: prompt.trim(),
         botResponse: fullBotResponse,
@@ -422,7 +429,16 @@ export async function POST(req: Request) {
         fileType: fileType || null,
         fileName: fileName || null,
         imageResponseId: response.id, // Store the OpenAI response ID for multi-turn context
+      };
+
+      console.log("Current message data being saved:", {
+        hasFileUrl: !!currentMessageData.fileUrl,
+        fileUrl: currentMessageData.fileUrl,
+        fileType: currentMessageData.fileType,
+        fileName: currentMessageData.fileName,
       });
+
+      messagesToSave.push(currentMessageData);
 
       // Insert all messages at once
       if (messagesToSave.length > 0) {

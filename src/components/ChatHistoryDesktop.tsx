@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Pacifico } from "next/font/google";
 import { Button } from "./ui/button";
 import { useUserStore } from "@/store/userStore";
-import { User, Trash2, Edit3, Check, X } from "lucide-react";
+import { User, Trash2, Edit3, Check, X, GitBranch, Image } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import Settings from "./Setting";
 import { authClient } from "@/lib/auth-client";
@@ -507,7 +507,41 @@ export default function ChatHistoryDesktop({
                         ) : (
                           <>
                             <p className="text-sm font-medium truncate flex-1">
-                              {chat.title || "Untitled Chat"}
+                              <span className="flex flex-row items-center">
+                                {(() => {
+                                  const isBranched =
+                                    chat.title?.startsWith("Branched - ");
+                                  const isImage =
+                                    chat.title?.includes("Image:");
+                                  let displayTitle =
+                                    chat.title || "Untitled Chat";
+
+                                  // Remove prefixes for display
+                                  if (isBranched) {
+                                    displayTitle = displayTitle.replace(
+                                      "Branched - ",
+                                      ""
+                                    );
+                                  }
+                                  if (isImage) {
+                                    displayTitle = displayTitle
+                                      .replace("Image:", "")
+                                      .trim();
+                                  }
+
+                                  return (
+                                    <>
+                                      {isBranched && (
+                                        <GitBranch className="h-4 w-4 mr-1 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
+                                      )}
+                                      {isImage && (
+                                        <Image className="h-4 w-4 mr-2 text-neutral-600 dark:text-neutral-400 flex-shrink-0" />
+                                      )}
+                                      {displayTitle || "Untitled Chat"}
+                                    </>
+                                  );
+                                })()}
+                              </span>
                             </p>
                             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 hidden group-hover:flex items-center gap-1 bg-neutral-200 dark:bg-[#222325] px-1 rounded">
                               <button

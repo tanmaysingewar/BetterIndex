@@ -185,7 +185,7 @@ export default function InputBox({
   const uploadRoute =
     selectedModelData.imageUpload && !selectedModelData.docsUpload
       ? "imageUploader"
-      : "documentUploader";
+      : "mediaUploader";
 
   const { startUpload, routeConfig } = useUploadThing(uploadRoute, {
     onClientUploadComplete: (res) => {
