@@ -9,6 +9,7 @@ import OpenAI from "openai";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import * as mammoth from "mammoth";
+import models from "@/support/models";
 
 const tavilyClient = tavily({ apiKey: process.env.TAVILY_API_KEY! });
 
@@ -87,50 +88,83 @@ export async function POST(req: Request) {
     const userEmail = sessionData.user.email;
 
     // ------- 4. Rate Limit ----------
-    let ratelimit;
+    // Find the current model to check if it's premium
+    const currentModel = models.find((m) => m.id === model);
+    const isPremiumModel = currentModel?.premium || false;
 
-    if (
+    // Determine if user is non-logged in (demo user)
+    const isNonLoggedInUser =
       userEmail.includes("@https://www.betterindex.io") ||
-      userEmail.includes("@http://localhost:3000")
-    ) {
-      // Create a new ratelimiter, that allows 1 requests per 24 hours
+      userEmail.includes("@http://localhost:3000");
+
+    let ratelimit;
+    let requestLimit: number;
+    let errorMessage: string;
+
+    if (isNonLoggedInUser) {
+      // Non-logged in users
+      if (isPremiumModel) {
+        // Premium models: 0 messages for non-logged in users
+        requestLimit = 0;
+        errorMessage =
+          "Premium models require a signed-in account. Please sign in to use this model.";
+      } else {
+        // Non-premium models: 10 messages in 24h for non-logged in users
+        requestLimit = 10;
+        errorMessage =
+          "You have reached the maximum of 10 requests per 24 hours for free users. Please sign in for a free account to get more usage.";
+      }
+    } else {
+      // Logged-in users
+      if (isPremiumModel) {
+        // Premium models: 10 messages in 24h for logged-in users
+        requestLimit = 10;
+        errorMessage =
+          "You have reached the maximum of 10 requests per 24 hours for premium models. Please try again later or use a non-premium model.";
+      } else {
+        // Non-premium models: 30 messages in 24h for logged-in users
+        requestLimit = 30;
+        errorMessage =
+          "You have reached the maximum of 30 requests per 24 hours for this model. Please try again later.";
+      }
+    }
+
+    // Create rate limiter with the determined limit
+    if (requestLimit > 0) {
       ratelimit = new Ratelimit({
         redis: Redis.fromEnv(),
-        limiter: Ratelimit.slidingWindow(3, "24 h"),
+        limiter: Ratelimit.slidingWindow(requestLimit, "24 h"),
       });
 
       // Use user email as the identifier for rate limiting
-      const { success } = await ratelimit.limit(userEmail);
+      const { success } = await ratelimit.limit(
+        `${userEmail}:${isPremiumModel ? "premium" : "free"}`
+      );
 
       if (!success) {
-        console.warn(`API Warning: Rate limit exceeded for user ${userEmail}.`);
+        console.warn(
+          `API Warning: Rate limit exceeded for user ${userEmail} using ${
+            isPremiumModel ? "premium" : "free"
+          } model ${model}.`
+        );
         return new Response(
           JSON.stringify({
-            error:
-              "You have reached the maximum of requests per 24 hours. Please sign in for a free account to continue.",
+            error: errorMessage,
           }),
           { status: 429, headers: { "Content-Type": "application/json" } }
         );
       }
     } else {
-      ratelimit = new Ratelimit({
-        redis: Redis.fromEnv(),
-        limiter: Ratelimit.slidingWindow(30, "24 h"),
-      });
-
-      // Use user email as the identifier for rate limiting
-      const { success } = await ratelimit.limit(userEmail);
-
-      if (!success) {
-        console.warn(`API Warning: Rate limit exceeded for user ${userEmail}.`);
-        return new Response(
-          JSON.stringify({
-            error:
-              "Rate limit exceeded. You have reached the maximum of 10 requests per 24 hours. Please try again later.",
-          }),
-          { status: 429, headers: { "Content-Type": "application/json" } }
-        );
-      }
+      // requestLimit is 0, deny access immediately
+      console.warn(
+        `API Warning: Access denied for user ${userEmail} trying to use premium model ${model} without login.`
+      );
+      return new Response(
+        JSON.stringify({
+          error: errorMessage,
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     // --- 5. Check Chat Existence, Ownership, or Create New ---

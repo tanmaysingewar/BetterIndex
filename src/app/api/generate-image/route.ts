@@ -9,6 +9,7 @@ import { db } from "@/database/db";
 import { nanoid } from "nanoid";
 import { chat, messages } from "@/database/schema/auth-schema";
 import { eq } from "drizzle-orm";
+import models from "@/support/models";
 
 const openai = new OpenAI();
 const utapi = new UTApi();
@@ -65,35 +66,77 @@ export async function POST(req: Request) {
     const userEmail = sessionData.user.email;
 
     // --- 4. Rate Limiting ---
-    let ratelimit;
+    // The model used for image generation (gpt-4.1-mini)
+    const imageGenerationModel = "gpt-4.1-mini";
 
-    if (
+    // Find the current model to check if it's premium
+    const currentModel = models.find((m) => m.id === imageGenerationModel);
+    const isPremiumModel = currentModel?.premium || false;
+
+    // Determine if user is non-logged in (demo user)
+    const isNonLoggedInUser =
       userEmail.includes("@https://www.betterindex.io") ||
-      userEmail.includes("@http://localhost:3000")
-    ) {
-      // Create a new ratelimiter, that allows 3 requests per 24 hours for anonymous users
-      ratelimit = new Ratelimit({
-        redis: Redis.fromEnv(),
-        limiter: Ratelimit.slidingWindow(3, "24 h"),
-      });
+      userEmail.includes("@http://localhost:3000");
+
+    let ratelimit;
+    let requestLimit: number;
+    let errorMessage: string;
+
+    if (isNonLoggedInUser) {
+      // Non-logged in users
+      if (isPremiumModel) {
+        // Premium models: 0 messages for non-logged in users
+        requestLimit = 0;
+        errorMessage =
+          "Premium image generation requires a signed-in account. Please sign in to use this feature.";
+      } else {
+        // Non-premium models: 10 messages in 24h for non-logged in users
+        requestLimit = 10;
+        errorMessage =
+          "You have reached the maximum of 10 image generation requests per 24 hours for free users. Please sign in for a free account to get more usage.";
+      }
     } else {
-      // Create a new ratelimiter, that allows 10 requests per 24 hours for registered users
-      ratelimit = new Ratelimit({
-        redis: Redis.fromEnv(),
-        limiter: Ratelimit.slidingWindow(10, "24 h"),
-      });
+      // Logged-in users: 3 messages in 24h regardless of model type
+      requestLimit = 3;
+      errorMessage =
+        "You have reached the maximum of 3 image generation requests per 24 hours. Please try again later.";
     }
 
-    // Use user email as the identifier for rate limiting
-    const { success } = await ratelimit.limit(userEmail);
+    // Create rate limiter with the determined limit
+    if (requestLimit > 0) {
+      ratelimit = new Ratelimit({
+        redis: Redis.fromEnv(),
+        limiter: Ratelimit.slidingWindow(requestLimit, "24 h"),
+      });
 
-    if (!success) {
-      console.warn(`API Warning: Rate limit exceeded for user ${userEmail}.`);
+      // Use user email as the identifier for rate limiting with image generation suffix
+      const { success } = await ratelimit.limit(
+        `${userEmail}:image:${isPremiumModel ? "premium" : "free"}`
+      );
+
+      if (!success) {
+        console.warn(
+          `API Warning: Image generation rate limit exceeded for user ${userEmail} using ${
+            isPremiumModel ? "premium" : "free"
+          } model ${imageGenerationModel}.`
+        );
+        return NextResponse.json(
+          {
+            error: errorMessage,
+          },
+          { status: 429 }
+        );
+      }
+    } else {
+      // requestLimit is 0, deny access immediately
+      console.warn(
+        `API Warning: Access denied for user ${userEmail} trying to use premium image generation without login.`
+      );
       return NextResponse.json(
         {
-          error: "Rate limit exceeded. Please try again later.",
+          error: errorMessage,
         },
-        { status: 429 }
+        { status: 403 }
       );
     }
 

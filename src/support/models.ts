@@ -12,6 +12,7 @@ const models = [
     available: true,
     docsUpload: true,
     imageUpload: true,
+    premium: true,
   },
   {
     id: "gpt-4.1-mini",
@@ -21,6 +22,7 @@ const models = [
     available: true,
     docsUpload: true,
     imageUpload: true,
+    premium: false,
   },
   {
     id: "openai/gpt-4.1-nano",
@@ -30,6 +32,7 @@ const models = [
     available: true,
     docsUpload: false,
     imageUpload: false,
+    premium: false,
   },
   {
     id: "openai/gpt-4o-2024-11-20",
@@ -39,6 +42,7 @@ const models = [
     available: true,
     docsUpload: true,
     imageUpload: true,
+    premium: true,
   },
   {
     id: "openai/gpt-image-1",
@@ -48,6 +52,7 @@ const models = [
     available: true,
     docsUpload: false,
     imageUpload: true,
+    premium: true,
   },
   {
     id: "anthropic/claude-sonnet-4",
@@ -57,6 +62,7 @@ const models = [
     available: true,
     docsUpload: true,
     imageUpload: true,
+    premium: true,
   },
   {
     id: "anthropic/claude-3.7-sonnet",
@@ -66,6 +72,7 @@ const models = [
     available: true,
     docsUpload: true,
     imageUpload: true,
+    premium: true,
   },
   {
     id: "anthropic/claude-3.7-sonnet:thinking",
@@ -75,6 +82,7 @@ const models = [
     available: true,
     docsUpload: true,
     imageUpload: true,
+    premium: true,
   },
   {
     id: "anthropic/claude-3.5-sonnet",
@@ -84,6 +92,7 @@ const models = [
     available: true,
     docsUpload: true,
     imageUpload: true,
+    premium: true,
   },
   {
     id: "anthropic/claude-3-haiku",
@@ -93,6 +102,7 @@ const models = [
     available: true,
     docsUpload: true,
     imageUpload: true,
+    premium: false,
   },
   {
     id: "google/gemini-2.5-pro-preview",
@@ -102,6 +112,7 @@ const models = [
     available: true,
     docsUpload: true,
     imageUpload: true,
+    premium: true,
   },
   {
     id: "google/gemini-2.5-flash-preview-05-20",
@@ -111,6 +122,7 @@ const models = [
     available: true,
     docsUpload: true,
     imageUpload: true,
+    premium: false,
   },
   {
     id: "google/gemini-2.5-flash-preview-05-20:thinking",
@@ -120,6 +132,7 @@ const models = [
     available: true,
     docsUpload: true,
     imageUpload: true,
+    premium: false,
   },
   {
     id: "google/gemini-2.0-flash-001",
@@ -129,6 +142,7 @@ const models = [
     available: true,
     docsUpload: false,
     imageUpload: false,
+    premium: false,
   },
   {
     id: "google/gemini-2.0-flash-lite-001",
@@ -138,6 +152,7 @@ const models = [
     available: true,
     docsUpload: false,
     imageUpload: false,
+    premium: false,
   },
   {
     id: "deepseek/deepseek-r1-0528",
@@ -147,6 +162,7 @@ const models = [
     available: true,
     docsUpload: false,
     imageUpload: false,
+    premium: false,
   },
   {
     id: "deepseek/deepseek-chat-v3-0324",
@@ -156,6 +172,7 @@ const models = [
     available: true,
     docsUpload: false,
     imageUpload: false,
+    premium: false,
   },
 ];
 

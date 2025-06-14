@@ -24,6 +24,7 @@ import {
   generatePermittedFileTypes,
 } from "uploadthing/client";
 import models from "@/support/models";
+import { useUserStore } from "@/store/userStore";
 
 interface InputBoxProps {
   input: string;
@@ -85,6 +86,8 @@ export default function InputBox({
   const suggestionsContainerRef = useRef<HTMLDivElement>(null);
   const suggestionItemRefs = useRef<(HTMLParagraphElement | null)[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const { user } = useUserStore();
+  const isLoggedIn = user?.emailVerified ? true : false;
 
   // Filter models based on search
   const filteredModels = models.filter(
@@ -356,15 +359,18 @@ export default function InputBox({
                           return (
                             <div
                               key={model.id}
-                              className={`flex items-center justify-between p-2 rounded-lg  cursor-pointer ${
-                                !model.available ? "opacity-60" : ""
+                              className={`flex items-center justify-between p-2 rounded-lg ${
+                                !isLoggedIn && model.premium
+                                  ? "cursor-not-allowed opacity-60"
+                                  : "cursor-pointer"
                               } ${
                                 isSelected
                                   ? "bg-neutral-100 dark:bg-[#1d2b30]/80"
                                   : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
                               }`}
                               onClick={() =>
-                                model.available && handleModelSelect(model.id)
+                                (isLoggedIn || !model.premium) &&
+                                handleModelSelect(model.id)
                               }
                             >
                               <div className="flex items-center space-x-3">
@@ -383,10 +389,10 @@ export default function InputBox({
                                 </div>
                               </div>
                               <div className="flex space-x-1">
-                                {isSelected && model.available && (
+                                {isSelected && (
                                   <div className="w-2 h-2 rounded-full dark:bg-neutral-400 bg-neutral-600"></div>
                                 )}
-                                {!model.available && (
+                                {!isLoggedIn && model.premium && (
                                   <Crown className="w-4 h-4 dark:text-neutral-500 text-neutral-400" />
                                 )}
                               </div>
