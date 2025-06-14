@@ -29,8 +29,13 @@ export async function POST(req: Request) {
     const shared = url.searchParams.get("shared") === "true";
     const editedMessage = url.searchParams.get("editedMessage") === "true";
 
-    const { messages: messageHistory, previous_image_response_id } =
-      await req.json();
+    const {
+      messages: messageHistory,
+      previous_image_response_id,
+      fileUrl,
+      fileType,
+      fileName,
+    } = await req.json();
 
     // --- 2. Validate Input ---
     if (
@@ -212,11 +217,72 @@ export async function POST(req: Request) {
       previous_image_response_id,
       responseIdToUse,
       isMultiTurn: !!responseIdToUse,
+      hasInputImage: !!fileUrl,
     });
+
+    // Helper function to create file from URL
+    const createFileFromUrl = async (url: string): Promise<string> => {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch file: ${response.statusText}`);
+        }
+
+        const buffer = await response.arrayBuffer();
+        const file = new File([buffer], fileName || "input-image.png", {
+          type: fileType || "image/png",
+        });
+
+        const fileResponse = await openai.files.create({
+          file: file,
+          purpose: "vision",
+        });
+
+        return fileResponse.id;
+      } catch (error) {
+        console.error("Error creating file from URL:", error);
+        throw error;
+      }
+    };
+
+    // Prepare input content
+    let inputContent;
+
+    if (fileUrl && fileType?.startsWith("image/")) {
+      // Handle input image case
+      try {
+        const fileId = await createFileFromUrl(fileUrl);
+
+        inputContent = [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: prompt,
+              },
+              {
+                type: "input_image",
+                file_id: fileId,
+              },
+            ],
+          },
+        ];
+
+        console.log("Created input with image file ID:", fileId);
+      } catch (error) {
+        console.error("Error handling input image:", error);
+        // Fallback to text-only if image processing fails
+        inputContent = prompt;
+      }
+    } else {
+      // Text-only prompt
+      inputContent = prompt;
+    }
 
     const response = await openai.responses.create({
       model: "gpt-4.1-mini",
-      input: prompt,
+      input: inputContent,
       tools: [{ type: "image_generation", quality: "low" }],
       ...(responseIdToUse && { previous_response_id: responseIdToUse }),
     });
@@ -352,9 +418,9 @@ export async function POST(req: Request) {
         botResponse: fullBotResponse,
         chatId: currentChatId,
         createdAt: new Date(),
-        fileUrl: null, // User message has no file - the generated image is in the bot response
-        fileType: null,
-        fileName: null,
+        fileUrl: fileUrl || null, // Store the input image file URL if provided
+        fileType: fileType || null,
+        fileName: fileName || null,
         imageResponseId: response.id, // Store the OpenAI response ID for multi-turn context
       });
 

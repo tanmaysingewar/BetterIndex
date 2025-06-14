@@ -855,6 +855,10 @@ export default function ChatPage({
                     ]
                   : [...messages, { role: "user", content: trimmedMessage }],
                 previous_image_response_id: lastImageResponseId,
+                // Include file information for input images
+                fileUrl: fileUrl || "",
+                fileType: fileType || "",
+                fileName: fileName || "",
               }),
             }
           );
@@ -1910,36 +1914,54 @@ const RenderMessageOnScreen = ({
                     <p>{highlightSpecialWords(message.content)}</p>
                     {message.fileUrl && (
                       <div className="mt-1">
-                        <div
-                          className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 dark:bg-[#344d58] max-w-[300px] cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2e444e] transition-colors mb-2"
-                          onClick={() =>
-                            message.fileUrl &&
-                            window.open(message.fileUrl, "_blank")
-                          }
-                          title="Click to open in new tab"
-                        >
-                          <div className="flex-shrink-0">
-                            <svg
-                              className="w-8 h-8 text-gray-400"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {message.fileType?.startsWith("image/") ? (
+                          <div className="relative">
+                            <img
+                              src={message.fileUrl}
+                              alt={message.fileName || "Uploaded image"}
+                              className="max-w-[300px] max-h-[200px] object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() =>
+                                message.fileUrl &&
+                                window.open(message.fileUrl, "_blank")
+                              }
+                              title="Click to open in new tab"
+                            />
+                            <div className="text-xs text-gray-500 mt-1">
                               {message.fileName}
                             </div>
-                            <div className="text-xs text-gray-500">
-                              {message.fileType}
+                          </div>
+                        ) : (
+                          <div
+                            className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 dark:bg-[#344d58] max-w-[300px] cursor-pointer hover:bg-gray-100 dark:hover:bg-[#2e444e] transition-colors mb-2"
+                            onClick={() =>
+                              message.fileUrl &&
+                              window.open(message.fileUrl, "_blank")
+                            }
+                            title="Click to open in new tab"
+                          >
+                            <div className="flex-shrink-0">
+                              <svg
+                                className="w-8 h-8 text-gray-400"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                {message.fileName}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {message.fileType}
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -2066,9 +2088,10 @@ const RenderMessageOnScreen = ({
                   />
                 ) : (
                   <div>
+                    <div>{highlightSpecialWords(message.content)}</div>
                     {/* Display uploaded file if present */}
                     {message.fileUrl && (
-                      <div className="mb-3">
+                      <div className="mt-3">
                         {message.fileType?.startsWith("image/") ? (
                           <div className="relative">
                             <img
@@ -2119,7 +2142,6 @@ const RenderMessageOnScreen = ({
                         )}
                       </div>
                     )}
-                    <div>{highlightSpecialWords(message.content)}</div>
                   </div>
                 )}
               </div>
@@ -2158,13 +2180,25 @@ const RenderMessageOnScreen = ({
                 ) : (
                   <div className="markdown-content">
                     <MessageRenderer content={message.content || " "} />
-                    <div className="">
+                    <div className="flex flex-row items-center gap-4">
                       {CopyClicked ? (
                         <Check className="w-4 h-4" />
                       ) : (
                         <CopyIcon
                           className="w-4 h-4 cursor-pointer"
                           onClick={handleCopyClick}
+                        />
+                      )}
+                      {branchLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <GitBranch
+                          className="w-4 h-4 cursor-pointer"
+                          onClick={async () => {
+                            setBranchLoading(true);
+                            await handleBranchClick();
+                            setBranchLoading(false);
+                          }}
                         />
                       )}
                     </div>
