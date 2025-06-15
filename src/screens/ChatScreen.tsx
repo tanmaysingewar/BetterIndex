@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { Textarea } from "@/components/ui/textarea";
+import models from "@/support/models";
 // import { Button } from "@/components/ui/button";
 
 interface Message {
@@ -54,6 +55,7 @@ interface Message {
   fileType?: string;
   fileName?: string;
   imageResponseId?: string; // For tracking OpenAI image generation response IDs
+  model?: string; // Model name used for the message
 }
 
 const generateChatId = (): string => {
@@ -724,6 +726,7 @@ export default function ChatPage({
           fileType: fileType || undefined,
           fileName: fileName || undefined,
         }),
+        model: selectedModel,
       };
 
       // --- Optimistic UI Update (using functional form) ---
@@ -946,6 +949,7 @@ export default function ChatPage({
             role: "assistant",
             content: `![Generated Image](${imageData.url})`,
             imageResponseId: imageData.response_id, // Store the response ID for multi-turn context
+            model: selectedModel,
           };
 
           // Calculate the definitive final state
@@ -1036,6 +1040,7 @@ export default function ChatPage({
             const currentAssistantMessage: Message = {
               role: "assistant",
               content: accumulatedText,
+              model: selectedModel,
             };
 
             // Calculate current state for localStorage
@@ -1080,6 +1085,7 @@ export default function ChatPage({
           const finalAssistantMessage: Message = {
             role: "assistant",
             content: accumulatedText || " ", // Use space if empty
+            model: selectedModel,
           };
 
           // Calculate the definitive final state based on the state *before* the placeholder was added
@@ -1140,6 +1146,7 @@ export default function ChatPage({
             {
               role: "assistant",
               content: `${error}`,
+              model: selectedModel,
             },
           ];
         });
@@ -2055,6 +2062,11 @@ const RenderMessageOnScreen = ({
                           }}
                         />
                       )}
+                      {message.model && (
+                        <div className="text-sm px-0 py-1 font">
+                          {models.find((m) => m.id === message.model)?.name}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -2232,6 +2244,11 @@ const RenderMessageOnScreen = ({
                             setBranchLoading(false);
                           }}
                         />
+                      )}
+                      {message.model && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
+                          {message.model}
+                        </div>
                       )}
                     </div>
                   </div>

@@ -94,6 +94,11 @@ export async function POST(req: Request) {
             botResponse: assistantMsg.content.trim(),
             chatId: chatId,
             createdAt: new Date(),
+            fileUrl: userMsg.fileUrl || "",
+            fileType: userMsg.fileType || "",
+            fileName: userMsg.fileName || "",
+            imageResponseId: assistantMsg.imageResponseId || null,
+            model: assistantMsg.model || "",
           });
         }
       }

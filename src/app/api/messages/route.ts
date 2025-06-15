@@ -53,6 +53,7 @@ export async function GET(req: Request) {
           fileType: sharedChatMessages.fileType,
           fileName: sharedChatMessages.fileName,
           imageResponseId: sharedChatMessages.imageResponseId,
+          model: sharedChatMessages.model,
         })
         .from(sharedChatMessages)
         .where(eq(sharedChatMessages.sharedChatId, chatId))
@@ -69,6 +70,7 @@ export async function GET(req: Request) {
           fileType: messages.fileType,
           fileName: messages.fileName,
           imageResponseId: messages.imageResponseId,
+          model: messages.model,
         })
         .from(messages)
         .innerJoin(chat, eq(messages.chatId, chat.id)) // Join messages with chat
@@ -93,6 +95,7 @@ export async function GET(req: Request) {
       fileType?: string;
       fileName?: string;
       imageResponseId?: string;
+      model?: string;
     }> = [];
     for (const msg of fetchedMessages) {
       if (msg.userMessage) {
@@ -102,6 +105,7 @@ export async function GET(req: Request) {
           fileUrl?: string;
           fileType?: string;
           fileName?: string;
+          model?: string;
         } = { role: "user", content: msg.userMessage };
 
         // Add file information if present
@@ -111,6 +115,11 @@ export async function GET(req: Request) {
           userMessage.fileName = msg.fileName || undefined;
         }
 
+        // Add model information if present
+        if (msg.model) {
+          userMessage.model = msg.model;
+        }
+
         formattedMessages.push(userMessage);
       }
       if (msg.botResponse) {
@@ -118,11 +127,17 @@ export async function GET(req: Request) {
           role: "assistant";
           content: string;
           imageResponseId?: string;
+          model?: string;
         } = { role: "assistant", content: msg.botResponse };
 
         // Add image response ID if present (for multi-turn image generation)
         if (msg.imageResponseId) {
           assistantMessage.imageResponseId = msg.imageResponseId;
+        }
+
+        // Add model information if present
+        if (msg.model) {
+          assistantMessage.model = msg.model;
         }
 
         formattedMessages.push(assistantMessage);

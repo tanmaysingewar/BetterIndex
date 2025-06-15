@@ -652,6 +652,8 @@ ${message.trim()}`;
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 fileName: (userMsg as any).fileName || null,
                 imageResponseId: null,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                model: (assistantMsg as any).model || model,
               });
             }
           }
@@ -670,6 +672,7 @@ ${message.trim()}`;
           fileType: fileType || null,
           fileName: fileName || null,
           imageResponseId: null,
+          model: model,
         });
 
         // Insert all messages at once
@@ -765,6 +768,7 @@ ${message.trim()}`;
             fileType: fileType || null,
             fileName: fileName || null,
             imageResponseId: null,
+            model: model,
           });
 
           console.log(

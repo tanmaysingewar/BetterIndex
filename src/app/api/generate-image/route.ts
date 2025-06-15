@@ -79,7 +79,7 @@ export async function POST(req: Request) {
 
     // --- 4. Rate Limiting ---
     // The model used for image generation (gpt-4.1-mini)
-    const imageGenerationModel = "gpt-4.1-mini";
+    const imageGenerationModel = "openai/gpt-image-1";
 
     // Find the current model to check if it's premium
     const currentModel = models.find((m) => m.id === imageGenerationModel);
@@ -413,6 +413,8 @@ export async function POST(req: Request) {
               fileName: (userMsg as any).fileName || null,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               imageResponseId: (assistantMsg as any).imageResponseId || null,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              model: (assistantMsg as any).model || imageGenerationModel,
             });
           }
         }
@@ -429,6 +431,7 @@ export async function POST(req: Request) {
         fileType: fileType || null,
         fileName: fileName || null,
         imageResponseId: response.id, // Store the OpenAI response ID for multi-turn context
+        model: imageGenerationModel,
       };
 
       console.log("Current message data being saved:", {
