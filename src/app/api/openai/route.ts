@@ -609,10 +609,90 @@ ${message.trim()}`;
       content: userMessageContent,
     });
 
-    // --- 7. Stream OpenAI Response and Save Message ---
+    // --- 7. Save User Message Immediately (Background) ---
+    const finalChatId = currentChatId; // Use the validated/created chat ID
+
+    // Save user message immediately in background without blocking AI generation
+    const saveUserMessage = async () => {
+      try {
+        console.log(`Saving user message immediately for chat ${finalChatId}`);
+
+        // Prepare all messages to be saved (previous conversations + current user message)
+        const messagesToSave = [];
+
+        // Save all previous conversations to database if shared is true OR editedMessage is true
+        if (
+          (shared || editedMessage) &&
+          Array.isArray(previous_conversations) &&
+          previous_conversations.length > 0
+        ) {
+          // Group messages into user-assistant pairs
+          for (let i = 0; i < previous_conversations.length - 1; i += 2) {
+            const userMsg = previous_conversations[i];
+            const assistantMsg = previous_conversations[i + 1];
+
+            if (
+              userMsg?.role === "user" &&
+              assistantMsg?.role === "assistant" &&
+              typeof userMsg.content === "string" &&
+              typeof assistantMsg.content === "string" &&
+              userMsg.content.trim() !== "" &&
+              assistantMsg.content.trim() !== ""
+            ) {
+              messagesToSave.push({
+                id: nanoid(),
+                userMessage: userMsg.content.trim(),
+                botResponse: assistantMsg.content.trim(),
+                chatId: finalChatId,
+                createdAt: new Date(),
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                fileUrl: (userMsg as any).fileUrl || null,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                fileType: (userMsg as any).fileType || null,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                fileName: (userMsg as any).fileName || null,
+                imageResponseId: null,
+              });
+            }
+          }
+        }
+
+        // Add the current user message with empty bot response (to be updated later)
+        const currentUserMessageId = nanoid();
+        messagesToSave.push({
+          id: currentUserMessageId,
+          userMessage: message.trim(),
+          botResponse:
+            "We're processing your message in the background due to a technical issue. Please refresh the page in a few seconds to see the response.", // Empty for now, will be updated when AI responds
+          chatId: finalChatId,
+          createdAt: new Date(),
+          fileUrl: fileUrl || null,
+          fileType: fileType || null,
+          fileName: fileName || null,
+          imageResponseId: null,
+        });
+
+        // Insert all messages at once
+        if (messagesToSave.length > 0) {
+          await db.insert(messages).values(messagesToSave);
+          console.log(
+            `Successfully saved ${messagesToSave.length} messages (including current user message) for chat ${finalChatId}`
+          );
+        }
+
+        return currentUserMessageId;
+      } catch (dbError) {
+        console.error("Error saving user message immediately:", dbError);
+        return null;
+      }
+    };
+
+    // Start saving user message immediately (non-blocking)
+    const userMessageSavePromise = saveUserMessage();
+
+    // --- 8. Stream OpenAI Response and Update Bot Response ---
     const encoder = new TextEncoder();
     let fullBotResponse = "";
-    const finalChatId = currentChatId; // Use the validated/created chat ID
 
     console.log("messages_format", messages_format);
 
@@ -636,6 +716,126 @@ ${message.trim()}`;
       ];
     }
 
+    // Create an AbortController to detect client disconnect
+    const abortController = new AbortController();
+    let clientDisconnected = false;
+
+    // Function to update bot response - runs independently of streaming
+    const updateBotResponse = async (botResponse: string) => {
+      try {
+        console.log(
+          `Attempting to update bot response for chat ${finalChatId}, client connected: ${!clientDisconnected}`
+        );
+
+        if (botResponse.trim() === "") {
+          console.warn(
+            `AI returned an empty response for chat ${finalChatId}. Not updating bot response.`
+          );
+          return;
+        }
+
+        // Wait for user message to be saved first
+        const userMessageId = await userMessageSavePromise;
+
+        if (userMessageId) {
+          // Update the bot response for the current message
+          await db
+            .update(messages)
+            .set({
+              botResponse: botResponse,
+            })
+            .where(eq(messages.id, userMessageId));
+
+          console.log(
+            `Successfully updated bot response for message ${userMessageId} in chat ${finalChatId}`
+          );
+        } else {
+          console.warn(
+            `User message ID not available, falling back to inserting complete message pair`
+          );
+
+          // Fallback: insert the complete message pair if user message save failed
+          await db.insert(messages).values({
+            id: nanoid(),
+            userMessage: message.trim(),
+            botResponse: botResponse,
+            chatId: finalChatId,
+            createdAt: new Date(),
+            fileUrl: fileUrl || null,
+            fileType: fileType || null,
+            fileName: fileName || null,
+            imageResponseId: null,
+          });
+
+          console.log(
+            `Fallback: Saved complete message pair for chat ${finalChatId}`
+          );
+        }
+      } catch (dbError) {
+        console.error("Error updating bot response:", dbError);
+        // Continue execution even if database update fails
+      }
+    };
+
+    // Background processing function that continues even if client disconnects
+    const processOpenAIResponse = async () => {
+      try {
+        console.log("Starting OpenAI completion processing...");
+        const completion = await openaiClient.chat.completions.create(
+          completionParams
+        );
+
+        let reasoningStarted = false;
+        let reasoningComplete = false;
+        let backgroundResponse = "";
+
+        // @ts-expect-error- OpenRouter plugins affect TypeScript inference but streaming works correctly
+        for await (const chunk of completion) {
+          const content = chunk.choices[0]?.delta?.content || "";
+          const reasoning =
+            (chunk.choices[0]?.delta as { reasoning?: string })?.reasoning ||
+            "";
+
+          if (reasoning) {
+            // Start reasoning block if this is the first reasoning chunk
+            if (!reasoningStarted) {
+              const reasoningStart = `\`\`\` think\n`;
+              backgroundResponse += reasoningStart;
+              reasoningStarted = true;
+            }
+
+            // Add the reasoning chunk to background response
+            backgroundResponse += reasoning;
+          }
+
+          if (content) {
+            // Close reasoning block if we had reasoning and now we're getting content
+            if (reasoningStarted && !reasoningComplete) {
+              const reasoningEnd = `\n\`\`\`\n\n`;
+              backgroundResponse += reasoningEnd;
+              reasoningComplete = true;
+            }
+
+            backgroundResponse += content;
+          }
+        }
+
+        console.log(
+          "OpenAI completion processing finished, updating bot response..."
+        );
+        // Always update bot response, regardless of client connection status
+        await updateBotResponse(backgroundResponse);
+
+        return backgroundResponse;
+      } catch (error) {
+        console.error("Background OpenAI processing error:", error);
+        throw error;
+      }
+    };
+
+    // Start background processing immediately (runs independently)
+    const backgroundProcessing = processOpenAIResponse();
+
     // Streaming the Response
     const stream = new ReadableStream({
       async start(controller) {
@@ -649,6 +849,15 @@ ${message.trim()}`;
 
           // @ts-expect-error- OpenRouter plugins affect TypeScript inference but streaming works correctly
           for await (const chunk of completion) {
+            // Check if client has disconnected
+            if (abortController.signal.aborted) {
+              console.log(
+                "Client disconnected, but continuing background processing..."
+              );
+              clientDisconnected = true;
+              break;
+            }
+
             const content = chunk.choices[0]?.delta?.content || "";
             const reasoning =
               (chunk.choices[0]?.delta as { reasoning?: string })?.reasoning ||
@@ -659,13 +868,25 @@ ${message.trim()}`;
               if (!reasoningStarted) {
                 const reasoningStart = `\`\`\` think\n`;
                 fullBotResponse += reasoningStart;
-                controller.enqueue(encoder.encode(reasoningStart));
+                try {
+                  controller.enqueue(encoder.encode(reasoningStart));
+                } catch {
+                  console.log("Client disconnected during reasoning start");
+                  clientDisconnected = true;
+                  break;
+                }
                 reasoningStarted = true;
               }
 
               // Stream the reasoning chunk
               fullBotResponse += reasoning;
-              controller.enqueue(encoder.encode(reasoning));
+              try {
+                controller.enqueue(encoder.encode(reasoning));
+              } catch {
+                console.log("Client disconnected during reasoning");
+                clientDisconnected = true;
+                break;
+              }
             }
 
             if (content) {
@@ -673,93 +894,50 @@ ${message.trim()}`;
               if (reasoningStarted && !reasoningComplete) {
                 const reasoningEnd = `\n\`\`\`\n\n`;
                 fullBotResponse += reasoningEnd;
-                controller.enqueue(encoder.encode(reasoningEnd));
+                try {
+                  controller.enqueue(encoder.encode(reasoningEnd));
+                } catch {
+                  console.log("Client disconnected during reasoning end");
+                  clientDisconnected = true;
+                  break;
+                }
                 reasoningComplete = true;
               }
 
               fullBotResponse += content;
-              controller.enqueue(encoder.encode(content));
+              try {
+                controller.enqueue(encoder.encode(content));
+              } catch {
+                console.log("Client disconnected during content streaming");
+                clientDisconnected = true;
+                break;
+              }
             }
           }
 
-          // Save message pair after successful streaming
-          if (fullBotResponse.trim() === "") {
-            console.warn(
-              `Groq returned an empty response for chat ${finalChatId}. Not saving empty message pair.`
-            );
-          } else {
-            try {
-              // Prepare all messages to be saved
-              const messagesToSave = [];
-
-              // Save all previous conversations to database if shared is true OR editedMessage is true
-              if (
-                (shared || editedMessage) &&
-                Array.isArray(previous_conversations) &&
-                previous_conversations.length > 0
-              ) {
-                // Group messages into user-assistant pairs
-                for (let i = 0; i < previous_conversations.length - 1; i += 2) {
-                  const userMsg = previous_conversations[i];
-                  const assistantMsg = previous_conversations[i + 1];
-
-                  if (
-                    userMsg?.role === "user" &&
-                    assistantMsg?.role === "assistant" &&
-                    typeof userMsg.content === "string" &&
-                    typeof assistantMsg.content === "string" &&
-                    userMsg.content.trim() !== "" &&
-                    assistantMsg.content.trim() !== ""
-                  ) {
-                    messagesToSave.push({
-                      id: nanoid(),
-                      userMessage: userMsg.content.trim(),
-                      botResponse: assistantMsg.content.trim(),
-                      chatId: finalChatId,
-                      createdAt: new Date(),
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      fileUrl: (userMsg as any).fileUrl || null,
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      fileType: (userMsg as any).fileType || null,
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      fileName: (userMsg as any).fileName || null,
-                      imageResponseId: null, // Regular chat messages don't have image response IDs
-                    });
-                  }
-                }
-              }
-
-              // Add the current message pair
-              messagesToSave.push({
-                id: nanoid(),
-                userMessage: message.trim(),
-                botResponse: fullBotResponse,
-                chatId: finalChatId, // Link to the correct chat ID
-                createdAt: new Date(),
-                fileUrl: fileUrl || null,
-                fileType: fileType || null,
-                fileName: fileName || null,
-                imageResponseId: null, // Regular chat messages don't have image response IDs
-              });
-
-              // Insert all messages at once
-              if (messagesToSave.length > 0) {
-                await db.insert(messages).values(messagesToSave);
-                console.log(
-                  `Saved ${messagesToSave.length} message pairs for chat ${finalChatId}`
-                );
-              }
-            } catch (dbError) {
-              // Log error but don't necessarily stop the stream response
-              console.error("Error saving message pair:", dbError);
-            }
+          // If we were streaming and client is still connected, update the bot response
+          if (!clientDisconnected && fullBotResponse.trim() !== "") {
+            await updateBotResponse(fullBotResponse);
           }
         } catch (error) {
-          console.error("Groq streaming or processing error:", error);
-          controller.error(error);
+          console.error("Streaming error:", error);
+          // Even if streaming fails, the background processing will continue
+          if (!clientDisconnected) {
+            controller.error(error);
+          }
         } finally {
-          controller.close();
+          if (!clientDisconnected) {
+            controller.close();
+          }
         }
+      },
+
+      cancel() {
+        console.log(
+          "Stream cancelled by client, but background processing continues..."
+        );
+        clientDisconnected = true;
+        abortController.abort();
       },
     });
 
@@ -769,6 +947,11 @@ ${message.trim()}`;
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
       "X-Title": title,
+    });
+
+    // Ensure background processing continues even if client disconnects
+    backgroundProcessing.catch((error) => {
+      console.error("Background processing failed:", error);
     });
 
     // --- 8. Return the stream ---

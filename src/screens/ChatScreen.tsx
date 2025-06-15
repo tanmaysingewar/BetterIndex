@@ -1031,6 +1031,20 @@ export default function ChatPage({
             const { done, value } = await reader.read();
             if (done) break;
             accumulatedText += decoder.decode(value, { stream: true });
+
+            // Create the current assistant message with accumulated content
+            const currentAssistantMessage: Message = {
+              role: "assistant",
+              content: accumulatedText,
+            };
+
+            // Calculate current state for localStorage
+            const currentMessagesState = [
+              ...messagesBeforeOptimisticUpdate,
+              newUserMessage,
+              currentAssistantMessage,
+            ];
+
             // Update the streaming content using functional update
             setMessages((prev) => {
               if (prev.length === 0) return prev; // Should not happen
@@ -1042,6 +1056,24 @@ export default function ChatPage({
               }
               return updatedMessages;
             });
+
+            // Save current state to localStorage after each chunk
+            try {
+              localStorage.setItem(
+                getLocalStorageKey(chatIdForRequest),
+                JSON.stringify(currentMessagesState)
+              );
+              dispatchMessagesUpdatedEvent(
+                getLocalStorageKey(chatIdForRequest),
+                JSON.stringify(currentMessagesState)
+              );
+            } catch (lsError) {
+              console.error(
+                "Error saving streaming chunk to Local Storage:",
+                lsError
+              );
+              // Continue streaming even if localStorage fails
+            }
           }
 
           // --- Final State Update & Local Storage ---
