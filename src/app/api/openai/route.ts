@@ -13,11 +13,6 @@ import models from "@/support/models";
 
 const tavilyClient = tavily({ apiKey: process.env.TAVILY_API_KEY! });
 
-const openaiClient = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
-
 export async function POST(req: Request) {
   // --- Standard Response Headers for Streaming ---
 
@@ -43,7 +38,13 @@ export async function POST(req: Request) {
       fileUrl,
       fileType,
       fileName,
+      openrouter_api_key,
+      openai_api_key,
+      anthropic_api_key,
+      google_api_key,
     } = await req.json();
+
+    console.log("Model", model);
 
     // --- 2. Validate Input ---
     if (!currentChatId) {
@@ -59,6 +60,63 @@ export async function POST(req: Request) {
         JSON.stringify({ error: "Message content is required" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
+    }
+
+    let openaiClient;
+    let clientProvider = "default";
+    let modelId = model;
+
+    console.log("OpenAI API key", openai_api_key);
+    console.log("OpenRouter API key", openrouter_api_key);
+    console.log("Anthropic API key", anthropic_api_key);
+    console.log("Google API key", google_api_key);
+
+    if (openrouter_api_key) {
+      openaiClient = new OpenAI({
+        baseURL: "https://openrouter.ai/api/v1",
+        apiKey: openrouter_api_key,
+      });
+      clientProvider = "openrouter";
+      console.log("User provided OpenRouter API key");
+    } else if (
+      anthropic_api_key &&
+      (model.includes("claude") || model.includes("anthropic"))
+    ) {
+      openaiClient = new OpenAI({
+        baseURL: "https://api.anthropic.com/v1/",
+        apiKey: anthropic_api_key,
+      });
+      clientProvider = "anthropic";
+      const currentModel = models.find((m) => m.id === model);
+      modelId = currentModel?.originalId || model;
+      console.log("User provided Anthropic API key");
+    } else if (
+      google_api_key &&
+      (model.includes("gemini") || model.includes("google"))
+    ) {
+      openaiClient = new OpenAI({
+        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+        apiKey: google_api_key,
+      });
+      clientProvider = "google";
+      const currentModel = models.find((m) => m.id === model);
+      modelId = currentModel?.originalId || model;
+      console.log("User provided Google Gemini API key");
+    } else if (openai_api_key && model.includes("openai")) {
+      openaiClient = new OpenAI({
+        apiKey: openai_api_key,
+      });
+      clientProvider = "openai";
+      const currentModel = models.find((m) => m.id === model);
+      modelId = currentModel?.originalId || model;
+      console.log("User provided OpenAI API key");
+    } else {
+      openaiClient = new OpenAI({
+        baseURL: "https://openrouter.ai/api/v1",
+        apiKey: process.env.OPENROUTER_API_KEY,
+      });
+      clientProvider = "default";
+      console.log("Using default OpenRouter API key");
     }
 
     if (message.trim().length > 3000) {
@@ -88,82 +146,89 @@ export async function POST(req: Request) {
     const userEmail = sessionData.user.email;
 
     // ------- 4. Rate Limit ----------
-    // Find the current model to check if it's premium
-    const currentModel = models.find((m) => m.id === model);
-    const isPremiumModel = currentModel?.premium || false;
+    // Skip rate limiting if user provides their own API key
+    if (clientProvider === "default") {
+      // Find the current model to check if it's premium
+      const currentModel = models.find((m) => m.id === model);
+      const isPremiumModel = currentModel?.premium || false;
 
-    // Determine if user is non-logged in (demo user)
-    const isNonLoggedInUser =
-      userEmail.includes("@https://www.betterindex.io") ||
-      userEmail.includes("@http://localhost:3000");
+      // Determine if user is non-logged in (demo user)
+      const isNonLoggedInUser =
+        userEmail.includes("@https://www.betterindex.io") ||
+        userEmail.includes("@http://localhost:3000");
 
-    let ratelimit;
-    let requestLimit: number;
-    let errorMessage: string;
+      let ratelimit;
+      let requestLimit: number;
+      let errorMessage: string;
 
-    if (isNonLoggedInUser) {
-      // Non-logged in users
-      if (isPremiumModel) {
-        // Premium models: 0 messages for non-logged in users
-        requestLimit = 0;
-        errorMessage =
-          "Premium models require a signed-in account. Please sign in to use this model.";
+      if (isNonLoggedInUser) {
+        // Non-logged in users
+        if (isPremiumModel) {
+          // Premium models: 0 messages for non-logged in users
+          requestLimit = 0;
+          errorMessage =
+            "Premium models require a signed-in account. Please sign in to use this model.";
+        } else {
+          // Non-premium models: 10 messages in 24h for non-logged in users
+          requestLimit = 10;
+          errorMessage =
+            "You have reached the maximum of 10 requests per 24 hours for free users. Please sign in for a free account to get more usage.";
+        }
       } else {
-        // Non-premium models: 10 messages in 24h for non-logged in users
-        requestLimit = 10;
-        errorMessage =
-          "You have reached the maximum of 10 requests per 24 hours for free users. Please sign in for a free account to get more usage.";
+        // Logged-in users
+        if (isPremiumModel) {
+          // Premium models: 10 messages in 24h for logged-in users
+          requestLimit = 10;
+          errorMessage =
+            "You have reached the maximum of 10 requests per 24 hours for premium models. Please try again later or use a non-premium model.";
+        } else {
+          // Non-premium models: 30 messages in 24h for logged-in users
+          requestLimit = 30;
+          errorMessage =
+            "You have reached the maximum of 30 requests per 24 hours for this model. Please try again later.";
+        }
       }
-    } else {
-      // Logged-in users
-      if (isPremiumModel) {
-        // Premium models: 10 messages in 24h for logged-in users
-        requestLimit = 10;
-        errorMessage =
-          "You have reached the maximum of 10 requests per 24 hours for premium models. Please try again later or use a non-premium model.";
+
+      // Create rate limiter with the determined limit
+      if (requestLimit > 0) {
+        ratelimit = new Ratelimit({
+          redis: Redis.fromEnv(),
+          limiter: Ratelimit.slidingWindow(requestLimit, "24 h"),
+        });
+
+        // Use user email as the identifier for rate limiting
+        const { success } = await ratelimit.limit(
+          `${userEmail}:${isPremiumModel ? "premium" : "free"}`
+        );
+
+        if (!success) {
+          console.warn(
+            `API Warning: Rate limit exceeded for user ${userEmail} using ${
+              isPremiumModel ? "premium" : "free"
+            } model ${model}.`
+          );
+          return new Response(
+            JSON.stringify({
+              error: errorMessage,
+            }),
+            { status: 429, headers: { "Content-Type": "application/json" } }
+          );
+        }
       } else {
-        // Non-premium models: 30 messages in 24h for logged-in users
-        requestLimit = 30;
-        errorMessage =
-          "You have reached the maximum of 30 requests per 24 hours for this model. Please try again later.";
-      }
-    }
-
-    // Create rate limiter with the determined limit
-    if (requestLimit > 0) {
-      ratelimit = new Ratelimit({
-        redis: Redis.fromEnv(),
-        limiter: Ratelimit.slidingWindow(requestLimit, "24 h"),
-      });
-
-      // Use user email as the identifier for rate limiting
-      const { success } = await ratelimit.limit(
-        `${userEmail}:${isPremiumModel ? "premium" : "free"}`
-      );
-
-      if (!success) {
+        // requestLimit is 0, deny access immediately
         console.warn(
-          `API Warning: Rate limit exceeded for user ${userEmail} using ${
-            isPremiumModel ? "premium" : "free"
-          } model ${model}.`
+          `API Warning: Access denied for user ${userEmail} trying to use premium model ${model} without login.`
         );
         return new Response(
           JSON.stringify({
             error: errorMessage,
           }),
-          { status: 429, headers: { "Content-Type": "application/json" } }
+          { status: 403, headers: { "Content-Type": "application/json" } }
         );
       }
     } else {
-      // requestLimit is 0, deny access immediately
-      console.warn(
-        `API Warning: Access denied for user ${userEmail} trying to use premium model ${model} without login.`
-      );
-      return new Response(
-        JSON.stringify({
-          error: errorMessage,
-        }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
+      console.log(
+        `Bypassing rate limit for user ${userEmail} using custom API key from ${clientProvider}`
       );
     }
 
@@ -217,7 +282,11 @@ export async function POST(req: Request) {
       // Create new chat if needed (either doesn't exist or was deleted for edit)
       if (isNewChatFlow) {
         // Generate the title
-        const completion = await openaiClient.chat.completions.create({
+        const openaiClientForTitle = new OpenAI({
+          baseURL: "https://openrouter.ai/api/v1",
+          apiKey: process.env.OPENROUTER_API_KEY,
+        });
+        const completion = await openaiClientForTitle.chat.completions.create({
           messages: [
             {
               role: "system",
@@ -703,12 +772,21 @@ ${message.trim()}`;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const completionParams: any = {
       messages: messages_format,
-      model: model,
+      // handle custom model id
+      model: modelId,
       stream: true,
     };
 
+    // Note: Anthropic's OpenAI compatibility layer doesn't stream thinking content
+    // The thinking feature is only available when using the native Anthropic API
+    // For now, we don't add thinking parameters when using OpenAI compatibility
+
     // Add PDF processing plugin if we have a PDF file (OpenRouter specific feature)
-    if (fileUrl && fileType === "application/pdf") {
+    if (
+      fileUrl &&
+      fileType === "application/pdf" &&
+      clientProvider === "default"
+    ) {
       completionParams.plugins = [
         {
           id: "file-parser",
@@ -784,7 +862,14 @@ ${message.trim()}`;
     // Background processing function that continues even if client disconnects
     const processOpenAIResponse = async () => {
       try {
-        console.log("Starting OpenAI completion processing...");
+        console.log(
+          "Starting completion processing with provider:",
+          clientProvider
+        );
+        console.log("Completion params:", {
+          ...completionParams,
+          messages: "REDACTED",
+        });
         const completion = await openaiClient.chat.completions.create(
           completionParams
         );
@@ -795,6 +880,20 @@ ${message.trim()}`;
 
         // @ts-expect-error- OpenRouter plugins affect TypeScript inference but streaming works correctly
         for await (const chunk of completion) {
+          // Handle different response formats from different providers
+          if (
+            !chunk ||
+            !chunk.choices ||
+            !Array.isArray(chunk.choices) ||
+            chunk.choices.length === 0
+          ) {
+            console.warn(
+              "Invalid chunk format received:",
+              JSON.stringify(chunk)
+            );
+            continue;
+          }
+
           const content = chunk.choices[0]?.delta?.content || "";
           const reasoning =
             (chunk.choices[0]?.delta as { reasoning?: string })?.reasoning ||
@@ -860,6 +959,20 @@ ${message.trim()}`;
               );
               clientDisconnected = true;
               break;
+            }
+
+            // Handle different response formats from different providers
+            if (
+              !chunk ||
+              !chunk.choices ||
+              !Array.isArray(chunk.choices) ||
+              chunk.choices.length === 0
+            ) {
+              console.warn(
+                "Invalid chunk format received:",
+                JSON.stringify(chunk)
+              );
+              continue;
             }
 
             const content = chunk.choices[0]?.delta?.content || "";

@@ -88,6 +88,22 @@ export default function InputBox({
   const [isUploading, setIsUploading] = useState(false);
   const { user } = useUserStore();
   const isLoggedIn = user?.emailVerified ? true : false;
+  const hasOpenAIApiKey =
+    typeof window !== "undefined" &&
+    localStorage.getItem("openai_api_key") &&
+    localStorage.getItem("openai_api_key") !== "";
+  const hasOpenRouterApiKey =
+    typeof window !== "undefined" &&
+    localStorage.getItem("openrouter_api_key") &&
+    localStorage.getItem("openrouter_api_key") !== "";
+  const hasAnthropicApiKey =
+    typeof window !== "undefined" &&
+    localStorage.getItem("anthropic_api_key") &&
+    localStorage.getItem("anthropic_api_key") !== "";
+  const hasGoogleApiKey =
+    typeof window !== "undefined" &&
+    localStorage.getItem("google_api_key") &&
+    localStorage.getItem("google_api_key") !== "";
 
   // Filter models based on search
   const filteredModels = models.filter(
@@ -356,11 +372,30 @@ export default function InputBox({
                         filteredModels.map((model) => {
                           const Icon = model.icon;
                           const isSelected = model.id === selectedModel;
+
+                          // Check if user has access to this model
+                          const hasModelAccess =
+                            isLoggedIn ||
+                            !model.premium ||
+                            (hasOpenRouterApiKey &&
+                              model.id !== "openai/gpt-image-1") ||
+                            (hasOpenAIApiKey &&
+                              (model.id.toLowerCase().includes("openai") ||
+                                model.id.toLowerCase().includes("gpt"))) ||
+                            (hasAnthropicApiKey &&
+                              (model.id.toLowerCase().includes("claude") ||
+                                model.id
+                                  .toLowerCase()
+                                  .includes("anthropic"))) ||
+                            (hasGoogleApiKey &&
+                              (model.id.toLowerCase().includes("gemini") ||
+                                model.id.toLowerCase().includes("google")));
+
                           return (
                             <div
                               key={model.id}
                               className={`flex items-center justify-between p-2 rounded-lg ${
-                                !isLoggedIn && model.premium
+                                !hasModelAccess
                                   ? "cursor-not-allowed opacity-60"
                                   : "cursor-pointer"
                               } ${
@@ -369,8 +404,7 @@ export default function InputBox({
                                   : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
                               }`}
                               onClick={() =>
-                                (isLoggedIn || !model.premium) &&
-                                handleModelSelect(model.id)
+                                hasModelAccess && handleModelSelect(model.id)
                               }
                             >
                               <div className="flex items-center space-x-3">
@@ -392,7 +426,7 @@ export default function InputBox({
                                 {isSelected && (
                                   <div className="w-2 h-2 rounded-full dark:bg-neutral-400 bg-neutral-600"></div>
                                 )}
-                                {!isLoggedIn && model.premium && (
+                                {!hasModelAccess && (
                                   <Crown className="w-4 h-4 dark:text-neutral-500 text-neutral-400" />
                                 )}
                               </div>

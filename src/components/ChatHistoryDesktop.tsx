@@ -19,6 +19,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Loader2 } from "lucide-react";
 import { CHAT_CACHE_UPDATED_EVENT } from "@/lib/fetchChats";
 import { DialogTitle } from "@radix-ui/react-dialog";
+import BringYourOwnKey from "./BringYourOwnKey";
 
 const pacifico = Pacifico({
   subsets: ["latin"],
@@ -578,45 +579,47 @@ export default function ChatHistoryDesktop({
           )}
         </div>
       </div>
-
-      {user?.emailVerified === false || !user || isNewUser ? (
-        <SignInComponent />
-      ) : (
-        <div
-          className="flex items-center gap-2 p-3 mx-2 mb-2 mt-2 dark:bg-[#222325] bg-neutral-200 rounded-md cursor-pointer"
-          onClick={() => {
-            setOpenSettings(true);
-          }}
-        >
-          <div className="bg-neutral-700 p-0 rounded-full">
-            {user?.image ? (
-              <img
-                src={user.image}
-                alt="Profile picture"
-                className="h-9 w-9 rounded-full"
-              />
-            ) : (
-              <User size={20} className="dark:text-white" />
-            )}
+      <div className="flex flex-col">
+        <BringYourOwnKey />
+        {user?.emailVerified === false || !user || isNewUser ? (
+          <SignInComponent />
+        ) : (
+          <div
+            className="flex items-center gap-2 p-3 mx-2 mb-2 mt-2 dark:bg-[#222325] bg-neutral-200 rounded-md cursor-pointer"
+            onClick={() => {
+              setOpenSettings(true);
+            }}
+          >
+            <div className="bg-neutral-700 p-0 rounded-full">
+              {user?.image ? (
+                <img
+                  src={user.image}
+                  alt="Profile picture"
+                  className="h-9 w-9 rounded-full"
+                />
+              ) : (
+                <User size={20} className="dark:text-white" />
+              )}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium dark:text-white">
+                {user?.name || "User"}
+              </span>
+              <span className="text-xs dark:text-neutral-400 text-neutral-600 truncate max-w-[200px]">
+                {user?.email || ""}
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium dark:text-white">
-              {user?.name || "User"}
-            </span>
-            <span className="text-xs dark:text-neutral-400 text-neutral-600 truncate max-w-[200px]">
-              {user?.email || ""}
-            </span>
-          </div>
-        </div>
-      )}
-      <Dialog open={openSettings} onOpenChange={setOpenSettings}>
-        <DialogContent className="dark:bg-[#1d1e20] h-[60vh] w-[53vw]">
-          <DialogHeader>
-            <DialogTitle className="hidden">Settings</DialogTitle>
-            <Settings />
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
+        )}
+        <Dialog open={openSettings} onOpenChange={setOpenSettings}>
+          <DialogContent className="dark:bg-[#1d1e20] h-[60vh] w-[53vw]">
+            <DialogHeader>
+              <DialogTitle className="hidden">Settings</DialogTitle>
+              <Settings />
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }
@@ -625,7 +628,7 @@ const SignInComponent = () => {
   const [signLoading, setSignLoading] = useState(false);
   return (
     <Button
-      className="cursor-pointer mx-5 mt-3 mb-2"
+      className="cursor-pointer mx-2 mt-3 mb-2"
       onClick={async () => {
         setSignLoading(true);
         await authClient.signIn.social({

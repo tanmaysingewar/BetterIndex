@@ -5,7 +5,7 @@ import DeepseekIcon from "./icons/DeepseekIcon";
 
 const models = [
   {
-    id: "gpt-4.1",
+    id: "openai/gpt-4.1",
     name: "GPT 4.1",
     description: "Latest model",
     icon: OpenAIIcon,
@@ -13,9 +13,10 @@ const models = [
     docsUpload: true,
     imageUpload: true,
     premium: true,
+    originalId: "gpt-4.1",
   },
   {
-    id: "gpt-4.1-mini",
+    id: "openai/gpt-4.1-mini",
     name: "GPT 4.1 Mini",
     description: "Mini model",
     icon: OpenAIIcon,
@@ -23,6 +24,7 @@ const models = [
     docsUpload: true,
     imageUpload: true,
     premium: false,
+    originalId: "gpt-4.1-mini",
   },
   {
     id: "openai/gpt-4.1-nano",
@@ -33,6 +35,7 @@ const models = [
     docsUpload: false,
     imageUpload: false,
     premium: false,
+    originalId: "gpt-4.1-nano",
   },
   {
     id: "openai/gpt-4o-2024-11-20",
@@ -43,6 +46,18 @@ const models = [
     docsUpload: true,
     imageUpload: true,
     premium: true,
+    originalId: "gpt-4o",
+  },
+  {
+    id: "openai/gpt-4o-mini",
+    name: "GPT-4o Mini",
+    description: "Mini model",
+    icon: OpenAIIcon,
+    available: true,
+    docsUpload: true,
+    imageUpload: true,
+    premium: false,
+    originalId: "gpt-4o-mini",
   },
   {
     id: "openai/gpt-image-1",
@@ -53,6 +68,7 @@ const models = [
     docsUpload: false,
     imageUpload: true,
     premium: true,
+    originalId: "gpt-image-1",
   },
   {
     id: "anthropic/claude-sonnet-4",
@@ -63,6 +79,7 @@ const models = [
     docsUpload: true,
     imageUpload: true,
     premium: true,
+    originalId: "claude-sonnet-4-20250514",
   },
   {
     id: "anthropic/claude-3.7-sonnet",
@@ -73,6 +90,7 @@ const models = [
     docsUpload: true,
     imageUpload: true,
     premium: true,
+    originalId: "claude-3-7-sonnet-20250219",
   },
   {
     id: "anthropic/claude-3.7-sonnet:thinking",
@@ -83,6 +101,7 @@ const models = [
     docsUpload: true,
     imageUpload: true,
     premium: true,
+    originalId: "claude-3-7-sonnet-20250219",
   },
   {
     id: "anthropic/claude-3.5-sonnet",
@@ -93,6 +112,7 @@ const models = [
     docsUpload: true,
     imageUpload: true,
     premium: true,
+    originalId: "claude-3-5-sonnet-20241022",
   },
   {
     id: "anthropic/claude-3-haiku",
@@ -103,6 +123,7 @@ const models = [
     docsUpload: true,
     imageUpload: true,
     premium: false,
+    originalId: "claude-3-5-haiku-20241022",
   },
   {
     id: "google/gemini-2.5-pro-preview",
@@ -113,6 +134,7 @@ const models = [
     docsUpload: true,
     imageUpload: true,
     premium: true,
+    originalId: "gemini-2.5-pro-preview-06-05",
   },
   {
     id: "google/gemini-2.5-flash-preview-05-20",
@@ -123,6 +145,7 @@ const models = [
     docsUpload: true,
     imageUpload: true,
     premium: false,
+    originalId: "gemini-2.5-flash-preview-05-20",
   },
   {
     id: "google/gemini-2.5-flash-preview-05-20:thinking",
@@ -133,6 +156,7 @@ const models = [
     docsUpload: true,
     imageUpload: true,
     premium: false,
+    originalId: "gemini-2.5-flash-preview-05-20",
   },
   {
     id: "google/gemini-2.0-flash-001",
@@ -143,6 +167,7 @@ const models = [
     docsUpload: false,
     imageUpload: false,
     premium: false,
+    originalId: "gemini-2.0-flash",
   },
   {
     id: "google/gemini-2.0-flash-lite-001",
@@ -153,6 +178,7 @@ const models = [
     docsUpload: false,
     imageUpload: false,
     premium: false,
+    originalId: "gemini-2.0-flash-lite",
   },
   {
     id: "deepseek/deepseek-r1-0528",
@@ -163,6 +189,7 @@ const models = [
     docsUpload: false,
     imageUpload: false,
     premium: false,
+    originalId: "deepseek/deepseek-chat-v3-0324",
   },
   {
     id: "deepseek/deepseek-chat-v3-0324",
@@ -173,6 +200,7 @@ const models = [
     docsUpload: false,
     imageUpload: false,
     premium: false,
+    originalId: "deepseek/deepseek-chat-v3-0324",
   },
 ];
 

@@ -797,6 +797,22 @@ export default function ChatPage({
           fileUrl: fileUrl,
           fileType: fileType,
           fileName: fileName,
+          openrouter_api_key:
+            localStorage.getItem("openrouter_api_key") == ""
+              ? ""
+              : localStorage.getItem("openrouter_api_key"),
+          openai_api_key:
+            localStorage.getItem("openai_api_key") == ""
+              ? ""
+              : localStorage.getItem("openai_api_key"),
+          anthropic_api_key:
+            localStorage.getItem("anthropic_api_key") == ""
+              ? ""
+              : localStorage.getItem("anthropic_api_key"),
+          google_api_key:
+            localStorage.getItem("google_api_key") == ""
+              ? ""
+              : localStorage.getItem("google_api_key"),
         };
       } else {
         console.log("No file uploaded");
@@ -812,6 +828,22 @@ export default function ChatPage({
           fileUrl: "",
           fileType: "",
           fileName: "",
+          openrouter_api_key:
+            localStorage.getItem("openrouter_api_key") == ""
+              ? ""
+              : localStorage.getItem("openrouter_api_key"),
+          openai_api_key:
+            localStorage.getItem("openai_api_key") == ""
+              ? ""
+              : localStorage.getItem("openai_api_key"),
+          anthropic_api_key:
+            localStorage.getItem("anthropic_api_key") == ""
+              ? ""
+              : localStorage.getItem("anthropic_api_key"),
+          google_api_key:
+            localStorage.getItem("google_api_key") == ""
+              ? ""
+              : localStorage.getItem("google_api_key"),
         };
       }
 
@@ -862,6 +894,10 @@ export default function ChatPage({
                 fileUrl: fileUrl || "",
                 fileType: fileType || "",
                 fileName: fileName || "",
+                openrouter_api_key: localStorage.getItem("openrouter_api_key"),
+                openai_api_key: localStorage.getItem("openai_api_key"),
+                anthropic_api_key: localStorage.getItem("anthropic_api_key"),
+                google_api_key: localStorage.getItem("google_api_key"),
               }),
             }
           );
@@ -884,11 +920,20 @@ export default function ChatPage({
           try {
             const errorData = await response.json();
             errorMsg = errorData.error || errorMsg;
+            setIsGenerating(false);
+            setLoadingPhase(null);
           } catch (e) {
             console.error("Failed to parse error response:", e);
           }
+          // remove the last message from setMessages
+          setMessages((prevMessages) => {
+            if (prevMessages.length === 0) {
+              return prevMessages;
+            }
+            return prevMessages.slice(0, -1);
+          });
+
           // Revert optimistic update on error
-          setMessages(messages); // Revert to state *before* optimistic update
           if (isNewChat) {
             // If the *first* message failed, maybe revert URL/state?
             // This is complex. For now, we keep the new URL/ID.
@@ -1177,6 +1222,20 @@ export default function ChatPage({
       console.log(isChatHistoryOpen);
     }
   }, [isGenerating, messages, currentChatId, router, handleSendMessage]);
+
+  // Effect: Update selectedModel to match the last message's model
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Find the last message that has a model property
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        if (message.model) {
+          setSelectedModel(message.model);
+          break;
+        }
+      }
+    }
+  }, [messages]);
 
   const inputBoxHeight = 58; // From your InputBox prop
 
@@ -2246,8 +2305,8 @@ const RenderMessageOnScreen = ({
                         />
                       )}
                       {message.model && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
-                          {message.model}
+                        <div className="text-sm px-0 py-1 font">
+                          {models.find((m) => m.id === message.model)?.name}
                         </div>
                       )}
                     </div>

@@ -53,15 +53,11 @@ export default function Header({ landingPage, isAnonymous }: HeaderInterface) {
           if (user) {
             setUser(user?.data?.user);
             // SetCookie user-status=guest
-            Cookies.set("user-status", "guest");
+            Cookies.set("user-status", "guest", { expires: 7 });
           }
           setLogOutLading(false);
-          // router.push("/chat?new=true");
-          const currentSearchParams = new URLSearchParams(
-            window.location.search
-          );
-          currentSearchParams.delete("chatId");
-          window.history.pushState({}, "", `/`);
+          window.location.replace("/chat?new=true");
+          // Close the dialog if onClose is provided
           // return location.reload();
         },
       },
