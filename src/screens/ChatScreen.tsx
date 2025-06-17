@@ -21,9 +21,6 @@ import {
   CHAT_CACHE_UPDATED_EVENT,
 } from "@/lib/fetchChats";
 import { cn } from "@/lib/utils";
-import Logo_light from "@/assets/logo_light.svg";
-import Logo_Dark from "@/assets/logo_dark.svg";
-import Image from "next/image";
 import ChatHistoryDesktop from "@/components/ChatHistoryDesktop";
 import Head from "next/head";
 import {
@@ -35,7 +32,6 @@ import {
   Upload,
   RotateCcw,
 } from "lucide-react";
-import { Pacifico } from "next/font/google";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -47,6 +43,7 @@ import {
 
 import { Textarea } from "@/components/ui/textarea";
 import models from "@/support/models";
+import HeroSection from "@/components/HeroSection";
 // import { Button } from "@/components/ui/button";
 
 interface Message {
@@ -265,12 +262,6 @@ interface ChatPageProps {
   isAnonymous: boolean;
 }
 
-const pacifico = Pacifico({
-  subsets: ["latin"],
-  weight: ["400"],
-  variable: "--font-pacifico",
-});
-
 export default function ChatPage({
   sessionDetails,
   isNewUser,
@@ -287,7 +278,9 @@ export default function ChatPage({
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [searchEnabled, setSearchEnabled] = useState<boolean>(false);
-  const [selectedModel, setSelectedModel] = useState<string>("gpt-4.1-mini");
+  const [selectedModel, setSelectedModel] = useState<string>(
+    "openai/gpt-4.1-mini"
+  );
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const { user, setUser } = useUserStore();
   const [chatTitle, setChatTitle] = useState<string>("Better Index");
@@ -1299,9 +1292,18 @@ export default function ChatPage({
         inputBoxRef.current?.focus();
       }
       // Check for Cmd+B on Mac or Ctrl+B on Windows/Linux for new chat
-      if ((event.metaKey || event.ctrlKey) && event.key === "b") {
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.shiftKey &&
+        event.key === "o"
+      ) {
         event.preventDefault();
-        router.push("/chat?new=true");
+        document.title = "Better Index";
+        const currentSearchParams = new URLSearchParams(window.location.search);
+        currentSearchParams.set("new", "true");
+        currentSearchParams.delete("shared");
+        currentSearchParams.delete("chatId");
+        window.history.pushState({}, "", `/chat?${currentSearchParams}`);
         // Focus the input after navigation with a small delay
         setTimeout(() => {
           inputBoxRef.current?.focus();
@@ -1649,34 +1651,9 @@ export default function ChatPage({
           </div>
         ) : null}
 
-        {messages.length === 0 && searchParams.get("new") ? (
-          <div className="max-w-[750px] mx-auto px-4 text-center md:mt-[250px] mt-[170px]">
-            <Image
-              src={Logo_Dark}
-              alt="Logo"
-              className="mx-auto dark:black hidden"
-              height={36}
-            />
-            <Image
-              src={Logo_light}
-              alt="Logo"
-              className="mx-auto dark:hidden block"
-              height={36}
-            />
-            <p className="text-xl mt-7 dark:text-white text-black">
-              Welcome to{" "}
-            </p>{" "}
-            <span
-              className={cn(
-                "text-3xl dark:text-white text-black font-lora",
-                pacifico.className
-              )}
-            >
-              {" "}
-              Better Index
-            </span>
-          </div>
-        ) : messages.length === 0 ? (
+        {messages.length === 0 && searchParams.get("new") && !input ? (
+          <HeroSection setInput={setInput} />
+        ) : messages.length === 0 && input && searchParams.get("chatId") ? (
           <div className="max-w-[750px] mx-auto px-4 pt-4 my-auto">
             <Spinner />
           </div>

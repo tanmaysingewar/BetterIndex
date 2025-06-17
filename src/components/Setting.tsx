@@ -1,7 +1,7 @@
 // app/routes/settings.tsx
 "use client";
 import { useState, useEffect } from "react";
-import { LogOutIcon, Moon, Sun, UserRound } from "lucide-react"; // Removed unused Database icon
+import { Command, LogOutIcon, Moon, Sun, UserRound } from "lucide-react"; // Removed unused Database icon
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { authClient } from "@/lib/auth-client";
 // import { useRouter } from "next/navigation";
@@ -135,6 +135,44 @@ export default function Settings() {
                     />
                     <Moon className="h-5 w-5" />
                   </div>
+                </div>
+              </div>
+              <div className="rounded-md p-2 text-left mt-7">
+                {/* add the shortcut keys here */}
+                <span className="text-black dark:text-white text-xs md:text-[15px] font-semibold">
+                  Keyboard Shortcuts:
+                </span>
+                <div className="gap-2 w-[200px] mt-2">
+                  <p className="text-black dark:text-white text-xs md:text-[15px] flex flex-row items-center justify-between ">
+                    Search{" "}
+                    <span className="text-xs md:text-[15px] flex flex-row items-center">
+                      <Command className="w-4 h-4 md:mr-2" /> K
+                    </span>
+                  </p>
+                  <p className="text-black dark:text-white text-xs md:text-[15px] flex flex-row items-center justify-between ">
+                    New Chat{" "}
+                    <span className="text-xs md:text-[15px] flex flex-row items-center">
+                      <Command className="w-4 h-4 md:mr-2" /> + Shift + O
+                    </span>
+                  </p>
+                  <p className="text-black dark:text-white text-xs md:text-[15px] flex flex-row items-center justify-between ">
+                    Next Chat{" "}
+                    <span className="text-xs md:text-[15px] flex flex-row items-center">
+                      <Command className="w-4 h-4 md:mr-2" /> + {"]"}
+                    </span>
+                  </p>
+                  <p className="text-black dark:text-white text-xs md:text-[15px] flex flex-row items-center justify-between ">
+                    Previous Chat{" "}
+                    <span className="text-xs md:text-[15px] flex flex-row items-center">
+                      <Command className="w-4 h-4 md:mr-2" /> + {"["}
+                    </span>
+                  </p>
+                  <p className="text-black dark:text-white text-xs md:text-[15px] flex flex-row items-center justify-between ">
+                    Focus{" "}
+                    <span className="text-xs md:text-[15px] flex flex-row items-center">
+                      <Command className="w-4 h-4 md:mr-2" /> + I
+                    </span>
+                  </p>
                 </div>
               </div>
               <Button
