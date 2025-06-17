@@ -8,6 +8,13 @@ import { authClient } from "@/lib/auth-client";
 import { Button } from "./ui/button";
 import Image from "next/image";
 import { Switch } from "./ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { useUserStore } from "@/store/userStore";
 import Cookies from "js-cookie";
 import Default from "@/assets/default.png";
@@ -100,7 +107,7 @@ export default function Settings() {
           </div>
           {selected === "Account" && (
             <div className="mx-5">
-              <div className="mt-5 flex flex-row items-center justify-center">
+              <div className="mt-5 flex flex-row items-center justify-left">
                 <Avatar className="w-12 h-12 rounded-full">
                   <Image
                     src={user?.image || Default}
@@ -120,20 +127,37 @@ export default function Settings() {
               <div className="flex flex-col space-y-2 mt-5">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <p className="text-sm font-medium">Dark Mode</p>
-                    {/* <p className="text-sm text-muted-foreground">
-                      Switch between light and dark themes
-                    </p> */}
+                    <p className="text-sm font-medium">Theme</p>
+                    <p className="text-xs text-muted-foreground">
+                      Choose your preferred theme
+                    </p>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Sun className="h-5 w-5" />
-                    <Switch
-                      checked={theme === "dark"}
-                      onCheckedChange={(checked) => {
-                        setTheme(checked ? "dark" : "light");
-                      }}
-                    />
-                    <Moon className="h-5 w-5" />
+                    <Select value={theme} onValueChange={setTheme}>
+                      <SelectTrigger className="w-[140px] ml-5">
+                        <SelectValue placeholder="Select theme" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="light">
+                          <div className="flex items-center space-x-2">
+                            <Sun className="h-4 w-4" />
+                            <span>Light</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="dark">
+                          <div className="flex items-center space-x-2">
+                            <Moon className="h-4 w-4" />
+                            <span>Dark</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="system">
+                          <div className="flex items-center space-x-2">
+                            <Command className="h-4 w-4" />
+                            <span>System</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>

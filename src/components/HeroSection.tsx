@@ -70,9 +70,9 @@ export default function HeroSection({
       <div className="mt-7 grid grid-cols-4 md:flex md:flex-row space-x-3">
         <Button
           className={cn(
-            "dark:bg-[#2a2d2f] dark:text-white bg-[#f0f0f0] text-black rounded-2xl md:rounded-full shadow-none border dark:border-[#2e2e2e] border-[#f0f0f0] flex flex-col md:flex-row items-center gap-2 md:gap-1 h-[70px] md:h-[40px] cursor-pointer",
+            "dark:bg-[#2a2d2f] dark:text-white bg-[#f0f0f0] text-black rounded-2xl md:rounded-full shadow-none border dark:border-[#2e2e2e] border-[#f0f0f0] flex flex-col md:flex-row items-center gap-2 md:gap-1 h-[70px] md:h-[40px] cursor-pointer hover:bg-[#d2d2d2] dark:hover:bg-[#2e2e2e]",
             activeTab === "create" &&
-              "bg-[#395665] dark:bg-[#395665] text-white"
+              "bg-[#395665] dark:bg-[#395665] text-white hover:bg-[#395665] dark:hover:bg-[#395665]"
           )}
           onClick={() => setActiveTab(activeTab === "create" ? "" : "create")}
         >
@@ -81,9 +81,9 @@ export default function HeroSection({
         </Button>
         <Button
           className={cn(
-            "dark:bg-[#2a2d2f] dark:text-white bg-[#f0f0f0] text-black rounded-2xl md:rounded-full shadow-none border dark:border-[#2e2e2e] border-[#f0f0f0] flex flex-col md:flex-row items-center gap-2 md:gap-1 h-[70px] md:h-[40px] cursor-pointer",
+            "dark:bg-[#2a2d2f] dark:text-white bg-[#f0f0f0] text-black rounded-2xl md:rounded-full shadow-none border dark:border-[#2e2e2e] border-[#f0f0f0] flex flex-col md:flex-row items-center gap-2 md:gap-1 h-[70px] md:h-[40px] cursor-pointer hover:bg-[#d2d2d2] dark:hover:bg-[#2e2e2e]",
             activeTab === "explore" &&
-              "bg-[#395665] dark:bg-[#395665] text-white"
+              "bg-[#395665] dark:bg-[#395665] text-white hover:bg-[#395665] dark:hover:bg-[#395665]"
           )}
           onClick={() => setActiveTab(activeTab === "explore" ? "" : "explore")}
         >
@@ -92,8 +92,9 @@ export default function HeroSection({
         </Button>
         <Button
           className={cn(
-            "dark:bg-[#2a2d2f] dark:text-white bg-[#f0f0f0] text-black rounded-2xl md:rounded-full shadow-none border dark:border-[#2e2e2e] border-[#f0f0f0] flex flex-col md:flex-row items-center gap-2 md:gap-1 h-[70px] md:h-[40px] cursor-pointer",
-            activeTab === "code" && "bg-[#395665] dark:bg-[#395665] text-white"
+            "dark:bg-[#2a2d2f] dark:text-white bg-[#f0f0f0] text-black rounded-2xl md:rounded-full shadow-none border dark:border-[#2e2e2e] border-[#f0f0f0] flex flex-col md:flex-row items-center gap-2 md:gap-1 h-[70px] md:h-[40px] cursor-pointer hover:bg-[#d2d2d2] dark:hover:bg-[#2e2e2e]",
+            activeTab === "code" &&
+              "bg-[#395665] dark:bg-[#395665] text-white hover:bg-[#395665] dark:hover:bg-[#395665]"
           )}
           onClick={() => setActiveTab(activeTab === "code" ? "" : "code")}
         >
@@ -102,8 +103,9 @@ export default function HeroSection({
         </Button>
         <Button
           className={cn(
-            "dark:bg-[#2a2d2f] dark:text-white bg-[#f0f0f0] text-black rounded-2xl md:rounded-full shadow-none border dark:border-[#2e2e2e] border-[#f0f0f0] flex flex-col md:flex-row items-center gap-2 md:gap-1 h-[70px] md:h-[40px] cursor-pointer",
-            activeTab === "learn" && "bg-[#395665] dark:bg-[#395665] text-white"
+            "dark:bg-[#2a2d2f] dark:text-white bg-[#f0f0f0] text-black rounded-2xl md:rounded-full shadow-none border dark:border-[#2e2e2e] border-[#f0f0f0] flex flex-col md:flex-row items-center gap-2 md:gap-1 h-[70px] md:h-[40px] cursor-pointer hover:bg-[#d2d2d2] dark:hover:bg-[#2e2e2e]",
+            activeTab === "learn" &&
+              "bg-[#395665] dark:bg-[#395665] text-white hover:bg-[#395665] dark:hover:bg-[#395665]"
           )}
           onClick={() => setActiveTab(activeTab === "learn" ? "" : "learn")}
         >
