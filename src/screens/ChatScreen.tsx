@@ -1859,6 +1859,16 @@ const RenderMessageOnScreen = ({
   const [editingText, setEditingText] = useState<string>("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [branchLoading, setBranchLoading] = useState(false);
+  const [imageKey, setImageKey] = useState<string>(
+    `${message.content}-${Date.now()}`
+  );
+
+  // Update image key when message changes
+  useEffect(() => {
+    if (message.fileUrl) {
+      setImageKey(`${message.fileUrl}-${Date.now()}`);
+    }
+  }, [message.fileUrl]);
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -1989,10 +1999,10 @@ const RenderMessageOnScreen = ({
                     ref={textareaCallbackRef}
                     value={editingText}
                     className="rounded-xl p-3 border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 text-xl font-lora dark:bg-neutral-900 bg-neutral-200"
-                    onChange={(e) => setEditingText(e.target.value)}
                     style={{
                       fontSize: "17px",
                     }}
+                    onChange={(e) => setEditingText(e.target.value)}
                     onKeyDown={(e) =>
                       handleEditKeyPress(
                         e,
@@ -2008,13 +2018,13 @@ const RenderMessageOnScreen = ({
                   />
                 ) : (
                   <div className="font-lora">
-                    {/* Display uploaded file if present */}
                     <p>{highlightSpecialWords(message.content)}</p>
                     {message.fileUrl && (
                       <div className="mt-1">
                         {message.fileType?.startsWith("image/") ? (
                           <div className="relative">
                             <img
+                              key={imageKey}
                               src={message.fileUrl}
                               alt={message.fileName || "Uploaded image"}
                               className="max-w-[300px] max-h-[200px] object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
@@ -2023,6 +2033,13 @@ const RenderMessageOnScreen = ({
                                 window.open(message.fileUrl, "_blank")
                               }
                               title="Click to open in new tab"
+                              onError={(e) => {
+                                console.error(
+                                  "Image failed to load:",
+                                  message.fileUrl
+                                );
+                                e.currentTarget.src = ""; // Clear the src on error
+                              }}
                             />
                             <div className="text-xs text-gray-500 mt-1">
                               {message.fileName}
@@ -2099,7 +2116,10 @@ const RenderMessageOnScreen = ({
                   <LoadingIndicator />
                 ) : (
                   <div className="markdown-content">
-                    <MessageRenderer content={message.content || " "} />
+                    <MessageRenderer
+                      key={imageKey}
+                      content={message.content || " "}
+                    />
                     <div className="flex flex-row items-center gap-4">
                       {CopyClicked ? (
                         <Check className="w-4 h-4" />
@@ -2192,12 +2212,12 @@ const RenderMessageOnScreen = ({
                 ) : (
                   <div>
                     <div>{highlightSpecialWords(message.content)}</div>
-                    {/* Display uploaded file if present */}
                     {message.fileUrl && (
                       <div className="mt-3">
                         {message.fileType?.startsWith("image/") ? (
                           <div className="relative">
                             <img
+                              key={imageKey}
                               src={message.fileUrl}
                               alt={message.fileName || "Uploaded image"}
                               className="max-w-[250px] max-h-[150px] object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
@@ -2206,6 +2226,13 @@ const RenderMessageOnScreen = ({
                                 window.open(message.fileUrl, "_blank")
                               }
                               title="Click to open in new tab"
+                              onError={(e) => {
+                                console.error(
+                                  "Image failed to load:",
+                                  message.fileUrl
+                                );
+                                e.currentTarget.src = ""; // Clear the src on error
+                              }}
                             />
                             <div className="text-xs text-gray-500 mt-1">
                               {message.fileName}
@@ -2282,7 +2309,10 @@ const RenderMessageOnScreen = ({
                   <LoadingIndicator />
                 ) : (
                   <div className="markdown-content">
-                    <MessageRenderer content={message.content || " "} />
+                    <MessageRenderer
+                      key={imageKey}
+                      content={message.content || " "}
+                    />
                     <div className="flex flex-row items-center gap-4">
                       {CopyClicked ? (
                         <Check className="w-4 h-4" />
