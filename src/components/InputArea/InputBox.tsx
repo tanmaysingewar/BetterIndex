@@ -324,6 +324,7 @@ export default function InputBox({
             setSelectedIndex={setSelectedIndex}
             handleSelection={handleSelection}
             handleInputChange={handleInputChange}
+            disabled={disabled || isUploading}
           />
           <div className="flex flex-row justify-between w-full mt-0">
             <div className="flex flex-row mt-2 dark:text-neutral-200 mx-3 justify-center items-center">
@@ -522,9 +523,9 @@ export default function InputBox({
               <Button
                 className="p-2 h-[38px] w-[38px] rounded-full dark:bg-neutral-200 bg-neutral-800"
                 onClick={() => onSend(input)}
-                disabled={disabled}
+                disabled={disabled || isUploading}
               >
-                {!disabled ? <Send /> : <OctagonPause />}
+                {!(disabled || isUploading) ? <Send /> : <OctagonPause />}
               </Button>
             </div>
           </div>

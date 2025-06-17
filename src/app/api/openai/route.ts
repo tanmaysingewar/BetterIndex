@@ -375,8 +375,11 @@ export async function POST(req: Request) {
       },
     ];
 
-    if ((!isNewChatFlow || shared) && Array.isArray(previous_conversations)) {
-      // If it's an existing chat OR a shared chat, add previous messages sent by the client
+    if (
+      (!isNewChatFlow || shared || editedMessage) &&
+      Array.isArray(previous_conversations)
+    ) {
+      // If it's an existing chat OR a shared chat OR an edited message, add previous messages sent by the client
       const validPreviousConversations = await Promise.all(
         previous_conversations
           .filter(

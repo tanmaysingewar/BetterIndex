@@ -10,6 +10,7 @@ interface TextInputProps {
   setSelectedIndex?: (index: number | ((prev: number) => number)) => void;
   handleSelection?: (selection: string) => void;
   handleInputChange?: (value: string) => void;
+  disabled?: boolean;
 }
 
 const TextInput = memo(function TextInput({
@@ -22,6 +23,7 @@ const TextInput = memo(function TextInput({
   setSelectedIndex = () => {},
   handleSelection = () => {},
   handleInputChange = setInput,
+  disabled = false,
 }: TextInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -98,8 +100,8 @@ const TextInput = memo(function TextInput({
               !input.split(" ").slice(-1)[0].includes("@")
             ) {
               e.preventDefault(); // Prevent new line
-              if (input.trim()) {
-                // Only send if there's content
+              if (input.trim() && !disabled) {
+                // Only send if there's content and not disabled
                 onSend(input);
               }
             }

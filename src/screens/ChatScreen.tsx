@@ -33,6 +33,7 @@ import {
   GitBranch,
   Loader2,
   Upload,
+  RotateCcw,
 } from "lucide-react";
 import { Pacifico } from "next/font/google";
 import { Button } from "@/components/ui/button";
@@ -2102,6 +2103,17 @@ const RenderMessageOnScreen = ({
                     setEditingText(message.content);
                   }}
                 />
+                <RotateCcw
+                  className="w-4 h-4 cursor-pointer m-2"
+                  onClick={() => {
+                    // Redo from this point: remove all messages after this one and resend
+                    const messagesUpToRedo = messages.filter(
+                      (_, i) => i < index
+                    );
+                    setMessages(messagesUpToRedo);
+                    handleSendMessage(message.content, true, messagesUpToRedo);
+                  }}
+                />
               </div>
             </div>
           )}
@@ -2293,6 +2305,17 @@ const RenderMessageOnScreen = ({
                       setEditingMessageIndex(index);
                     }
                     setEditingText(message.content);
+                  }}
+                />
+                <RotateCcw
+                  className="w-4 h-4 cursor-pointer m-2"
+                  onClick={() => {
+                    // Redo from this point: remove all messages after this one and resend
+                    const messagesUpToRedo = messages.filter(
+                      (_, i) => i < index
+                    );
+                    setMessages(messagesUpToRedo);
+                    handleSendMessage(message.content, true, messagesUpToRedo);
                   }}
                 />
               </div>
