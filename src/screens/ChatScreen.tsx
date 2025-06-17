@@ -960,13 +960,18 @@ export default function ChatPage({
           } catch (e) {
             console.error("Failed to parse error response:", e);
           }
-          // remove the last message from setMessages
-          setMessages((prevMessages) => {
-            if (prevMessages.length === 0) {
-              return prevMessages;
-            }
-            return prevMessages.slice(0, -1);
-          });
+
+          const currentChatId = searchParams.get("chatId");
+
+          if (currentChatId === chatIdForRequest) {
+            // remove the last message from setMessages
+            setMessages((prevMessages) => {
+              if (prevMessages.length === 0) {
+                return prevMessages;
+              }
+              return prevMessages.slice(0, -1);
+            });
+          }
 
           // Revert optimistic update on error
           if (isNewChat) {
@@ -1016,14 +1021,6 @@ export default function ChatPage({
             }
           }
 
-          // Remove the loading message
-          setMessages((prevMessages) => {
-            if (prevMessages.length === 0) {
-              return prevMessages;
-            }
-            return prevMessages.slice(0, -1);
-          });
-
           // Create the final assistant message with the image
           const finalAssistantMessage: Message = {
             role: "assistant",
@@ -1039,9 +1036,21 @@ export default function ChatPage({
             finalAssistantMessage,
           ];
 
-          // Set the final state
-          setMessages(finalMessagesState);
-          decrementRateLimit();
+          const currentChatId = searchParams.get("chatId");
+
+          if (currentChatId === chatIdForRequest) {
+            // Remove the loading message
+            setMessages((prevMessages) => {
+              if (prevMessages.length === 0) {
+                return prevMessages;
+              }
+              return prevMessages.slice(0, -1);
+            });
+
+            // Set the final state
+            setMessages(finalMessagesState);
+            decrementRateLimit();
+          }
 
           // Save to localStorage
           try {
@@ -1088,31 +1097,41 @@ export default function ChatPage({
               console.log("Failed to add chat to the local cache.");
             }
           }
-
           const reader = response.body?.getReader();
-          if (!reader) {
-            setMessages(messagesBeforeOptimisticUpdate); // Revert
-            throw new Error("No reader available");
+
+          const currentChatId = searchParams.get("chatId");
+          if (currentChatId === chatIdForRequest) {
+            if (!reader) {
+              setMessages(messagesBeforeOptimisticUpdate); // Revert
+              throw new Error("No reader available");
+            }
+
+            // remove the last message from setMessages
+            // To remove the last message:
+            setMessages((prevMessages) => {
+              // Check if there are any messages to remove
+              if (prevMessages.length === 0) {
+                return prevMessages; // Return the empty array if no messages exist
+              }
+              // Create a new array containing all elements except the last one
+              return prevMessages.slice(0, -1);
+            });
+
+            // Add placeholder for assistant message using functional update
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: "" },
+            ]);
           }
 
-          // remove the last message from setMessages
-          // To remove the last message:
-          setMessages((prevMessages) => {
-            // Check if there are any messages to remove
-            if (prevMessages.length === 0) {
-              return prevMessages; // Return the empty array if no messages exist
-            }
-            // Create a new array containing all elements except the last one
-            return prevMessages.slice(0, -1);
-          });
-
-          // Add placeholder for assistant message using functional update
-          setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+          if (!reader) {
+            throw new Error("No reader available");
+          }
 
           const decoder = new TextDecoder();
           let accumulatedText = "";
           while (true) {
-            const { done, value } = await reader.read();
+            const { done, value } = await reader?.read();
             if (done) break;
             accumulatedText += decoder.decode(value, { stream: true });
 
@@ -1130,17 +1149,20 @@ export default function ChatPage({
               currentAssistantMessage,
             ];
 
-            // Update the streaming content using functional update
-            setMessages((prev) => {
-              if (prev.length === 0) return prev; // Should not happen
-              const updatedMessages = [...prev];
-              const lastMsgIndex = updatedMessages.length - 1;
-              // Ensure we are updating the last message and it's the assistant placeholder/stream
-              if (updatedMessages[lastMsgIndex].role === "assistant") {
-                updatedMessages[lastMsgIndex].content = accumulatedText;
-              }
-              return updatedMessages;
-            });
+            const currentChatId = searchParams.get("chatId");
+            if (currentChatId === chatIdForRequest) {
+              // Update the streaming content using functional update
+              setMessages((prev) => {
+                if (prev.length === 0) return prev; // Should not happen
+                const updatedMessages = [...prev];
+                const lastMsgIndex = updatedMessages.length - 1;
+                // Ensure we are updating the last message and it's the assistant placeholder/stream
+                if (updatedMessages[lastMsgIndex].role === "assistant") {
+                  updatedMessages[lastMsgIndex].content = accumulatedText;
+                }
+                return updatedMessages;
+              });
+            }
 
             // Save current state to localStorage after each chunk
             try {
@@ -1247,6 +1269,7 @@ export default function ChatPage({
       fileUrl,
       fileType,
       fileName,
+      searchParams,
     ]
   );
 

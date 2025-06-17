@@ -167,7 +167,7 @@ export async function POST(req: Request) {
           // Premium models: 0 messages for non-logged in users
           requestLimit = 0;
           errorMessage =
-            "Premium models require a signed-in account. Please sign in to use this model.";
+            "Premium models require a signed-in account. Please sign in to use more.";
         } else {
           // Non-premium models: 10 messages in 24h for non-logged in users
           requestLimit = 10;
@@ -180,12 +180,12 @@ export async function POST(req: Request) {
           // Premium models: 10 messages in 24h for logged-in users
           requestLimit = 10;
           errorMessage =
-            "You have reached the maximum of 10 requests per 24 hours for premium models. Please try again later or use a non-premium model.";
+            "You have reached the maximum of 10 requests per 24 hours for premium models. Please try again after 24 hours or use a non-premium model.";
         } else {
           // Non-premium models: 30 messages in 24h for logged-in users
           requestLimit = 30;
           errorMessage =
-            "You have reached the maximum of 30 requests per 24 hours for this model. Please try again later.";
+            "You have reached the maximum of 30 requests per 24 hours. Please try again after 24 hours.";
         }
       }
 
@@ -246,7 +246,7 @@ export async function POST(req: Request) {
         // Chat exists - check ownership
         if (existingChat.userId !== userId) {
           console.error(
-            `API Error: User ${userId} forbidden access to chat ${currentChatId} owned by ${existingChat.userId}.`
+            `API Error: User ${userId} forbidden access to chat ${currentChatId}.`
           );
           return new Response(
             JSON.stringify({
