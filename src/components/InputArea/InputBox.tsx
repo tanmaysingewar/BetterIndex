@@ -1,5 +1,12 @@
 "use client";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import {
   GlobeIcon,
   OctagonPause,
@@ -11,7 +18,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "../ui/button";
-import TextInput from "./TextInput";
+import TextInput, { TextInputRef } from "./TextInput";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import {
   // UploadButton,
@@ -44,22 +51,40 @@ interface InputBoxProps {
   setFileName: (value: string) => void;
 }
 
-export default function InputBox({
-  input,
-  setInput,
-  onSend,
-  height,
-  disabled,
-  searchEnabled,
-  onSearchToggle,
-  selectedModel,
-  onModelChange,
-  fileUrl,
-  setFileUrl,
-  setFileType,
-  fileName,
-  setFileName,
-}: InputBoxProps) {
+// Define the ref interface for InputBox
+export interface InputBoxRef {
+  focus: () => void;
+}
+
+const InputBox = forwardRef<InputBoxRef, InputBoxProps>(function InputBox(
+  {
+    input,
+    setInput,
+    onSend,
+    height,
+    disabled,
+    searchEnabled,
+    onSearchToggle,
+    selectedModel,
+    onModelChange,
+    fileUrl,
+    setFileUrl,
+    setFileType,
+    fileName,
+    setFileName,
+  },
+  ref
+) {
+  // Create a ref for the TextInput component
+  const textInputRef = useRef<TextInputRef>(null);
+
+  // Expose focus method to parent components
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      textInputRef.current?.focus();
+    },
+  }));
+
   // Model definitions
 
   const lastWord = input.split(" ").slice(-1)[0];
@@ -315,6 +340,7 @@ export default function InputBox({
             </div>
           )}
           <TextInput
+            ref={textInputRef}
             input={input}
             setInput={setInput}
             height={height}
@@ -533,6 +559,8 @@ export default function InputBox({
       </div>
     </div>
   );
-}
+});
 
 const promptSuggestions: string[] = [];
+
+export default InputBox;

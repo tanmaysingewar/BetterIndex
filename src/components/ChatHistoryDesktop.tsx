@@ -118,6 +118,8 @@ export default function ChatHistoryDesktop({
 
   // Reference for the chat list container
   const chatListRef = useRef<HTMLDivElement>(null);
+  // Reference for the search input
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Load cache data only once on component mount or when localStorage changes
   useEffect(() => {
@@ -367,6 +369,59 @@ export default function ChatHistoryDesktop({
     [handleSaveEditTitle, handleCancelEditTitle]
   );
 
+  // Handle chat navigation shortcuts
+  const handleChatNavigation = useCallback(
+    (event: KeyboardEvent) => {
+      // Check for cmd/ctrl + [ or ]
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      const modifierKey = isMac ? event.metaKey : event.ctrlKey;
+
+      if (!modifierKey || displayedChats.length === 0) return;
+
+      if (event.key === "[" || event.key === "]") {
+        event.preventDefault();
+
+        const currentIndex = displayedChats.findIndex(
+          (chat) => chat.id === currentChatId
+        );
+
+        if (event.key === "[") {
+          // Previous chat
+          const prevIndex =
+            currentIndex > 0 ? currentIndex - 1 : displayedChats.length - 1;
+          const prevChat = displayedChats[prevIndex];
+          if (prevChat) {
+            handleChatClick(prevChat.id, prevChat.title);
+          }
+        } else if (event.key === "]") {
+          // Next chat
+          const nextIndex =
+            currentIndex < displayedChats.length - 1 ? currentIndex + 1 : 0;
+          const nextChat = displayedChats[nextIndex];
+          if (nextChat) {
+            handleChatClick(nextChat.id, nextChat.title);
+          }
+        }
+      }
+
+      // Handle search focus shortcut (cmd/ctrl + k)
+      if (event.key === "k" || event.key === "K") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    },
+    [displayedChats, currentChatId, handleChatClick]
+  );
+
+  // Add keyboard event listeners for chat navigation
+  useEffect(() => {
+    document.addEventListener("keydown", handleChatNavigation);
+    return () => {
+      document.removeEventListener("keydown", handleChatNavigation);
+    };
+  }, [handleChatNavigation]);
+
   // Determine UI states
   const hasChats = cacheData?.chats && cacheData.chats.length > 0;
   const showEmptySearchResults =
@@ -390,6 +445,7 @@ export default function ChatHistoryDesktop({
       </Button>
       <div className="flex-shrink-0 text-center mt-5">
         <Input
+          ref={searchInputRef}
           placeholder="Search chats..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}

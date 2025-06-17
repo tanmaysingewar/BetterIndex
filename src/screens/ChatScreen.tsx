@@ -8,7 +8,7 @@ import React, {
   memo,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import InputBox from "@/components/InputArea/InputBox";
+import InputBox, { InputBoxRef } from "@/components/InputArea/InputBox";
 import Header from "@/components/Header";
 import Spinner from "@/components/Spinner";
 import MessageRenderer from "@/components/MessageRenderer";
@@ -296,6 +296,8 @@ export default function ChatPage({
   const serverFetchInitiated = useRef<Record<string, boolean>>({});
   // Ref to track the initial message being processed by handleSendMessage
   const processingInitialMessageRef = useRef<string | null>(null);
+  // Ref for InputBox to enable focus functionality
+  const inputBoxRef = useRef<InputBoxRef>(null);
 
   const anonymousSignInAttempted = useRef(false); // <-- Add this ref
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
@@ -1288,6 +1290,32 @@ export default function ChatPage({
     }
   }, [searchParams]);
 
+  // Add keyboard shortcuts for Cmd+I to focus the input and Cmd+B for new chat
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Check for Cmd+I on Mac or Ctrl+I on Windows/Linux
+      if ((event.metaKey || event.ctrlKey) && event.key === "i") {
+        event.preventDefault();
+        inputBoxRef.current?.focus();
+      }
+      // Check for Cmd+B on Mac or Ctrl+B on Windows/Linux for new chat
+      if ((event.metaKey || event.ctrlKey) && event.key === "b") {
+        event.preventDefault();
+        router.push("/chat?new=true");
+        // Focus the input after navigation with a small delay
+        setTimeout(() => {
+          inputBoxRef.current?.focus();
+        }, 100);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [router]);
+
   // Add localStorage event listener to sync messages across tabs
   useEffect(() => {
     if (!currentChatId) return;
@@ -1678,6 +1706,7 @@ export default function ChatPage({
         <div className="w-full mx-auto">
           <div className="max-w-[750px] mx-auto">
             <InputBox
+              ref={inputBoxRef}
               height={inputBoxHeight}
               input={input}
               setInput={setInput}
