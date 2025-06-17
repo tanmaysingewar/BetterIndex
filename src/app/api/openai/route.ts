@@ -333,7 +333,24 @@ export async function POST(req: Request) {
         const res = await tavilyClient.search(message, {
           includeAnswer: true,
         });
-        return JSON.stringify(res);
+
+        // Format the results as a string
+        let formattedResults = "";
+
+        if (res.results && Array.isArray(res.results)) {
+          res.results.forEach((result, index) => {
+            formattedResults += `Result ${index + 1}:\n`;
+            formattedResults += `Title: ${result.title}\n`;
+            formattedResults += `Content: ${result.content}\n\n`;
+          });
+        }
+
+        // Add the answer if available
+        if (res.answer) {
+          formattedResults += `Summary: ${res.answer}\n`;
+        }
+
+        return formattedResults;
       } catch (error) {
         console.error("Error in searchWeb:", error);
         return "";
@@ -540,11 +557,11 @@ export async function POST(req: Request) {
     // Prepare base text content with search results if available
     let textContent = message.trim();
     if (searchResults && searchResults.trim() !== "") {
-      textContent = `-------- Web Search Results --------
-${searchResults}
--------- End of Web Search Results --------
-
-${message.trim()}`;
+      textContent = `
+      -------- Web Search Results --------\n
+      ${searchResults}\n
+      -------- End of Web Search Results --------\n
+      User Message: ${message.trim()}`;
     }
 
     // Check if we have file content to include
