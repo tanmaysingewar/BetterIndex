@@ -282,7 +282,7 @@ export default function ChatPage({
     "openai/gpt-4.1-mini"
   );
   const [isLoadingChats, setIsLoadingChats] = useState(false);
-  const { user, setUser } = useUserStore();
+  const { user, setUser, refreshSession } = useUserStore();
   const [chatTitle, setChatTitle] = useState<string>("Better Index");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -410,6 +410,7 @@ export default function ChatPage({
           try {
             async function updateChatCache() {
               setIsLoadingChats(true);
+              refreshSession();
               const success = await fetchAllChatsAndCache();
               await fetchSharedChatsAndCache();
               if (success) {
