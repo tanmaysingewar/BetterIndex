@@ -368,14 +368,10 @@ export default function ChatPage({
         // Cookie setting logic moved slightly to avoid redundant sets
         if (!isNewUser && !isAnonymous && !userAlreadySet) {
           console.log("Setting user cookie based on session.");
-          await fetchAllChatsAndCache();
-          await fetchSharedChatsAndCache();
           Cookies.set("user-status", "user", { expires: 7 });
         }
         if (isAnonymous && !userAlreadySet) {
           console.log("Setting guest cookie based on session (anonymous).");
-          await fetchAllChatsAndCache();
-          await fetchSharedChatsAndCache();
           Cookies.set("user-status", "guest", { expires: 7 });
         }
       }
@@ -410,7 +406,12 @@ export default function ChatPage({
         const navigationEntry =
           navigationEntries[0] as PerformanceNavigationTiming;
         const chatIdFromUrl = searchParams.get("chatId") || undefined;
-        if (navigationEntry.type === "reload") {
+
+        // Fetch chats on both initial load and reload
+        if (
+          navigationEntry.type === "reload" ||
+          navigationEntry.type === "navigate"
+        ) {
           try {
             async function updateChatCache() {
               setIsLoadingChats(true);
@@ -495,6 +496,44 @@ export default function ChatPage({
       }
     }
   }, [isAuthenticating]);
+
+  // Effect: Fetch chats on initial load when user is authenticated
+  useEffect(() => {
+    // Don't proceed if authentication is in progress
+    if (isAuthenticating) {
+      console.log("Authentication in progress, delaying chat fetch");
+      return;
+    }
+
+    // Only fetch if user is set and we haven't loaded chats yet
+    if (user && !isLoadingChats) {
+      // Check if we already have chats in cache
+      const existingCache = localStorage.getItem(ALL_CHATS_CACHE_KEY);
+      const sharedCache = localStorage.getItem(SHARED_CHATS_CACHE_KEY);
+
+      // If no cache exists, fetch chats immediately
+      if (!existingCache || !sharedCache) {
+        console.log("No chat cache found, fetching chats on initial load");
+        try {
+          async function initialChatFetch() {
+            setIsLoadingChats(true);
+            const success = await fetchAllChatsAndCache();
+            await fetchSharedChatsAndCache();
+            if (success) {
+              console.log("Initial chat cache populated.");
+            } else {
+              console.error("Failed to populate initial chat cache.");
+            }
+            setIsLoadingChats(false);
+          }
+          initialChatFetch();
+        } catch (error) {
+          console.error("Error during initial chat fetch:", error);
+          setIsLoadingChats(false);
+        }
+      }
+    }
+  }, [user, isAuthenticating, isLoadingChats]);
 
   // Effect 1: Set initial chat ID from URL & Load from Local Storage
   useEffect(() => {
