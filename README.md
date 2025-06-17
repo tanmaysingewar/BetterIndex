@@ -1,6 +1,6 @@
 # BetterIndex - Multi-LLM Chat Application
 
-**Description:** A unified chat interface for multiple Large Language Models. Switch between different AI models seamlessly and compare responses across various LLMs in one application.
+**Description:** Chat with multiple AI models in one simple interface.
 
 ## Features
 
@@ -9,7 +9,6 @@
 - **Multiple AI Models**: Support for various Large Language Models
 - **Model Switching**: Easily switch between different LLMs mid-conversation
 - **Unified Interface**: Single chat interface for all supported models
-- **Model Comparison**: Compare responses from different LLMs
 
 ### 🗨️ Chat Interface
 
@@ -28,13 +27,6 @@
 - **Edit Chat Titles**: Rename conversations on the fly
 - **Delete Chats**: Remove unwanted conversations
 
-### 🎨 User Experience
-
-- **Floating Actions**: Edit/delete buttons appear as overlay without changing tile size
-- **Haptic Feedback**: Mobile vibration on long press
-- **Auto-dismiss**: Options automatically hide after 5 seconds
-- **Visual Feedback**: Loading states and smooth transitions
-
 ## Getting Started
 
 ### Prerequisites
@@ -48,7 +40,6 @@
 
 ```bash
 git clone <repository-url>
-cd BI\ -\ App
 ```
 
 2. Install dependencies:
@@ -80,6 +71,7 @@ BETTER_AUTH_URL=http://localhost:3000  # Base URL for authentication (update for
 TAVILY_API_KEY=                     # Tavily API key for web search functionality
 UPSTASH_REDIS_REST_URL=             # Upstash Redis REST URL for caching
 UPSTASH_REDIS_REST_TOKEN=           # Upstash Redis REST token
+UPLOADTHING_TOKEN=                  # Upload thing Token
 ```
 
 #### Getting Google OAuth Credentials
@@ -111,49 +103,14 @@ bun dev
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Project Structure
-
-```
-src/
-├── components/
-│   ├── ChatHistory.tsx     # Chat history sidebar with search & pagination
-│   ├── ui/                 # Reusable UI components
-│   └── ...
-├── lib/                    # Utility functions and API calls
-├── app/                    # Next.js app directory
-└── ...
-```
-
-## Key Components
-
-### ChatHistory Component
-
-- Manages local chat cache and pagination
-- Provides search functionality across chat titles
-- Handles CRUD operations (create, read, update, delete)
-- Implements touch gestures for mobile interaction
-
-### Multi-LLM Chat Interface
-
-- Real-time messaging with multiple Large Language Models
-- Model selection and switching capabilities
-- Message history persistence across different models
-- Responsive design with modern UI patterns
-
 ## Technologies Used
 
 - **Framework**: Next.js 14+ with App Router
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
-- **UI Components**: Custom components with Radix UI primitives
+- **UI Components**: Custom components with shadcn UI
 - **Icons**: Lucide React
 - **Storage**: LocalStorage with event-driven sync
-
-## API Endpoints
-
-- `GET/POST /api/chat` - Chat operations
-- `DELETE /api/chat/[id]` - Delete specific chat
-- `PATCH /api/chat/[id]` - Update chat title
 
 ## Contributing
 
