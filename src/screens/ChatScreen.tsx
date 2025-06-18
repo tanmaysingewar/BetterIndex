@@ -1767,13 +1767,16 @@ export default function ChatPage({
           </div>
         ) : null}
 
-        {messages.length === 0 && searchParams.get("new") && !input ? (
+        {/* Show HeroSection for new chats */}
+        {searchParams.get("new") && !input ? (
           <HeroSection setInput={setInput} />
-        ) : messages.length === 0 && input && searchParams.get("chatId") ? (
-          <div className="max-w-[750px] mx-auto px-4 pt-4 my-auto">
+        ) : /* Show loading spinner when loading an existing chat with no messages yet */
+        messages.length === 0 && !input ? (
+          <div className="flex justify-center items-center h-full">
             <Spinner />
           </div>
         ) : (
+          /* Show main chat interface */
           <div className="overflow-y-scroll h-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-transparent dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500 mt-12 lg:mt-0">
             <div className="max-w-[780px] mx-auto px-4 mt-5 md:pl-10">
               {messages.map((message, index) => (
