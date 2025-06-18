@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { headers as nextHeaders } from "next/headers";
 import { db } from "@/database/db";
 import { nanoid } from "nanoid";
-import { chat, messages } from "@/database/schema/auth-schema";
+import { chat, messages, sharedChat } from "@/database/schema/auth-schema";
 import { eq } from "drizzle-orm"; // Import eq for querying
 import { tavily } from "@tavily/core";
 import OpenAI from "openai";
@@ -233,97 +233,203 @@ export async function POST(req: Request) {
     }
 
     // --- 5. Check Chat Existence, Ownership, or Create New ---
-    try {
-      // Attempt to find the chat
-      const results = await db
-        .select({ id: chat.id, userId: chat.userId })
-        .from(chat)
-        .where(eq(chat.id, currentChatId))
-        .limit(1);
-      const existingChat = results[0];
+    if (!shared) {
+      // Normal chat flow
+      try {
+        // Attempt to find the chat
+        const results = await db
+          .select({ id: chat.id, userId: chat.userId })
+          .from(chat)
+          .where(eq(chat.id, currentChatId))
+          .limit(1);
+        const existingChat = results[0];
 
-      if (existingChat) {
-        // Chat exists - check ownership
-        if (existingChat.userId !== userId) {
-          console.error(
-            `API Error: User ${userId} forbidden access to chat ${currentChatId}.`
-          );
-          return new Response(
-            JSON.stringify({
-              error: "Forbidden: Chat does not belong to user",
-            }),
-            { status: 403, headers: { "Content-Type": "application/json" } }
-          );
-        }
+        if (existingChat) {
+          // Chat exists - check ownership
+          if (existingChat.userId !== userId) {
+            console.error(
+              `API Error: User ${userId} forbidden access to chat ${currentChatId}.`
+            );
+            return new Response(
+              JSON.stringify({
+                error: "Forbidden: Chat does not belong to user",
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } }
+            );
+          }
 
-        // If editedMessage is true, delete the existing chat and all its messages
-        if (editedMessage) {
-          // Delete all messages associated with this chat
-          await db.delete(messages).where(eq(messages.chatId, currentChatId));
+          // If editedMessage is true, delete the existing chat and all its messages
+          if (editedMessage) {
+            // Delete all messages associated with this chat
+            await db.delete(messages).where(eq(messages.chatId, currentChatId));
 
-          // Delete the chat itself
-          await db.delete(chat).where(eq(chat.id, currentChatId));
+            // Delete the chat itself
+            await db.delete(chat).where(eq(chat.id, currentChatId));
 
-          console.log(
-            `Deleted chat ${currentChatId} and its messages for edited message flow`
-          );
+            console.log(
+              `Deleted chat ${currentChatId} and its messages for edited message flow`
+            );
 
-          // Set flag to create new chat
-          isNewChatFlow = true;
+            // Set flag to create new chat
+            isNewChatFlow = true;
+          } else {
+            // Chat exists and belongs to the user, normal flow
+            isNewChatFlow = false;
+          }
         } else {
-          // Chat exists and belongs to the user, normal flow
-          isNewChatFlow = false;
+          // Chat does NOT exist - Create it using the ID from the frontend
+          isNewChatFlow = true;
         }
-      } else {
-        // Chat does NOT exist - Create it using the ID from the frontend
-        isNewChatFlow = true;
-      }
 
-      // Create new chat if needed (either doesn't exist or was deleted for edit)
-      if (isNewChatFlow) {
-        // Generate the title
-        const openaiClientForTitle = new OpenAI({
-          baseURL: "https://openrouter.ai/api/v1",
-          apiKey: process.env.OPENROUTER_API_KEY,
-        });
-        const completion = await openaiClientForTitle.chat.completions.create({
-          messages: [
+        // Create new chat if needed (either doesn't exist or was deleted for edit)
+        if (isNewChatFlow) {
+          // Generate the title
+          const openaiClientForTitle = new OpenAI({
+            baseURL: "https://openrouter.ai/api/v1",
+            apiKey: process.env.OPENROUTER_API_KEY,
+          });
+          const completion = await openaiClientForTitle.chat.completions.create(
             {
-              role: "system",
-              content:
-                "You are the Title Generator. You are given a message and you need to generate a title for the chat. The title should be plain text without any symbols, prefixes, or formatting. The title should be 10 words or less.",
-            },
-            {
-              role: "user",
-              content: message.trim().substring(0, 100),
-            },
-          ],
-          model: "google/gemini-2.0-flash-001",
-          temperature: 0.1,
-        });
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "You are the Title Generator. You are given a message and you need to generate a title for the chat. The title should be plain text without any symbols, prefixes, or formatting. The title should be 10 words or less.",
+                },
+                {
+                  role: "user",
+                  content: message.trim().substring(0, 100),
+                },
+              ],
+              model: "google/gemini-2.0-flash-001",
+              temperature: 0.1,
+            }
+          );
 
-        // Overright the title of the current chat
-        title = completion.choices[0]?.message
-          ?.content!.trim()
-          .substring(0, 100)
-          .replace(/"/g, "");
+          // Overright the title of the current chat
+          title = completion.choices[0]?.message
+            ?.content!.trim()
+            .substring(0, 100)
+            .replace(/"/g, "");
 
-        await db.insert(chat).values({
-          id: currentChatId, // Use the ID provided by the frontend
-          title: title, // Use first message for title
-          userId: userId,
-          createdAt: new Date(),
-        });
+          await db.insert(chat).values({
+            id: currentChatId, // Use the ID provided by the frontend
+            title: title, // Use first message for title
+            userId: userId,
+            createdAt: new Date(),
+          });
+        }
+      } catch (dbError) {
+        console.error(
+          `Database error during chat check/creation for ID ${currentChatId}:`,
+          dbError
+        );
+        return new Response(
+          JSON.stringify({ error: "Database error during chat handling" }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
       }
-    } catch (dbError) {
-      console.error(
-        `Database error during chat check/creation for ID ${currentChatId}:`,
-        dbError
+    } else {
+      // Shared chat flow - User is continuing a shared chat, convert it to their own chat
+      console.log(
+        `User continuing shared chat ${currentChatId}, converting to user's own chat`
       );
-      return new Response(
-        JSON.stringify({ error: "Database error during chat handling" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+
+      try {
+        // Check if user already has a chat with this ID
+        const existingUserChat = await db
+          .select({ id: chat.id, userId: chat.userId })
+          .from(chat)
+          .where(eq(chat.id, currentChatId))
+          .limit(1);
+
+        if (
+          existingUserChat.length > 0 &&
+          existingUserChat[0].userId === userId
+        ) {
+          // User already owns a chat with this ID, proceed normally
+          isNewChatFlow = false;
+          console.log("User already owns this chat, proceeding normally");
+        } else {
+          // Create a new chat for this user with a new ID
+          const newChatId = nanoid();
+          currentChatId = newChatId; // Update the current chat ID
+
+          // Generate title from the first message or use shared chat title
+          let chatTitle = "Continued Chat";
+
+          try {
+            // Fetch the shared chat to get its title
+            const originalSharedChatId = requestHeaders.get("X-Chat-ID");
+            const sharedChatData = await db
+              .select({ title: sharedChat.title })
+              .from(sharedChat)
+              .where(eq(sharedChat.id, originalSharedChatId || ""))
+              .limit(1);
+
+            if (sharedChatData.length > 0) {
+              chatTitle = `Continued - ${sharedChatData[0].title}`;
+            } else {
+              // Generate title from the message
+              const openaiClientForTitle = new OpenAI({
+                baseURL: "https://openrouter.ai/api/v1",
+                apiKey: process.env.OPENROUTER_API_KEY,
+              });
+              const completion =
+                await openaiClientForTitle.chat.completions.create({
+                  messages: [
+                    {
+                      role: "system",
+                      content:
+                        "You are the Title Generator. You are given a message and you need to generate a title for the chat. The title should be plain text without any symbols, prefixes, or formatting. The title should be 10 words or less.",
+                    },
+                    {
+                      role: "user",
+                      content: message.trim().substring(0, 100),
+                    },
+                  ],
+                  model: "google/gemini-2.0-flash-001",
+                  temperature: 0.1,
+                });
+
+              chatTitle =
+                completion.choices[0]?.message
+                  ?.content!.trim()
+                  .substring(0, 100)
+                  .replace(/"/g, "") || "New Chat";
+            }
+          } catch (titleError) {
+            console.error("Error generating title:", titleError);
+            chatTitle = "Continued Chat";
+          }
+
+          title = chatTitle;
+
+          // Create the new chat
+          await db.insert(chat).values({
+            id: newChatId,
+            title: chatTitle,
+            userId: userId,
+            createdAt: new Date(),
+          });
+
+          isNewChatFlow = true;
+          console.log(
+            `Created new chat ${newChatId} for user continuing shared chat`
+          );
+        }
+      } catch (dbError) {
+        console.error(
+          `Database error during shared chat conversion for ID ${currentChatId}:`,
+          dbError
+        );
+        return new Response(
+          JSON.stringify({
+            error: "Database error during shared chat handling",
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // --- 6. Search Web ---
@@ -703,15 +809,17 @@ export async function POST(req: Request) {
 
     // Save user message immediately in background without blocking AI generation
     const saveUserMessage = async () => {
+      // Note: We no longer skip saves for shared chats since continuing them creates a new user chat
+
       try {
         console.log(`Saving user message immediately for chat ${finalChatId}`);
 
         // Prepare all messages to be saved (previous conversations + current user message)
         const messagesToSave = [];
 
-        // Save all previous conversations to database if shared is true OR editedMessage is true
+        // Save all previous conversations to database if editedMessage is true
         if (
-          (shared || editedMessage) &&
+          editedMessage &&
           Array.isArray(previous_conversations) &&
           previous_conversations.length > 0
         ) {
@@ -823,6 +931,8 @@ export async function POST(req: Request) {
 
     // Function to update bot response - runs independently of streaming
     const updateBotResponse = async (botResponse: string) => {
+      // Note: We no longer skip updates for shared chats since continuing them creates a new user chat
+
       try {
         console.log(
           `Attempting to update bot response for chat ${finalChatId}, client connected: ${!clientDisconnected}`
@@ -1085,6 +1195,12 @@ export async function POST(req: Request) {
       Connection: "keep-alive",
       "X-Title": title,
     });
+
+    // Add headers to indicate if this was a shared chat that got converted
+    if (shared && isNewChatFlow) {
+      responseHeaders.set("X-New-Chat-ID", currentChatId);
+      responseHeaders.set("X-Converted-From-Shared", "true");
+    }
 
     // Ensure background processing continues even if client disconnects
     backgroundProcessing.catch((error) => {

@@ -801,10 +801,6 @@ export default function ChatPage({
         { role: "assistant", content: "loading" },
       ]);
 
-      if (searchParams.get("shared") === "true") {
-        chatIdForRequest = generateChatId();
-      }
-
       // Prepare request
       const requestHeaders = new Headers({
         "Content-Type": "application/json",
@@ -1002,10 +998,33 @@ export default function ChatPage({
 
           // Get the header of the response (similar to regular chat)
           const get_header = response.headers.get("X-Title");
-          console.log("X-Title", get_header);
-          console.log("X-Title", typeof get_header);
+          const newChatId = response.headers.get("X-New-Chat-ID");
+          const convertedFromShared =
+            response.headers.get("X-Converted-From-Shared") === "true";
 
-          if (get_header) {
+          console.log("X-Title", get_header);
+          console.log("X-New-Chat-ID", newChatId);
+          console.log("X-Converted-From-Shared", convertedFromShared);
+
+          // Handle shared chat conversion to personal chat
+          if (convertedFromShared && newChatId) {
+            // Update the chat ID for the current conversation
+            chatIdForRequest = newChatId;
+            setCurrentChatId(newChatId);
+
+            // Update URL to remove shared parameter and use new chat ID
+            const newUrl = `/chat?chatId=${newChatId}`;
+            window.history.pushState({}, "", newUrl);
+
+            console.log(
+              `Shared chat converted to personal chat with ID: ${newChatId}`
+            );
+          }
+
+          if (
+            get_header &&
+            (!searchParams.get("shared") || convertedFromShared)
+          ) {
             const chat = {
               id: chatIdForRequest,
               title: get_header!,
@@ -1014,12 +1033,21 @@ export default function ChatPage({
 
             const added = addChatToCache(chat);
             document.title = get_header;
+            setChatTitle(get_header); // Update the chatTitle state
 
             if (added) {
               console.log("Chat successfully added to the local cache.");
             } else {
               console.log("Failed to add chat to the local cache.");
             }
+          } else if (
+            get_header &&
+            searchParams.get("shared") &&
+            !convertedFromShared
+          ) {
+            // For shared chats that remain shared, just update the title without caching
+            document.title = get_header;
+            setChatTitle(get_header);
           }
 
           // Create the final assistant message with the image
@@ -1053,36 +1081,73 @@ export default function ChatPage({
             decrementRateLimit();
           }
 
-          // Save to localStorage
-          try {
-            localStorage.setItem(
-              getLocalStorageKey(chatIdForRequest),
-              JSON.stringify(finalMessagesState)
-            );
-            dispatchMessagesUpdatedEvent(
-              getLocalStorageKey(chatIdForRequest),
-              JSON.stringify(finalMessagesState)
-            );
-            const currentSearchParams = new URLSearchParams(
-              window.location.search
-            );
-            currentSearchParams.set("chatId", chatIdForRequest);
-            currentSearchParams.delete("shared");
-            window.history.pushState({}, "", `/chat?${currentSearchParams}`);
-          } catch (lsError) {
-            console.error(
-              "Error saving final messages to Local Storage:",
-              lsError
-            );
+          // Save to localStorage (save for personal chats and converted shared chats)
+          const currentSharedStatus = searchParams.get("shared");
+          const shouldSaveToLocalStorage =
+            !currentSharedStatus || convertedFromShared;
+
+          if (shouldSaveToLocalStorage) {
+            try {
+              localStorage.setItem(
+                getLocalStorageKey(chatIdForRequest),
+                JSON.stringify(finalMessagesState)
+              );
+              dispatchMessagesUpdatedEvent(
+                getLocalStorageKey(chatIdForRequest),
+                JSON.stringify(finalMessagesState)
+              );
+
+              // Only update URL if it hasn't been updated already by the conversion logic
+              if (!convertedFromShared) {
+                const currentSearchParams = new URLSearchParams(
+                  window.location.search
+                );
+                currentSearchParams.set("chatId", chatIdForRequest);
+                currentSearchParams.delete("shared");
+                window.history.pushState(
+                  {},
+                  "",
+                  `/chat?${currentSearchParams}`
+                );
+              }
+            } catch (lsError) {
+              console.error(
+                "Error saving final messages to Local Storage:",
+                lsError
+              );
+            }
           }
         } else {
           // Handle regular chat streaming response
           // Get the header of the response
           const get_header = response.headers.get("X-Title");
-          console.log("X-Title", get_header);
-          console.log("X-Title", typeof get_header);
+          const newChatId = response.headers.get("X-New-Chat-ID");
+          const convertedFromShared =
+            response.headers.get("X-Converted-From-Shared") === "true";
 
-          if (get_header) {
+          console.log("X-Title", get_header);
+          console.log("X-New-Chat-ID", newChatId);
+          console.log("X-Converted-From-Shared", convertedFromShared);
+
+          // Handle shared chat conversion to personal chat
+          if (convertedFromShared && newChatId) {
+            // Update the chat ID for the current conversation
+            chatIdForRequest = newChatId;
+            setCurrentChatId(newChatId);
+
+            // Update URL to remove shared parameter and use new chat ID
+            const newUrl = `/chat?chatId=${newChatId}`;
+            window.history.pushState({}, "", newUrl);
+
+            console.log(
+              `Shared chat converted to personal chat with ID: ${newChatId}`
+            );
+          }
+
+          if (
+            get_header &&
+            (!searchParams.get("shared") || convertedFromShared)
+          ) {
             const chat = {
               id: chatIdForRequest,
               title: get_header!,
@@ -1091,12 +1156,21 @@ export default function ChatPage({
 
             const added = addChatToCache(chat);
             document.title = get_header;
+            setChatTitle(get_header); // Update the chatTitle state
 
             if (added) {
               console.log("Chat successfully added to the local cache.");
             } else {
               console.log("Failed to add chat to the local cache.");
             }
+          } else if (
+            get_header &&
+            searchParams.get("shared") &&
+            !convertedFromShared
+          ) {
+            // For shared chats that remain shared, just update the title without caching
+            document.title = get_header;
+            setChatTitle(get_header);
           }
           const reader = response.body?.getReader();
 
@@ -1165,22 +1239,26 @@ export default function ChatPage({
               });
             }
 
-            // Save current state to localStorage after each chunk
-            try {
-              localStorage.setItem(
-                getLocalStorageKey(chatIdForRequest),
-                JSON.stringify(currentMessagesState)
-              );
-              dispatchMessagesUpdatedEvent(
-                getLocalStorageKey(chatIdForRequest),
-                JSON.stringify(currentMessagesState)
-              );
-            } catch (lsError) {
-              console.error(
-                "Error saving streaming chunk to Local Storage:",
-                lsError
-              );
-              // Continue streaming even if localStorage fails
+            // Save current state to localStorage after each chunk (save for personal chats and converted shared chats)
+            const shouldSaveStreaming =
+              !searchParams.get("shared") || convertedFromShared;
+            if (shouldSaveStreaming) {
+              try {
+                localStorage.setItem(
+                  getLocalStorageKey(chatIdForRequest),
+                  JSON.stringify(currentMessagesState)
+                );
+                dispatchMessagesUpdatedEvent(
+                  getLocalStorageKey(chatIdForRequest),
+                  JSON.stringify(currentMessagesState)
+                );
+              } catch (lsError) {
+                console.error(
+                  "Error saving streaming chunk to Local Storage:",
+                  lsError
+                );
+                // Continue streaming even if localStorage fails
+              }
             }
           }
 
@@ -1203,27 +1281,39 @@ export default function ChatPage({
           setMessages(finalMessagesState);
           decrementRateLimit();
 
-          // Save the definitive final state to Local Storage
-          try {
-            localStorage.setItem(
-              getLocalStorageKey(chatIdForRequest),
-              JSON.stringify(finalMessagesState) // Save the calculated final state
-            );
-            dispatchMessagesUpdatedEvent(
-              getLocalStorageKey(chatIdForRequest),
-              JSON.stringify(finalMessagesState)
-            );
-            const currentSearchParams = new URLSearchParams(
-              window.location.search
-            );
-            currentSearchParams.set("chatId", chatIdForRequest);
-            currentSearchParams.delete("shared");
-            window.history.pushState({}, "", `/chat?${currentSearchParams}`);
-          } catch (lsError) {
-            console.error(
-              "Error saving final messages to Local Storage:",
-              lsError
-            );
+          // Save the definitive final state to Local Storage (save for personal chats and converted shared chats)
+          const shouldSaveFinal =
+            !searchParams.get("shared") || convertedFromShared;
+          if (shouldSaveFinal) {
+            try {
+              localStorage.setItem(
+                getLocalStorageKey(chatIdForRequest),
+                JSON.stringify(finalMessagesState) // Save the calculated final state
+              );
+              dispatchMessagesUpdatedEvent(
+                getLocalStorageKey(chatIdForRequest),
+                JSON.stringify(finalMessagesState)
+              );
+
+              // Only update URL if it hasn't been updated already by the conversion logic
+              if (!convertedFromShared) {
+                const currentSearchParams = new URLSearchParams(
+                  window.location.search
+                );
+                currentSearchParams.set("chatId", chatIdForRequest);
+                currentSearchParams.delete("shared");
+                window.history.pushState(
+                  {},
+                  "",
+                  `/chat?${currentSearchParams}`
+                );
+              }
+            } catch (lsError) {
+              console.error(
+                "Error saving final messages to Local Storage:",
+                lsError
+              );
+            }
           }
         }
       } catch (error) {
@@ -1323,6 +1413,7 @@ export default function ChatPage({
       ) {
         event.preventDefault();
         document.title = "Better Index";
+        setChatTitle("Better Index"); // Update the chatTitle state when creating a new chat
         const currentSearchParams = new URLSearchParams(window.location.search);
         currentSearchParams.set("new", "true");
         currentSearchParams.delete("shared");
@@ -1629,6 +1720,7 @@ export default function ChatPage({
     );
 
     document.title = newChatTitle + " - Better Index";
+    setChatTitle(newChatTitle); // Update the chatTitle state to reflect the new branched chat title
     const currentSearchParams = new URLSearchParams(window.location.search);
     currentSearchParams.set("chatId", newChatId);
     currentSearchParams.delete("new");
