@@ -368,7 +368,7 @@ export async function POST(req: Request) {
               .limit(1);
 
             if (sharedChatData.length > 0) {
-              chatTitle = `Continued - ${sharedChatData[0].title}`;
+              chatTitle = sharedChatData[0].title;
             } else {
               // Generate title from the message
               const openaiClientForTitle = new OpenAI({
