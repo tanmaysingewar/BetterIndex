@@ -16,17 +16,6 @@
 - Clean, modern UI with dark/light mode support
 - Responsive design for desktop and mobile
 
-### 📚 Chat History Management
-
-- **Smart Caching**: Local storage-based chat history with automatic sync
-- **Intuitive Navigation**:
-  - Single tap to open chats
-  - Long press for edit/delete options
-- **Search & Filter**: Real-time search through chat history
-- **Pagination**: Efficient browsing of large chat collections
-- **Edit Chat Titles**: Rename conversations on the fly
-- **Delete Chats**: Remove unwanted conversations
-
 ## Getting Started
 
 ### Prerequisites
@@ -63,15 +52,15 @@ cp .env.example .env.local
 Edit `.env.local` with the following required environment variables:
 
 ```env
-GOOGLE_CLIENT_ID=                    # Google OAuth client ID for authentication
-GOOGLE_CLIENT_SECRET=               # Google OAuth client secret
-BETTER_AUTH_SECRET=lAEdlwojkSvbKMitmaEAqTEAP7WOKZSf  # Secret key for BetterAuth
-DATABASE_URL=                       # Database connection URL
-BETTER_AUTH_URL=http://localhost:3000  # Base URL for authentication (update for production)
-TAVILY_API_KEY=                     # Tavily API key for web search functionality
-UPSTASH_REDIS_REST_URL=             # Upstash Redis REST URL for caching
-UPSTASH_REDIS_REST_TOKEN=           # Upstash Redis REST token
-UPLOADTHING_TOKEN=                  # Upload thing Token
+GOOGLE_CLIENT_ID=                       # Google OAuth client ID for authentication
+GOOGLE_CLIENT_SECRET=                   # Google OAuth client secret
+BETTER_AUTH_SECRET=                     # Secret key for BetterAuth
+DATABASE_URL=                           # Database connection URL
+BETTER_AUTH_URL=http://localhost:3000   # Base URL for authentication (update for production)
+TAVILY_API_KEY=                         # Tavily API key for web search functionality
+UPSTASH_REDIS_REST_URL=                 # Upstash Redis REST URL for caching
+UPSTASH_REDIS_REST_TOKEN=               # Upstash Redis REST token
+UPLOADTHING_TOKEN=                      # Upload thing Token
 ```
 
 #### Getting Google OAuth Credentials
@@ -110,7 +99,19 @@ bun dev
 - **Styling**: Tailwind CSS
 - **UI Components**: Custom components with shadcn UI
 - **Icons**: Lucide React
-- **Storage**: LocalStorage with event-driven sync
+- **Auth**: Better Auth
+- **ORM**: Drizzle
+- **Database**: Postgres (NeonDB)
+- **SDK**: OpenAI SDK
+- **Storage Bucket**: Uploadthing
+- **State Management**: Zustand
+- **RateLimiter**: Upstash Redis
+- **Syntax highlighter**: React Syntax Highlighter
+- **Hosting**: Vercel
+- **React Compiler**: babel-plugin-react-compiler ^19
+- **Virtual List**: Tanstack React Virtual
+- **Web Search**: Tavily API
+- **LLM Provider**: Openrouter/OpenAI
 
 ## Contributing
 
