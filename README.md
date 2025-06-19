@@ -61,6 +61,8 @@ TAVILY_API_KEY=                         # Tavily API key for web search function
 UPSTASH_REDIS_REST_URL=                 # Upstash Redis REST URL for caching
 UPSTASH_REDIS_REST_TOKEN=               # Upstash Redis REST token
 UPLOADTHING_TOKEN=                      # Upload thing Token
+OPENAI_API_KEY=                         # Open AI API key
+OPENROUTER_API_KEY=                     # Open Router API Key
 ```
 
 #### Getting Google OAuth Credentials
