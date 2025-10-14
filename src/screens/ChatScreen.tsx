@@ -1749,7 +1749,7 @@ export default function ChatPage({
 
       {/* Main Chat Area */}
       <div
-        className={`flex flex-col w-full dark:bg-red-500 bg-red-500 lg:mt-0 `}
+        className={`flex flex-col w-full dark:bg-white bg-white lg:mt-0 `}
       >
         <div className="lg:hidden">
           <Header landingPage={true} isAnonymous={isAnonymous} />
